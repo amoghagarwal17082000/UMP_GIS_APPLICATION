@@ -1,9 +1,5 @@
 const pool = require('../../config/db');
 
-/**
- * Find user by ID
- * Joins div_master to get proper division code (divcode)
- */
 async function findUserById(userId) {
   const sql = `
     SELECT 
@@ -16,12 +12,8 @@ async function findUserById(userId) {
       u.otp,
       u.otp_created_at,
       u.email,
-
-      u.user_type,
-      u.unit_type,
-
+      u.contact_no,
       d.divcode AS division_code,
-
       dept.department_id,
       dept.department
     FROM user_master u
@@ -34,9 +26,7 @@ async function findUserById(userId) {
   const { rows } = await pool.query(sql, [userId]);
   return rows[0];
 }
-/**
- * Get user's email for OTP delivery
- */
+
 async function getUserEmailById(userId) {
   const col = String(process.env.USER_EMAIL_COLUMN || 'email').trim();
 
@@ -55,9 +45,6 @@ async function getUserEmailById(userId) {
   return rows[0]?.email || null;
 }
 
-/**
- * Save OTP
- */
 async function saveOtp(userId, otp, ttlMinutes = Number(process.env.OTP_TTL_MINUTES || 10)) {
   const sql = `
     UPDATE user_master
@@ -71,10 +58,6 @@ async function saveOtp(userId, otp, ttlMinutes = Number(process.env.OTP_TTL_MINU
   await pool.query(sql, [userId, otp, String(ttlMinutes)]);
 }
 
-
-/**
- * Clear OTP
- */
 async function clearOtp(userId) {
   const sql = `
     UPDATE user_master
@@ -116,7 +99,6 @@ async function markOtpUsed(userId) {
   `;
   await pool.query(sql, [userId]);
 }
-
 
 module.exports = {
   findUserById,

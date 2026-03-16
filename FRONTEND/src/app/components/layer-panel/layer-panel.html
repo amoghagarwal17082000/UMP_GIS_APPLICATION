@@ -5,16 +5,15 @@
   </div>
 
   <div class="panel-body">
-    <div class="layer-item" *ngFor="let layer of layerManager.getLayers()">
+    <div class="layer-item" *ngFor="let layer of layerManager.getLayers(); trackBy: trackByLayerId">
       <label>
         <input
           type="checkbox"
           [(ngModel)]="layer.visible"
           (change)="toggleLayer()"
         />
-        {{ layer.title }}
+        {{ getLabel(layer) }}
       </label>
     </div>
   </div>
 </div>
-

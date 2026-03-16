@@ -2,30 +2,15 @@ const express = require('express');
 const router = express.Router();
 
 const authController = require('./auth.controller');
+const captchaService = require('../../services/captcha/captchaService');
 
-const captchaService = require('../../services/captcha/captchaService'); // ✅ ADD THIS
-
-// Legacy (pre-OTP) login. Kept for backward compatibility.
 router.post('/login', authController.login);
-
-// OTP flow
-// Step-1: validate credentials + send OTP to registered email
 router.post('/request-otp', authController.requestOtp);
-
-// Step-2: verify OTP and return user session payload
 router.post('/verify-otp', authController.verifyOtp);
-
-// Optional: resend OTP using the same otpRef
 router.post('/resend-otp', authController.resendOtp);
+router.get('/me', authController.getCurrentUser);
+router.post('/logout', authController.logout);
 
-/**
- * CAPTCHA
- * NOTE: These endpoints will become:
- * POST /api/auth/captcha/new
- * POST /api/auth/captcha/validate
- * (because this router is probably mounted on /api/auth)
- */
-// ✅ GET /api/auth/captcha/new  (no preflight)
 router.get('/captcha/new', (req, res) => {
   try {
     const captcha = captchaService.generateCaptcha();
@@ -45,7 +30,6 @@ router.get('/captcha/new', (req, res) => {
   }
 });
 
-// ✅ GET /api/auth/captcha/validate?captchaId=...&captchaValue=...  (no preflight)
 router.get('/captcha/validate', (req, res) => {
   const captchaId = req.query.captchaId;
   const captchaValue = req.query.captchaValue;
@@ -59,24 +43,19 @@ router.get('/captcha/validate', (req, res) => {
 
   return res.json({
     success: ok,
-    message: ok ? 'Captcha ok' : (result?.reason || 'Invalid captcha'),
+    message: ok ? 'Captcha ok' : result?.reason || 'Invalid captcha',
   });
 });
 
-// POST /api/auth/captcha/new
 router.post('/captcha/new', (req, res) => {
   try {
     const clientType = req.headers['x-client-type'];
-    console.log('Generating new CAPTCHA for client type:', clientType);
-
     const captcha = captchaService.generateCaptcha();
 
-    // ✅ prevent browser caching
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
 
-    // support both shapes (mobile wrapper)
     if (clientType && String(clientType).toLowerCase() === 'mobile') {
       return res.json({ data: captcha });
     }
@@ -97,8 +76,6 @@ router.post('/captcha/new', (req, res) => {
   }
 });
 
-
-// POST /api/auth/captcha/validate
 router.post('/captcha/validate', (req, res) => {
   const { captchaId, captchaValue } = req.body || {};
 
@@ -110,19 +87,12 @@ router.post('/captcha/validate', (req, res) => {
   }
 
   const result = captchaService.validateCaptcha(captchaId, captchaValue);
-
-  // support both boolean return OR {ok, reason}
   const ok = typeof result === 'boolean' ? result : !!result?.ok;
 
   return res.json({
     success: ok,
-    message: ok ? 'Captcha ok' : (result?.reason || 'Invalid captcha'),
+    message: ok ? 'Captcha ok' : result?.reason || 'Invalid captcha',
   });
 });
-
-// res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-// res.set('Pragma', 'no-cache');
-// res.set('Expires', '0');
-
 
 module.exports = router;

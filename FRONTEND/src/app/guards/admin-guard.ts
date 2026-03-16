@@ -1,16 +1,17 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
 
-export const adminGuard: CanActivateFn = (_route, _state): boolean | UrlTree => {
+import { CurrentUserService } from '../services/current-user';
+
+export const adminGuard: CanActivateFn = async (): Promise<boolean | UrlTree> => {
   const router = inject(Router);
+  const currentUser = inject(CurrentUserService);
 
-  const userType = (localStorage.getItem('user_type') || '').trim();
+  const user = await currentUser.loadMe();
 
-  // Adjust this if your backend returns different case
-  if (userType === 'Admin') {
+  if (user?.user_type === 'Admin') {
     return true;
   }
 
-  // If not admin → redirect to dashboard home
   return router.createUrlTree(['/dashboard']);
 };

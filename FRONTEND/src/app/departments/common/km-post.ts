@@ -1,26 +1,26 @@
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
-import { MapLayer } from '../../services/interface';
+import { circleMarkerOptionsFromLegend, defineLegend, MapLayer } from '../../services/interface';
+
+const KM_POST_LEGEND = defineLegend({
+  type: 'point' as const,
+  color: '#2563eb',
+  label: 'KM Post',
+  fillColor: '#2563eb',
+  fillOpacity: 0.95,
+  strokeColor: '#ffffff',
+  strokeWidth: 1,
+  radius: 6,
+});
 
 export class KmPostLayer implements MapLayer {
   id = 'km_posts';
   title = 'KM Posts';
   visible = true;
   layerGroup = 'common' as const;
+  legend = KM_POST_LEGEND;
 
   private readonly MIN_ZOOM = 10;
-
-  legend = {
-    type: 'point' as const,
-    color: '#2563eb',
-    label: 'KM Post',
-    fillColor: '#2563eb',
-    fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWidth: 1,
-    radius: 7,
-  };
-
   private layer: L.GeoJSON;
   private lastBbox = '';
   private isLoading = false;
@@ -30,14 +30,7 @@ export class KmPostLayer implements MapLayer {
   constructor(private api: Api, private onData?: (geojson: any) => void) {
     this.layer = L.geoJSON(null, {
       pointToLayer: (_feature: any, latlng: L.LatLng) =>
-        L.circleMarker(latlng, {
-          radius: 6,
-          fillColor: '#2563eb',
-          color: '#ffffff',
-          weight: 1,
-          opacity: 1,
-          fillOpacity: 0.95,
-        }),
+        L.circleMarker(latlng, circleMarkerOptionsFromLegend(this.legend)),
       onEachFeature: (feature: any, layer: any) => {
         const p = feature?.properties || {};
         layer.bindPopup(`

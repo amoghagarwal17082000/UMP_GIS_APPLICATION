@@ -3,11 +3,10 @@
   height: 100%;
 }
 
-/* sidebar is taken out of layout */
 .sidebar {
   height: 100%;
   width: 320px;
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, transform 0.3s ease;
   overflow: hidden;
   background: #111827;
   color: #c8c9ce;
@@ -17,8 +16,6 @@
   width: 70px;
 }
 
-
-/* HEADER */
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -32,9 +29,11 @@
   font-size: 22px;
   font-weight: 600;
   color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Toggle buttons */
 .sidebar-toggle,
 .sidebar-collapse-btn {
   background: none;
@@ -49,12 +48,10 @@
   font-size: 28px;
 }
 
-/* Center hamburger when collapsed */
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
 }
 
-/* MENU */
 .menu {
   list-style: none;
   padding: 0;
@@ -90,4 +87,52 @@
 
 .menu i {
   font-size: 26px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 991.98px) {
+  .sidebar {
+    position: fixed;
+    top: 72px;
+    left: 0;
+    bottom: 0;
+    width: min(82vw, 300px);
+    z-index: 3100;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.22);
+  }
+
+  .sidebar.collapsed {
+    width: min(82vw, 300px);
+    transform: translateX(-100%);
+  }
+
+  .sidebar-header {
+    height: 56px;
+  }
+
+  .sidebar-title {
+    font-size: 18px;
+  }
+
+  .menu li {
+    padding: 14px 18px;
+    font-size: 16px;
+  }
+
+  .menu i {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .sidebar {
+    top: 92px;
+    width: min(88vw, 280px);
+  }
+
+  .menu li {
+    padding: 12px 16px;
+    font-size: 15px;
+    margin: 4px;
+  }
 }

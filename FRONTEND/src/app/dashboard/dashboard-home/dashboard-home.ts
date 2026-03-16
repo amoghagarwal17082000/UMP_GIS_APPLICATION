@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { Api } from 'src/app/api/api';
+import { CurrentUserService } from 'src/app/services/current-user';
 
 type CardType = 'TOTAL' | 'MAKER' | 'CHECKER' | 'APPROVER' | 'FINALIZED';
 
@@ -29,8 +30,8 @@ type EditableLayerKey =
 interface SubCard {
   title: string;
   value: number;
-  layerKey: string;   // map/edit-layer key
-  statusKey: string;  // MAKER/CHECKER/APPROVER/FINALIZED
+  layerKey: string;
+  statusKey: string;
 }
 
 @Component({
@@ -51,59 +52,51 @@ export class DashboardHome implements OnInit {
     { key: 'FINALIZED', title: 'FINALIZED', value: 0, color: 'teal' },
   ];
 
-subCardMap: Record<CardType, SubCard[]> = {
-  TOTAL: this.emptySubCards('TOTAL'),
-  MAKER: this.emptySubCards('MAKER'),
-  CHECKER: this.emptySubCards('CHECKER'),
-  APPROVER: this.emptySubCards('APPROVER'),
-  FINALIZED: this.emptySubCards('FINALIZED'),
-};
+  subCardMap: Record<CardType, SubCard[]> = {
+    TOTAL: this.emptySubCards('TOTAL'),
+    MAKER: this.emptySubCards('MAKER'),
+    CHECKER: this.emptySubCards('CHECKER'),
+    APPROVER: this.emptySubCards('APPROVER'),
+    FINALIZED: this.emptySubCards('FINALIZED'),
+  };
 
   constructor(
     private api: Api,
     private cdr: ChangeDetectorRef,
-    private router: Router
+    private router: Router,
+    private currentUser: CurrentUserService
   ) {}
 
-private getUserMainKey(): CardType | 'ADMIN' | null {
-  const ut = (localStorage.getItem('user_type') || '').trim().toLowerCase();
-  if (ut === 'maker') return 'MAKER';
-  if (ut === 'checker') return 'CHECKER';
-  if (ut === 'approver') return 'APPROVER';
-  if (ut === 'admin') return 'ADMIN';
-  return null;
-}
-  // ✅ now card is SubCard, so template click works
-onSubCardClick(card: SubCard): void {
-  // Only Station sub-card triggers deep-link (keep this rule)
-  if (card.layerKey !== 'stations') return;
+  private getUserMainKey(): CardType | 'ADMIN' | null {
+    const ut = (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase();
+    if (ut === 'maker') return 'MAKER';
+    if (ut === 'checker') return 'CHECKER';
+    if (ut === 'approver') return 'APPROVER';
+    if (ut === 'admin') return 'ADMIN';
+    return null;
+  }
 
-  const userMain = this.getUserMainKey();
-  if (!userMain) return;
+  onSubCardClick(card: SubCard): void {
+    if (card.layerKey !== 'stations') return;
 
-  // ✅ Admin can click from any main card
-  const allowed =
-    userMain === 'ADMIN' ||
-    this.selectedMain === userMain;
+    const userMain = this.getUserMainKey();
+    if (!userMain) return;
 
-  if (!allowed) return;
+    const allowed = userMain === 'ADMIN' || this.selectedMain === userMain;
+    if (!allowed) return;
 
-  // ✅ Navigate to page that contains Map (Home)
-  this.router.navigate(['/dashboard/railway-assets'], {
-    queryParams: {
-      panel: 'edit',
-      layer: 'stations',
-      // optional: send which card was clicked
-      // status: card.statusKey,
-    },
-  });
-}
+    this.router.navigate(['/dashboard/railway-assets'], {
+      queryParams: {
+        panel: 'edit',
+        layer: 'stations',
+      },
+    });
+  }
 
   ngOnInit(): void {
     this.loadDashboard();
   }
 
-  /* ================= LOAD DASHBOARD ================= */
   private loadDashboard(): void {
     const types: CardType[] = ['TOTAL', 'MAKER', 'CHECKER', 'APPROVER', 'FINALIZED'];
 
@@ -160,33 +153,26 @@ onSubCardClick(card: SubCard): void {
         this.selectedMain = 'TOTAL';
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('❌ Dashboard load failed', err),
+      error: (err) => console.error('Dashboard load failed', err),
     });
   }
 
-  /* ================= HELPERS ================= */
   private setSubCard(type: CardType, title: string, value: number): void {
     this.subCardMap = {
       ...this.subCardMap,
-      [type]: this.subCardMap[type].map((c) =>
-        c.title === title ? { ...c, value } : c
-      ),
+      [type]: this.subCardMap[type].map((c) => (c.title === title ? { ...c, value } : c)),
     };
     this.updateMain(type);
   }
 
   private updateMain(type: CardType): void {
     const sum = this.subCardMap[type].reduce((a, b) => a + b.value, 0);
-    this.mainCards = this.mainCards.map((c) =>
-      c.key === type ? { ...c, value: sum } : c
-    );
+    this.mainCards = this.mainCards.map((c) => (c.key === type ? { ...c, value: sum } : c));
   }
 
-onMainCardClick(key: CardType): void {
-  // Main cards are always clickable for every logged-in user.
-  // Sub-card click access remains role-gated in onSubCardClick().
-  this.selectedMain = key;
-}
+  onMainCardClick(key: CardType): void {
+    this.selectedMain = key;
+  }
 
   get activeSubCards(): SubCard[] {
     return this.subCardMap[this.selectedMain];
@@ -196,18 +182,18 @@ onMainCardClick(key: CardType): void {
     return this.mainCards.find((c) => c.key === this.selectedMain)?.color;
   }
 
-private emptySubCards(statusKey: string): SubCard[] {
-  return [
-    { title: 'KM Post', value: 0, layerKey: 'km_post', statusKey },
-    { title: 'Road Over Bridge', value: 0, layerKey: 'road_over_bridge', statusKey },
-    { title: 'Rail Over Rail', value: 0, layerKey: 'ror', statusKey },
-    { title: 'Road Under Bridge', value: 0, layerKey: 'rub_lhs', statusKey },
-    { title: 'Station', value: 0, layerKey: 'stations', statusKey },
-    { title: 'Level Xing', value: 0, layerKey: 'levelxing', statusKey },
-    { title: 'Bridge Start', value: 0, layerKey: 'bridge_start', statusKey },
-    { title: 'Bridge Stop', value: 0, layerKey: 'bridge_end', statusKey },
-    { title: 'Bridge Minor', value: 0, layerKey: 'bridge_minor', statusKey },
-    { title: 'Land Plan Ontrack', value: 0, layerKey: 'landplan_ontrack', statusKey },
-  ];
-}
+  private emptySubCards(statusKey: string): SubCard[] {
+    return [
+      { title: 'KM Post', value: 0, layerKey: 'km_post', statusKey },
+      { title: 'Road Over Bridge', value: 0, layerKey: 'road_over_bridge', statusKey },
+      { title: 'Rail Over Rail', value: 0, layerKey: 'ror', statusKey },
+      { title: 'Road Under Bridge', value: 0, layerKey: 'rub_lhs', statusKey },
+      { title: 'Station', value: 0, layerKey: 'stations', statusKey },
+      { title: 'Level Xing', value: 0, layerKey: 'levelxing', statusKey },
+      { title: 'Bridge Start', value: 0, layerKey: 'bridge_start', statusKey },
+      { title: 'Bridge Stop', value: 0, layerKey: 'bridge_end', statusKey },
+      { title: 'Bridge Minor', value: 0, layerKey: 'bridge_minor', statusKey },
+      { title: 'Land Plan Ontrack', value: 0, layerKey: 'landplan_ontrack', statusKey },
+    ];
+  }
 }

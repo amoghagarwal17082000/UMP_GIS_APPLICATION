@@ -1,7 +1,22 @@
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
 }
 
 .leaflet-container {
@@ -18,103 +33,105 @@ html, body {
   --topbar-h: 78px;
   --topbar-height: 56px;
   --panel-gap: 10px;
-
-  /* ===== PANEL THEME (GLOBAL) ===== */
   --panel-radius: 14px;
   --panel-header-h: 46px;
-  --panel-header-bg: #0b2d6b; /* dark blue */
+  --panel-header-bg: #0b2d6b;
   --panel-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
   --panel-body-pad: 12px 14px;
+  --dashboard-page-pad: 20px;
+  --dashboard-page-pad-sm: 14px;
+  --dashboard-surface-radius: 20px;
+  --dashboard-surface-shadow: 0 16px 36px rgba(31, 57, 90, 0.1);
+  --dashboard-surface-pad: 24px;
 }
 
-/* =========================================================
-   ✅ GLOBAL UNIFORM PANEL STYLE (ALL PANELS)
-   Applies to Layers / Legend / Basemap / Edit — everywhere.
-   Only look/skin, NOT edit-tool logic.
-   ========================================================= */
+.dashboard-page-shell {
+  width: 100%;
+  min-height: 100%;
+  padding: var(--dashboard-page-pad);
+}
 
-/* Base panel frame */
+.dashboard-page-shell.dashboard-page-shell-compact {
+  padding-top: 8px;
+  padding-bottom: 14px;
+}
+
+.dashboard-page-width {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.dashboard-surface-card {
+  border-radius: var(--dashboard-surface-radius);
+  background: #ffffff;
+  box-shadow: var(--dashboard-surface-shadow);
+  padding: var(--dashboard-surface-pad);
+}
+
 .panel {
   background: #ffffff;
   border-radius: var(--panel-radius);
   box-shadow: var(--panel-shadow);
   border: none;
-
   overflow: hidden;
-
   display: flex;
   flex-direction: column;
-
   padding: 0;
   margin: 0;
 }
 
-/* HEADER BAR */
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-
   height: var(--panel-header-h);
   min-height: var(--panel-header-h);
-
   margin: 0;
   padding: 0 10px 0 14px;
-
   background: var(--panel-header-bg);
-
   border-top-left-radius: var(--panel-radius);
   border-top-right-radius: var(--panel-radius);
 }
 
-/* Title in header (covers span and h4) */
 .panel-header span,
 .panel-header h4,
 .panel-header .panel-title {
   margin: 0;
   padding: 0;
-
   color: #ffffff;
   font-weight: 800;
-  font-size: 18px; /* you can set 14px if you want smaller */
+  font-size: 18px;
   line-height: 1.2;
   letter-spacing: 0.2px;
 }
 
-/* Close button (white) */
 .panel .panel-close,
 .panel .close,
-.panel button[aria-label="Close"] {
+.panel button[aria-label='Close'] {
   width: 34px;
   height: 34px;
-
   border-radius: 10px;
   border: none;
-
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
-
   font-size: 20px;
   font-weight: 900;
   line-height: 1;
-
   cursor: pointer;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   transition: background 0.15s ease, transform 0.08s ease;
 }
 
 .panel .panel-close:hover,
 .panel .close:hover,
-.panel button[aria-label="Close"]:hover {
+.panel button[aria-label='Close']:hover {
   background: rgba(255, 255, 255, 0.24);
   transform: translateY(-1px);
 }
 
-/* BODY (uniform padding + scroll) */
 .panel .panel-body,
 .panel .panel-content {
   flex: 1 1 auto;
@@ -123,20 +140,17 @@ html, body {
   margin: 0;
 }
 
-/* Fallback if body wrapper missing */
 .panel > :not(.panel-header) {
   flex: 1 1 auto;
   overflow: auto;
   padding: var(--panel-body-pad);
 }
 
-/* Default typography */
 .panel label {
   font-size: 13px;
   color: #374151;
 }
 
-/* Scrollbar (optional) */
 .panel::-webkit-scrollbar,
 .panel .panel-body::-webkit-scrollbar,
 .panel .panel-content::-webkit-scrollbar {
@@ -146,7 +160,7 @@ html, body {
 .panel::-webkit-scrollbar-thumb,
 .panel .panel-body::-webkit-scrollbar-thumb,
 .panel .panel-content::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.20);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
 }
 
@@ -156,9 +170,6 @@ html, body {
   background: transparent;
 }
 
-/* =========================================================
-   RESPONSIVE (kept, but these only matter if panels are fixed-position)
-   ========================================================= */
 @media (max-width: 767.98px) {
   .panel {
     left: 8px;
@@ -176,8 +187,6 @@ html, body {
     max-height: calc(100vh - 130px);
   }
 }
-
-/* ================= LEAFLET FIXES ================= */
 
 .leaflet-top.leaflet-left {
   left: 80px !important;
@@ -201,20 +210,27 @@ html, body {
   font-weight: 600;
 }
 
-/* Mobile topbar height */
 @media (max-width: 767.98px) {
-  :root { --topbar-h: 120px; }
+  :root {
+    --topbar-h: 120px;
+    --dashboard-page-pad: var(--dashboard-page-pad-sm);
+    --dashboard-surface-pad: 18px;
+  }
+
+  .leaflet-top.leaflet-left,
+  .sidebar:not(.collapsed) ~ .dashboard-content .leaflet-top.leaflet-left {
+    left: 12px !important;
+  }
 }
 
 @media (min-width: 768px) and (max-width: 1199.98px) {
-  :root { --topbar-h: 96px; }
+  :root {
+    --topbar-h: 96px;
+    --dashboard-page-pad: 18px;
+    --dashboard-surface-pad: 22px;
+  }
 }
 
-/* =========================================================
-   OPTIONAL: If you still want ALL widget panels taller
-   (this is NOT edit-specific; affects all widgets)
-   Remove if you want height controlled only in map.css.
-   ========================================================= */
 .right-panel {
   top: 4px !important;
   bottom: 35px !important;

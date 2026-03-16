@@ -2,10 +2,11 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { Api } from 'src/app/api/api';
 
 import { Auth } from 'src/app/services/auth';
+import { CurrentUserService } from 'src/app/services/current-user';
 import { SidebarState } from 'src/app/services/sidebar-state';
 
 @Component({
@@ -30,19 +31,23 @@ export class DashboardTopbar implements OnInit, OnDestroy {
   user_id = '';
 
   collapsed$!: Observable<boolean>;
+  private userSub?: Subscription;
 
   constructor(
     private auth: Auth,
     private router: Router,
     private sidebarState: SidebarState,
     private api: Api,
+    private currentUser: CurrentUserService
   ) {
-    this.userName = localStorage.getItem('user_name') || 'User';
     this.collapsed$ = this.sidebarState.collapsed$;
-    this.user_id = localStorage.getItem('user_id') || '';
   }
 
   ngOnInit(): void {
+    this.userSub = this.currentUser.user$.subscribe((user) => {
+      this.userName = user?.user_name || 'User';
+      this.user_id = user?.user_id || '';
+    });
     this.primeRatingCache();
   }
 
@@ -69,18 +74,14 @@ export class DashboardTopbar implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.showModal = false;
+    this.userSub?.unsubscribe();
   }
 
   closeModal() {
     this.selectedRating = 0;
     this.message = '';
     this.showModal = false;
-    // this.logout();
-    // this.openLogoutModal()
-    // this.router.navigate(['/dashboard']); // remove query param after closing
   }
-
-  // ============================================= rating apis ====================================================
 
   setRating(rating: number) {
     this.selectedRating = rating;
@@ -108,27 +109,18 @@ export class DashboardTopbar implements OnInit, OnDestroy {
   }
 
   addRating() {
-    const user_id = (localStorage.getItem('user_id') || '').trim();
-    const user_name = (localStorage.getItem('user_name') || '').trim();
-    const railway = (localStorage.getItem('railway') || '').trim();
-    const division = (localStorage.getItem('division') || '').trim();
-
-    if (!user_id || !user_name || !railway || !division) {
-      console.error('Missing user details in localStorage for rating submit');
+    if (!this.user_id) {
+      console.error('Missing authenticated user for rating submit');
       return;
     }
 
     const data = {
       rating: this.selectedRating,
       comment: this.message,
-      user_id,
-      user_name,
-      railway,
-      division,
     };
+
     this.api.rating(data).subscribe({
       next: (res: any) => {
-        console.log('here is res from rating', res);
         const createdAt = res?.data?.created_at || new Date().toISOString();
         this.setCachedLastRatingAt(createdAt);
         this.closeModal();
@@ -145,20 +137,14 @@ export class DashboardTopbar implements OnInit, OnDestroy {
   private primeRatingCache() {
     if (!this.user_id) return;
 
-    const data = {
-      user_id: this.user_id,
-    };
-
-    this.api.getRating(data).subscribe({
+    this.api.getRating({}).subscribe({
       next: (res: any) => {
         this.ratingData = res?.data || null;
         if (this.ratingData?.created_at) {
           this.setCachedLastRatingAt(this.ratingData.created_at);
         }
       },
-      error: () => {
-        // Keep logout flow fast even if rating-read API fails.
-      },
+      error: () => {},
     });
   }
 
@@ -178,78 +164,5 @@ export class DashboardTopbar implements OnInit, OnDestroy {
     const now = new Date();
     const diffInDays = (now.getTime() - parsed.getTime()) / (1000 * 3600 * 24);
     return diffInDays > this.RATING_DUE_DAYS;
-  }
-
-  // getRatingList() {
-  //   let data={
-  //     user_id: this.user_id
-  //   }
-  //   this.api.getRating(data).subscribe({
-  //     next: (res: any) => {
-  //       this.ratingData = res.data; // ✅ Ensure you're using res.data
-  //       console.log('here is rating list', this.ratingData);
-
-  //       if (!this.ratingData) {
-  //         //  No previous rating → open modal
-  //         this.openModal();
-  //         // return;
-  //         // this.logout()
-  //         console.log('need to open model');
-          
-  //       }
-
-  //       const lastRated = new Date(this.ratingData?.created_at);
-  //       const now = new Date();
-
-  //       const diffInDays = (now.getTime() - lastRated.getTime()) / (1000 * 3600 * 24);
-
-  //       if (diffInDays > 30) {
-  //         //  More than a month ago → open modal
-  //         this.openModal();
-  //       } else if (!this.showModal) {
-  //         // this.openLogoutModal()
-  //         console.log('here need log out');
-          
-  //         console.log(`Last rating given ${Math.floor(diffInDays)} days ago. Modal not opened.`);
-  //       }
-  //     },
-  //     error: (err) => {
-  //       console.error('Error fetching last rating', err);
-  //     },
-  //   });
-  // }
-
-  getRatingList() {
-    if (!this.user_id) {
-      this.logout();
-      return;
-    }
-
-    const data = {
-      user_id: this.user_id,
-    };
-
-    this.api.getRating(data).subscribe({
-      next: (res: any) => {
-        this.ratingData = res?.data || null;
-
-        // No rating found
-        if (!this.ratingData) {
-          this.openModal();
-          return;
-        }
-
-        const lastRated = new Date(this.ratingData.created_at);
-        const now = new Date();
-        const diffInDays = (now.getTime() - lastRated.getTime()) / (1000 * 3600 * 24);
-
-        if (diffInDays > 30) this.openModal();
-        else this.logout();
-      },
-      error: (err) => {
-        console.error('Error fetching rating', err);
-        this.logout();
-      },
-    });
   }
 }

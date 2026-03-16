@@ -24,6 +24,7 @@
   min-height: 0;
   overflow: hidden;
   --current-panel-width: 0px;
+  background: var(--bs-body-bg, #fff);
 }
 
 .gis-map-layout.panel-open {
@@ -100,6 +101,7 @@ app-map {
   bottom: 8px;
   right: calc(12px + var(--widget-width) + var(--widget-gap));
   width: var(--current-panel-width);
+  max-width: calc(100vw - 96px);
   z-index: 1001;
   opacity: 0;
   transform: translateX(12px);
@@ -126,20 +128,68 @@ app-map {
   background: #fff;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1199.98px) {
   :host {
-    --panel-width: calc(100vw - 90px);
-    --panel-width-edit: calc(100vw - 90px);
+    --panel-width: min(380px, calc(100vw - 110px));
+    --panel-width-edit: min(520px, calc(100vw - 110px));
   }
 
-  .right-panel {
-    top: 80px;
-    bottom: 80px;
+  .right-panel.edit {
+    right: calc(12px + var(--widget-width) + var(--widget-gap));
+  }
+}
+
+@media (max-width: 900px) {
+  :host {
+    --panel-width: calc(100vw - 24px);
+    --panel-width-edit: calc(100vw - 24px);
+  }
+
+  .right-dock {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .right-panel,
+  .right-panel.edit {
+    top: auto;
+    bottom: 78px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    transform: translateY(12px);
+  }
+
+  .right-panel.open {
+    transform: translateY(0);
   }
 
   .widget-rail {
     top: auto;
-    bottom: 80px;
-    transform: none;
+    bottom: 14px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: auto;
+    flex-direction: row;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 576px) {
+  .widget-rail button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .right-panel,
+  .right-panel.edit {
+    bottom: 72px;
+    left: 8px;
+    right: 8px;
   }
 }

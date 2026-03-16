@@ -1,53 +1,38 @@
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
-import { MapLayer } from '../../services/interface';
+import { defineLegend, MapLayer, pathStyleFromLegend } from '../../services/interface';
+
+const INDIA_BOUNDARY_LEGEND = defineLegend({
+  type: 'polygon' as const,
+  color: 'black',
+  label: 'India Boundary',
+  fillColor: 'transparent',
+  fillOpacity: 0,
+  strokeColor: 'black',
+  strokeWidth: 2,
+});
 
 export class IndiaBoundaryLayer implements MapLayer {
   id = 'india_boundary';
   title = 'India Boundary';
   visible = true;
   layerGroup = 'common' as const;
-
-  legend = {
-    type: 'polygon' as const,
-    color: '#111827',
-    label: 'India Boundary',
-    fillColor: 'transparent',
-    fillOpacity: 0,
-    strokeColor: '#111827',
-    strokeWidth: 2,
-  };
+  legend = INDIA_BOUNDARY_LEGEND;
 
   private layer: L.GeoJSON;
   private lastKey = '';
-  private paneReady = false;
 
   constructor(private api: Api) {
     this.layer = L.geoJSON(null, {
-      style: () => ({
-        color: '#111827',
-        weight: 2,
-        fillColor: '#000000',
-        fillOpacity: 0,
-      }),
+      style: () => pathStyleFromLegend(this.legend),
       interactive: false,
     });
   }
 
   addTo(map: L.Map) {
     if (!this.visible) return;
-
-    const paneName = 'indiaBoundaryPane';
-    if (!this.paneReady) {
-      if (!map.getPane(paneName)) {
-        map.createPane(paneName);
-        map.getPane(paneName)!.style.zIndex = '300';
-      }
-      (this.layer as any).options.pane = paneName;
-      this.paneReady = true;
-    }
-
-    this.layer.addTo(map);
+    if (!map.hasLayer(this.layer)) this.layer.addTo(map);
+    this.layer.bringToFront();
   }
 
   removeFrom(map: L.Map) {
@@ -56,6 +41,8 @@ export class IndiaBoundaryLayer implements MapLayer {
 
   loadForMap(map: L.Map) {
     if (!this.visible) return;
+
+    this.addTo(map);
 
     const b = map.getBounds();
     const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
@@ -69,6 +56,7 @@ export class IndiaBoundaryLayer implements MapLayer {
       next: (geojson: any) => {
         this.layer.clearLayers();
         this.layer.addData(geojson);
+        this.layer.bringToFront();
       },
       error: (err: any) => console.error('India boundary error', err),
     });

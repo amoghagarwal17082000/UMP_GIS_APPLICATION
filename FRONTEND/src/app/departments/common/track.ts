@@ -1,21 +1,22 @@
 import { GeoJsonObject } from 'geojson';
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
-import { MapLayer } from '../../services/interface';
+import { defineLegend, MapLayer, pathStyleFromLegend } from '../../services/interface';
+
+const TRACK_LEGEND = defineLegend({
+  type: 'line' as const,
+  color: 'black',
+  label: 'Railway Track',
+  strokeColor: 'black',
+  strokeWidth: 2,
+});
 
 export class TrackLayer implements MapLayer {
   id = 'tracks';
   title = 'Railway Tracks';
   visible = true;
   layerGroup = 'common' as const;
-
-  legend = {
-    type: 'line' as const,
-    color: 'black',
-    label: 'Railway Track',
-    strokeColor: 'black',
-    strokeWidth: 2,
-  };
+  legend = TRACK_LEGEND;
 
   private layer!: L.GeoJSON;
   private lastBbox = '';
@@ -23,10 +24,7 @@ export class TrackLayer implements MapLayer {
 
   constructor(private api: Api, private onData?: (geojson: any) => void) {
     this.layer = L.geoJSON(null, {
-      style: {
-        color: 'black',
-        weight: 2,
-      },
+      style: pathStyleFromLegend(this.legend),
     });
   }
 
@@ -42,6 +40,8 @@ export class TrackLayer implements MapLayer {
 
   loadForMap(map: L.Map) {
     if (!this.visible) return;
+
+    this.addTo(map);
 
     const b = map.getBounds();
     const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;

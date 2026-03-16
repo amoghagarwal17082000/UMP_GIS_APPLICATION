@@ -1,0 +1,14 @@
+{
+  "/api": {
+    "target": "http://127.0.0.1:4000",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/__health": {
+    "target": "http://127.0.0.1:4000",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

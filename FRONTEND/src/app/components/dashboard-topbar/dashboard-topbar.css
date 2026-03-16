@@ -1,29 +1,24 @@
 .dashboard-header {
-  height: 80px;
+  min-height: 80px;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  padding: 0 20px;      /* keep normal padding */
+  gap: 16px;
+  padding: 10px 20px;
   box-sizing: border-box;
-
   position: sticky;
   top: 0;
   z-index: 3000;
-   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-
-
-/* LEFT */
 .left {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .menu-btn {
@@ -38,42 +33,45 @@
 }
 
 .logo {
-  height: 56px;          /* 👈 ideal size */
+  height: 56px;
   width: auto;
   object-fit: contain;
   background: transparent;
+  flex: 0 0 auto;
 }
-
 
 .app-title {
-  font-size: 30px;
-  font-weight: bold;
+  font-size: clamp(20px, 2vw, 30px);
+  font-weight: 700;
   color: #111827;
+  line-height: 1.1;
+  white-space: normal;
 }
 
-/* RIGHT */
 .right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
-/* PROFILE */
 .profile {
   position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-   padding: 8px 14px;              /* 👈 box padding */
-  border: 1px solid #e5e7eb;      /* 👈 rectangle border */
-  border-radius: 8px;             /* 👈 rounded rectangle */
-  background: #ffffff; 
+  padding: 8px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
   cursor: pointer;
   transition: background 0.2s ease, box-shadow 0.2s ease;
+  max-width: min(320px, 100%);
 }
 
 .profile:hover {
   background: #f9fafb;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .profile i {
@@ -81,28 +79,31 @@
   color: #6b7280;
 }
 
-
 .avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid #e5e7eb;
+  flex: 0 0 auto;
 }
 
 .name {
   font-size: 18px;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dropdown {
   position: absolute;
   right: 0;
-  top:  calc(100% + 8px);
-  width: 180px;
+  top: calc(100% + 8px);
+  width: min(220px, 85vw);
   background: white;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   z-index: 1000;
 }
@@ -121,7 +122,6 @@
 .dropdown button:hover {
   background: #f3f4f6;
 }
-
 
 .rating-modal-overlay {
   background: rgba(15, 23, 42, 0.52);
@@ -164,6 +164,7 @@
   justify-content: center;
   gap: 16px;
   margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
 .rating-star-icon {
@@ -201,6 +202,7 @@
   justify-content: flex-end;
   gap: 10px;
   background: #fff;
+  flex-wrap: wrap;
 }
 
 .rating-btn {
@@ -227,4 +229,75 @@
 
 .rating-btn-submit:hover:not(:disabled) {
   background: linear-gradient(120deg, #f59e0b 20%, #ea580c 100%);
+}
+
+@media (max-width: 991.98px) {
+  .dashboard-header {
+    min-height: 72px;
+    padding: 10px 14px;
+  }
+
+  .logo {
+    height: 46px;
+  }
+
+  .app-title {
+    font-size: 24px;
+  }
+
+  .name {
+    font-size: 16px;
+    max-width: 140px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .dashboard-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: auto;
+  }
+
+  .left,
+  .right {
+    width: 100%;
+  }
+
+  .right {
+    justify-content: flex-start;
+  }
+
+  .logo {
+    height: 40px;
+  }
+
+  .app-title {
+    font-size: 20px;
+  }
+
+  .profile {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .name {
+    font-size: 15px;
+    max-width: none;
+  }
+
+  .rating-modal-header,
+  .rating-modal-body,
+  .rating-modal-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .rating-modal-title {
+    font-size: 22px;
+  }
+
+  .rating-star-icon {
+    font-size: 34px;
+  }
 }

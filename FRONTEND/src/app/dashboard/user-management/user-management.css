@@ -1,13 +1,7 @@
-.user-management-page {
-  padding: 20px;
-  height: 100%;
+ .user-management-page {
+  min-height: 100%;
 }
 
-.full-height {
-  height: 100%;
-}
-
-/* LEFT PANEL */
 .left-panel-box {
   border: 1px solid rgba(0,0,0,0.08);
   border-radius: 8px;
@@ -19,14 +13,13 @@
   flex-direction: column;
 }
 
-/* RIGHT PANEL */
 .main-card {
   border-radius: 8px;
   flex: 1;
   display: flex;
+  min-height: 0;
 }
 
-/* Welcome Blue Card */
 .welcome-card {
   background: linear-gradient(90deg, #2a3fbd, #1c2e8a);
   color: white;
@@ -34,12 +27,10 @@
   font-weight: 500;
 }
 
-/* Profile Card */
 .profile-card {
   border-radius: 8px;
 }
 
-/* Avatar */
 .avatar-circle {
   width: 70px;
   height: 70px;
@@ -53,7 +44,6 @@
   font-size: 28px;
 }
 
-/* Stats Cards */
 .stats-card {
   border-radius: 6px;
   cursor: pointer;
@@ -63,7 +53,6 @@
 .stats-card:hover {
   background-color: #f5f7ff;
 }
-
 
 .stats-card.active-filter {
   border-left: 4px solid #2a3fbd;
@@ -91,3 +80,18 @@
   border-bottom: 3px solid #2a3fbd;
   font-weight: 600;
 }
+
+.user-tabs .nav-link {
+  white-space: nowrap;
+}
+
+.user-table-wrap {
+  min-height: 0;
+}
+
+@media (max-width: 991.98px) {.left-panel-box,
+  .main-card {
+    min-height: auto;
+  }
+}
+

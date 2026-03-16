@@ -1,76 +1,93 @@
-<div class="feedback-page">
-  <div class="feedback-shell">
-    <section class="feedback-hero">
-      <div class="feedback-hero-copy">
-        <p class="feedback-kicker">UMP GIS Application</p>
-        <h1 class="feedback-title">Feedback</h1>
-      </div>
-    </section>
-
-    <section class="feedback-card">
-      <div class="feedback-profile-grid">
-        <div class="feedback-field feedback-field-readonly">
-          <label><i class="bi bi-person"></i><span>Name</span></label>
-          <div class="feedback-static-value">{{ user_name || '--' }}</div>
-        </div>
-
-        <div class="feedback-field feedback-field-readonly">
-          <label><i class="bi bi-envelope"></i><span>Email</span></label>
-          <div class="feedback-static-value">{{ email || '---' }}</div>
-        </div>
-
-        <div class="feedback-field feedback-field-readonly">
-          <label><i class="bi bi-telephone-fill"></i><span>Mobile</span></label>
-          <div class="feedback-static-value">{{ mobile || '---' }}</div>
-        </div>
-
-        <div class="feedback-field feedback-field-readonly">
-          <label><i class="bi bi-people"></i><span>User Type</span></label>
-          <div class="feedback-static-value feedback-static-value-select">
-            <span>{{ user_type || '--' }}</span>
-            <i class="bi bi-chevron-down"></i>
+<div class="container-fluid feedback-page dashboard-page-shell dashboard-page-shell-compact">
+  <div class="row g-0 justify-content-center">
+    <div class="col-12">
+      <div class="feedback-shell dashboard-page-width">
+        <section class="feedback-hero">
+          <div class="feedback-hero-copy">
+            <p class="feedback-kicker">UMP GIS Application</p>
+            <h1 class="feedback-title">Feedback</h1>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div class="feedback-message-panel">
-        <div class="feedback-field">
-          <label for="feedback-message">
-            <i class="bi bi-chat-left-text"></i>
-            <span>Feedback Message</span>
-          </label>
-          <textarea
-            id="feedback-message"
-            class="feedback-textarea"
-            [(ngModel)]="message"
-            name="message"
-            placeholder="Describe what worked well, what felt slow, or what should be improved."
-            required
-          ></textarea>
-        </div>
+        <section class="feedback-card dashboard-surface-card">
+          <div class="row g-4 feedback-profile-grid">
+            <div class="col-12 col-md-6">
+              <div class="feedback-field feedback-field-readonly">
+                <label><i class="bi bi-person"></i><span>Name</span></label>
+                <div class="feedback-static-value">{{ user_name || '--' }}</div>
+              </div>
+            </div>
 
-        <div class="feedback-footer">
-          <div class="feedback-helper-text">
-            <i class="bi bi-info-circle"></i>
-            <span>Clear, specific feedback is more actionable than generic comments.</span>
+            <div class="col-12 col-md-6">
+              <div class="feedback-field feedback-field-readonly">
+                <label><i class="bi bi-envelope"></i><span>Email</span></label>
+                <div class="feedback-static-value">{{ email || '---' }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="feedback-field feedback-field-readonly">
+                <label><i class="bi bi-telephone-fill"></i><span>Mobile</span></label>
+                <div class="feedback-static-value">{{ mobile || '---' }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="feedback-field feedback-field-readonly">
+                <label><i class="bi bi-people"></i><span>User Type</span></label>
+                <div class="feedback-static-value feedback-static-value-select">
+                  <span>{{ user_type || '--' }}</span>
+                  <i class="bi bi-chevron-down"></i>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="feedback-submit-wrap">
-            <button
-              class="feedback-submit-btn"
-              (click)="submitFeedback()"
-              [disabled]="!message"
-            >
-              <i class="bi bi-send"></i>
-              <span>Submit Feedback</span>
-            </button>
-          </div>
-        </div>
-      </div>
+          <div class="row g-0">
+            <div class="col-12">
+              <div class="feedback-message-panel">
+                <div class="feedback-field">
+                  <label for="feedback-message">
+                    <i class="bi bi-chat-left-text"></i>
+                    <span>Feedback Message</span>
+                  </label>
+                  <textarea
+                    id="feedback-message"
+                    class="feedback-textarea"
+                    [(ngModel)]="message"
+                    name="message"
+                    placeholder="Describe what worked well, what felt slow, or what should be improved."
+                    required
+                  ></textarea>
+                </div>
 
-      <div *ngIf="lastFeedback" class="feedback-success">
-        Feedback submitted successfully.
+                <div class="feedback-footer">
+                  <div class="feedback-helper-text">
+                    <i class="bi bi-info-circle"></i>
+                    <span>Clear, specific feedback is more actionable than generic comments.</span>
+                  </div>
+
+                  <div class="feedback-submit-wrap">
+                    <button
+                      class="feedback-submit-btn"
+                      (click)="submitFeedback()"
+                      [disabled]="!message"
+                    >
+                      <i class="bi bi-send"></i>
+                      <span>Submit Feedback</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="lastFeedback" class="feedback-success">
+                Feedback submitted successfully.
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </div>
 </div>
+

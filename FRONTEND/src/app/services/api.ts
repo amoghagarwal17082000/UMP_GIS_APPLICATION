@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { BASE_URL } from '../api/shared/api-utils';
 import { Observable } from 'rxjs';
+import { getCurrentUserSnapshot } from './current-user.store';
 
 type ViewScope = 'common' | 'civil_engineering_assets';
 
@@ -8,24 +10,18 @@ type ViewScope = 'common' | 'civil_engineering_assets';
   providedIn: 'root',
 })
 export class Api {
-  private readonly BASE_URL = 'http://127.0.0.1:4000';
+  private readonly BASE_URL = BASE_URL;
 
   constructor(private http: HttpClient) {}
 
-  /* ===================== COMMON HELPERS ===================== */
-
   private getDivision(): string {
-    return (localStorage.getItem('division') || '').trim();
+    return (getCurrentUserSnapshot()?.division || '').trim();
   }
-
 
   getViewLayer(scope: ViewScope, layer: string, params: Record<string, any>): Observable<any> {
     const division = this.getDivision();
-
-    // Always send division (your backend expects it everywhere)
     let httpParams = new HttpParams().set('division', division);
 
-    // Add rest params
     Object.entries(params || {}).forEach(([k, v]) => {
       if (v === undefined || v === null || v === '') return;
       httpParams = httpParams.set(k, String(v));
@@ -37,10 +33,6 @@ export class Api {
     );
   }
 
-  /* ===================== VIEW LAYERS (WRAPPERS - OPTIONAL) ===================== */
-  // You can keep these so existing layer files (station.ts, track.ts, etc.) won't break.
-
-  // ---- COMMON ----
   getStations(bbox: string) {
     return this.getViewLayer('common', 'station', { bbox });
   }
@@ -57,7 +49,6 @@ export class Api {
     return this.getViewLayer('common', 'indiaBoundary', { bbox });
   }
 
-  // ---- civil_engineering_assets ----
   getDivisionBuffer() {
     return this.getViewLayer('civil_engineering_assets', 'divisionBuffer', {});
   }
@@ -77,8 +68,6 @@ export class Api {
   getLandPlanOntrack(z: number) {
     return this.getViewLayer('civil_engineering_assets', 'landPlanOnTrack', { z });
   }
-
-  /* ===================== STATION EDIT (unchanged) ===================== */
 
   getStationTable(page: number, pageSize: number, search: string) {
     const params: any = {
@@ -126,8 +115,6 @@ export class Api {
     });
   }
 
-  /* ===================== AUTH (unchanged) ===================== */
-
   requestOtp(username: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.BASE_URL}/api/auth/request-otp`, {
       user_id: username,
@@ -167,7 +154,13 @@ export class Api {
     });
   }
 
-  /* ===================== civil_engineering_assets DASHBOARD (unchanged) ===================== */
+  getCurrentUser(): Observable<any> {
+    return this.http.get<any>(`${this.BASE_URL}/api/auth/me`);
+  }
+
+  logout(): Observable<any> {
+    return this.http.post<any>(`${this.BASE_URL}/api/auth/logout`, {});
+  }
 
   private getDashboardCount(asset: string, type: string) {
     return this.http.get<any>(`${this.BASE_URL}/api/civil_engineering_assets/view/dashboard/${asset}/count`, {
@@ -206,50 +199,13 @@ export class Api {
     return this.getDashboardCount('landPlan', type);
   }
 
-  /* ===================== FEEDBACK ===================== */
-
   addFeedBack(obj: any): Observable<any> {
     return this.http.post<any>(`${this.BASE_URL}/api/feedback/create`, obj);
   }
 
-
-
-/* ===================== USER MANAGEMENT ===================== */
-
-getUsers(): Observable<any> {
-
-  const params = new HttpParams()
-    .set('division', this.getDivision());
-
-  return this.http.get<any>(
-    `${this.BASE_URL}/api/user-management/view/users`,
-    { params }
-  );
-
+  getUsers(): Observable<any> {
+    const params = new HttpParams().set('division', this.getDivision());
+    return this.http.get<any>(`${this.BASE_URL}/api/user-management/view/users`, { params });
+  }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}

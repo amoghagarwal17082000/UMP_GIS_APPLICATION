@@ -14,8 +14,7 @@ import { UiState } from 'src/app/services/ui-state';
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css',
 })
-export class Sidebar implements OnInit{
-
+export class Sidebar implements OnInit {
   collapsed$!: Observable<boolean>;
   sidebarTitle = '';
   isAdmin = false;
@@ -25,34 +24,30 @@ export class Sidebar implements OnInit{
     private ui: UiState,
     private router: Router,
     private route: ActivatedRoute,
-     private auth: Auth
+    private auth: Auth
   ) {
     this.collapsed$ = this.sidebarState.collapsed$;
   }
 
   ngOnInit(): void {
+    this.isAdmin = this.auth.isAdmin();
 
-      this.isAdmin = this.auth.isAdmin();
-      
-    // ✅ set title immediately (page refresh case)
     this.sidebarTitle = this.resolveTitle(this.route);
 
-    // ✅ update title on navigation
     this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd))
+      .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe(() => {
         this.sidebarTitle = this.resolveTitle(this.route);
+        this.isAdmin = this.auth.isAdmin();
       });
   }
 
   toggleSidebar(): void {
     this.sidebarState.toggle();
-
-    // ✅ tell map/layout listeners to recalc after CSS transition
     setTimeout(() => this.ui.notifyLayoutChanged(), 320);
   }
 
-   private resolveTitle(route: ActivatedRoute): string {
+  private resolveTitle(route: ActivatedRoute): string {
     let current = route.firstChild;
     while (current?.firstChild) {
       current = current.firstChild;

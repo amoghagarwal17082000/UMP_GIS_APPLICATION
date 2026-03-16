@@ -7,6 +7,7 @@ import { EditState } from '../../services/edit-state';
 import { Api } from 'src/app/api/api';
 import { UiState } from '../../services/ui-state';
 import { MapZoomService } from 'src/app/services/map-zoom';
+import { CurrentUserService } from 'src/app/services/current-user';
 
 type EditLayerKey = string;
 type LayerGroupKey = 'bridge';
@@ -30,23 +31,16 @@ type TableColumn = {
   styleUrl: './edit-panel.css',
 })
 export class EditPanel implements OnInit, OnDestroy {
-  // ✅ holds all fetched rows from backend (unfiltered)
   private allRows: any[] = [];
-
-  // ✅ rows after frontend status filter + search (if backend does not search)
   private filteredRows: any[] = [];
 
-  // ✅ rows shown in UI (paged slice of filteredRows)
   rows: any[] = [];
 
-  // counts
-  total = 0; // (kept for compatibility)
+  total = 0;
   filteredTotal = 0;
 
   page = 1;
   pageSize = 8;
-
-  // IMPORTANT: backend max is 200 (as per your model code), so we fetch in chunks
   private fetchPageSize = 200;
 
   search = '';
@@ -65,14 +59,9 @@ export class EditPanel implements OnInit, OnDestroy {
   checkerTab: CheckerTabKey = 'pending';
   rejectedLayer: EditLayerKey | null = null;
 
-  // ================== GEOMETRY EDIT STATE ==================
   geomEditing = false;
   private dragSub?: Subscription;
-
-  // ✅ Listen to edit state changes so programmatic layer selection triggers load
   private stateSub?: Subscription;
-
-  // ✅ cancel/ignore older loads
   private loadSeq = 0;
 
   private tableColumns: TableColumn[] = [
@@ -95,22 +84,16 @@ export class EditPanel implements OnInit, OnDestroy {
     public edit: EditState,
     private api: Api,
     private cdr: ChangeDetectorRef,
-    private mapZoom: MapZoomService
+    private mapZoom: MapZoomService,
+    private currentUser: CurrentUserService
   ) {}
 
   ngOnInit(): void {
-    // ✅ When Home sets edit.enable() + edit.setLayer('stations'), auto-load here
     this.stateSub = this.edit.stateChanged$.subscribe(() => {
       if (!this.edit.enabled) return;
-
-      // load only for stations (extend similarly for other layers later)
-      if (this.edit.editLayer === 'stations') {
-        // do not reload if currently editing a row
-        if (this.mode === 'table') this.load(true);
-      }
+      if (this.edit.editLayer === 'stations' && this.mode === 'table') this.load(true);
     });
 
-    // If already enabled when component creates (edge case)
     if (this.edit.enabled && this.edit.editLayer === 'stations') {
       this.load(true);
     }
@@ -124,7 +107,6 @@ export class EditPanel implements OnInit, OnDestroy {
     this.stateSub = undefined;
   }
 
-  /* ================== GETTERS ================== */
   get totalPages(): number {
     return Math.max(1, Math.ceil(this.filteredTotal / this.pageSize));
   }
@@ -159,7 +141,7 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   get tableColSpan(): number {
-    return this.activeTableColumns.length + 1; // + actions column
+    return this.activeTableColumns.length + 1;
   }
 
   getCellValue(row: any, key: string): any {
@@ -192,20 +174,13 @@ export class EditPanel implements OnInit, OnDestroy {
     if (!normalized) return false;
 
     if (group === 'bridge') {
-      return (
-        normalized.includes('bridge') ||
-        normalized.includes('rail over rail') ||
-        normalized === 'ror'
-      );
+      return normalized.includes('bridge') || normalized.includes('rail over rail') || normalized === 'ror';
     }
 
     return false;
   }
 
-  
-  /* ================== LAYER ================== */
   onLayerChange() {
-    // ✅ notify Map.ts to hide/show layers
     this.edit.setLayer(this.edit.editLayer);
 
     this.mode = 'table';
@@ -221,7 +196,6 @@ export class EditPanel implements OnInit, OnDestroy {
     this.originalDraft = null;
     this.stationValidated = false;
 
-    // geometry state reset
     this.geomEditing = false;
     this.dragSub?.unsubscribe();
     this.dragSub = undefined;
@@ -231,8 +205,7 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   private getUserType(): string {
-    const value = localStorage.getItem('user_type') || localStorage.getItem('type') || '';
-    return value.trim().toLowerCase();
+    return (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase();
   }
 
   isChecker(): boolean {
@@ -251,185 +224,62 @@ export class EditPanel implements OnInit, OnDestroy {
     return this.isChecker() || this.isApprover();
   }
 
-  setMakerTab(tab: MakerTabKey) {
-    this.makerTab = tab;
-    this.mode = 'table';
-    this.draft = null;
-    this.originalDraft = null;
-    this.stationValidated = false;
-    this.search = '';
-    this.page = 1;
-    this.error = null;
-    this.rows = [];
-    this.allRows = [];
-    this.filteredRows = [];
-    this.total = 0;
-    this.filteredTotal = 0;
-    if (tab === 'edit') {
-      this.rejectedLayer = null;
-      this.edit.setLayer(null as any);
-      this.edit.editLayer = null as any;
-    } else if (tab !== 'rejected') {
-      this.rejectedLayer = null;
-    }
-  }
-
-  setCheckerTab(tab: CheckerTabKey) {
-    this.checkerTab = tab;
-    this.mode = 'table';
-    this.draft = null;
-    this.originalDraft = null;
-    this.stationValidated = false;
-    this.search = '';
-    this.page = 1;
-    this.error = null;
-    this.rows = [];
-    this.allRows = [];
-    this.filteredRows = [];
-    this.total = 0;
-    this.filteredTotal = 0;
-    this.edit.setLayer(null as any);
-    this.edit.editLayer = null as any;
-  }
-
-  isCheckerSentToApproverView(): boolean {
-    return this.isReviewer() && this.mode === 'table' && this.checkerTab === 'approved';
-  }
-
-  isCheckerDeletionProposedView(): boolean {
-    return this.isReviewer() && this.checkerTab === 'deletion_proposed';
-  }
-
-  isMakerRejectedView(): boolean {
-    return this.isMaker() && this.mode === 'table' && this.makerTab === 'rejected';
-  }
-
-  isMakerSentForDeletionView(): boolean {
-    return this.isMaker() && this.makerTab === 'sent_for_deletion';
-  }
-
-  isStationFieldsLocked(): boolean {
-    return this.stationValidated || this.isReviewer() || this.isMakerSentForDeletionView();
-  }
-
-  get currentTableLayer(): EditLayerKey | null {
-    if (this.isMakerRejectedView()) return this.rejectedLayer;
-    return (this.edit.editLayer as EditLayerKey | null) ?? null;
-  }
+  setMakerTab(tab: MakerTabKey) { this.makerTab = tab; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.search = ''; this.page = 1; this.error = null; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; if (tab === 'edit') { this.rejectedLayer = null; this.edit.setLayer(null as any); this.edit.editLayer = null as any; } else if (tab !== 'rejected') { this.rejectedLayer = null; } }
+  setCheckerTab(tab: CheckerTabKey) { this.checkerTab = tab; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.search = ''; this.page = 1; this.error = null; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.edit.setLayer(null as any); this.edit.editLayer = null as any; }
+  isCheckerSentToApproverView(): boolean { return this.isReviewer() && this.mode === 'table' && this.checkerTab === 'approved'; }
+  isCheckerDeletionProposedView(): boolean { return this.isReviewer() && this.checkerTab === 'deletion_proposed'; }
+  isMakerRejectedView(): boolean { return this.isMaker() && this.mode === 'table' && this.makerTab === 'rejected'; }
+  isMakerSentForDeletionView(): boolean { return this.isMaker() && this.makerTab === 'sent_for_deletion'; }
+  isStationFieldsLocked(): boolean { return this.stationValidated || this.isReviewer() || this.isMakerSentForDeletionView(); }
+  get currentTableLayer(): EditLayerKey | null { if (this.isMakerRejectedView()) return this.rejectedLayer; return (this.edit.editLayer as EditLayerKey | null) ?? null; }
 
   onRejectedLayerChange() {
-    this.mode = 'table';
-    this.rows = [];
-    this.allRows = [];
-    this.filteredRows = [];
-    this.total = 0;
-    this.filteredTotal = 0;
-    this.page = 1;
-    this.search = '';
-    this.error = null;
-    this.draft = null;
-
-    this.geomEditing = false;
-    this.dragSub?.unsubscribe();
-    this.dragSub = undefined;
-    this.mapZoom.clearHighlight();
-
+    this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.search = ''; this.error = null; this.draft = null;
+    this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.clearHighlight();
     this.edit.setLayer((this.rejectedLayer as any) ?? null);
     if (this.rejectedLayer) setTimeout(() => this.load(true), 0);
   }
 
-  acceptRow(row: any) {
-    alert(`Accept action clicked for station ${row?.sttncode || ''}.`);
-  }
+  acceptRow(row: any) { alert(`Accept action clicked for station ${row?.sttncode || ''}.`); }
+  rejectRow(row: any) { alert(`Reject action clicked for station ${row?.sttncode || ''}.`); }
+  forwardDraft() { if (!this.draft) return; this.acceptRow(this.draft); }
+  sentBackDraft() { if (!this.draft) return; this.rejectRow(this.draft); }
+  sendToApproverDraft() { if (!this.draft) return; this.forwardDraft(); }
+  sendBackToMakerDraft() { if (!this.draft) return; this.sentBackDraft(); }
+  saveToDatabaseDraft() { if (!this.draft) return; alert(`Save to Database clicked for station ${this.draft?.sttncode || ''}.`); }
 
-  rejectRow(row: any) {
-    alert(`Reject action clicked for station ${row?.sttncode || ''}.`);
-  }
-
-  forwardDraft() {
-    if (!this.draft) return;
-    this.acceptRow(this.draft);
-  }
-
-  sentBackDraft() {
-    if (!this.draft) return;
-    this.rejectRow(this.draft);
-  }
-
-  sendToApproverDraft() {
-    if (!this.draft) return;
-    this.forwardDraft();
-  }
-
-  sendBackToMakerDraft() {
-    if (!this.draft) return;
-    this.sentBackDraft();
-  }
-
-  saveToDatabaseDraft() {
-    if (!this.draft) return;
-    alert(`Save to Database clicked for station ${this.draft?.sttncode || ''}.`);
-  }
-
-  /**
-   * ✅ Frontend status filtering:
-   * Maker => status NULL/blank
-   * Checker => "Sent to Checker"
-   * Approver => "Sent to Approver"
-   */
   private isVisibleForUser(row: any): boolean {
     const userType = this.getUserType();
     const status = row?.status == null ? '' : String(row.status).trim().toLowerCase();
-
     if (userType === 'maker') return status === '';
     if (userType === 'checker') return status === 'sent to checker';
     if (userType === 'approver') return status === 'sent to approver';
-
     return true;
   }
 
   private applyPagination(): void {
     const start = (this.page - 1) * this.pageSize;
     const end = start + this.pageSize;
-
     this.rows = this.filteredRows.slice(start, end);
     this.filteredTotal = this.filteredRows.length;
-
-    // keep legacy total too (if your HTML uses it)
     this.total = this.filteredTotal;
   }
 
-  /* ================== TABLE LOAD ================== */
-
-  /**
-   * Loads ALL station rows from backend in chunks of 200 (page 1..N),
-   * then applies frontend filtering + local pagination.
-   *
-   * @param resetPage if true, page=1
-   */
   load(resetPage = false): void {
     const layer = this.currentTableLayer;
     if (layer !== 'stations') {
-      this.allRows = [];
-      this.filteredRows = [];
-      this.rows = [];
-      this.total = 0;
-      this.filteredTotal = 0;
-      this.loading = false;
-      this.error = null;
-      this.cdr.detectChanges();
+      this.allRows = []; this.filteredRows = []; this.rows = []; this.total = 0; this.filteredTotal = 0; this.loading = false; this.error = null; this.cdr.detectChanges();
       return;
     }
 
-    const division = (localStorage.getItem('division') || '').trim();
+    const division = (this.currentUser.getSnapshot()?.division || '').trim();
     if (!division) {
-      this.error = 'Division missing in localStorage';
+      this.error = 'Division missing in current user session';
       this.cdr.detectChanges();
       return;
     }
 
     if (resetPage) this.page = 1;
-
     this.loading = true;
     this.error = null;
 
@@ -437,46 +287,27 @@ export class EditPanel implements OnInit, OnDestroy {
     const collected: any[] = [];
 
     const fetchOne = (p: number) => {
-      // ignore old requests
       if (seq !== this.loadSeq) return;
 
       this.api.getStationTable(p, this.fetchPageSize, this.search).subscribe({
         next: (res) => {
           if (seq !== this.loadSeq) return;
-
           const rows = Array.isArray(res?.rows) ? res.rows : [];
           collected.push(...rows);
-
-          // If backend returned less than pageSize, we are done
           if (rows.length < this.fetchPageSize) {
             this.allRows = collected;
-
-            // ✅ frontend role/status filtering
             this.filteredRows = this.allRows.filter((r) => this.isVisibleForCurrentView(r));
-
-            // ✅ local pagination only
             this.applyPagination();
-
             this.loading = false;
             this.cdr.detectChanges();
             return;
           }
-
-          // else fetch next page
           fetchOne(p + 1);
         },
         error: (err) => {
           if (seq !== this.loadSeq) return;
-
           console.error('getStationTable failed', err);
-          this.allRows = [];
-          this.filteredRows = [];
-          this.rows = [];
-          this.total = 0;
-          this.filteredTotal = 0;
-
-          this.loading = false;
-          this.cdr.detectChanges();
+          this.allRows = []; this.filteredRows = []; this.rows = []; this.total = 0; this.filteredTotal = 0; this.loading = false; this.cdr.detectChanges();
         },
       });
     };
@@ -487,144 +318,54 @@ export class EditPanel implements OnInit, OnDestroy {
   private isVisibleForCurrentView(row: any): boolean {
     if (this.isMaker() && this.mode === 'table' && this.makerTab === 'sent_for_deletion') {
       const status = row?.status == null ? '' : String(row.status).trim().toLowerCase();
-      return (
-        status === 'sent to checker for deletion' ||
-        status === 'sent to approver for deletion' ||
-        status === 'sent for deletion'
-      );
+      return status === 'sent to checker for deletion' || status === 'sent to approver for deletion' || status === 'sent for deletion';
     }
-
     if (this.isMakerRejectedView()) {
       const status = row?.status == null ? '' : String(row.status).trim().toLowerCase();
       return status === 'sent back to maker';
     }
-
     if (this.isReviewer() && this.mode === 'table') {
       const status = row?.status == null ? '' : String(row.status).trim().toLowerCase();
-      if (this.checkerTab === 'pending') {
-        return this.isApprover() ? status === 'sent to approver' : status === 'sent to checker';
-      }
-      if (this.checkerTab === 'approved') {
-        return status === 'sent to database';
-      }
-      if (this.checkerTab === 'deletion_proposed') {
-        return this.isApprover()
-          ? status === 'sent to approver for deletion'
-          : status === 'sent to checker for deletion';
-      }
+      if (this.checkerTab === 'pending') return this.isApprover() ? status === 'sent to approver' : status === 'sent to checker';
+      if (this.checkerTab === 'approved') return status === 'sent to database';
+      if (this.checkerTab === 'deletion_proposed') return this.isApprover() ? status === 'sent to approver for deletion' : status === 'sent to checker for deletion';
     }
-
     return this.isVisibleForUser(row);
   }
 
-  onSearchChange() {
-    this.page = 1;
-    this.load(true);
-  }
-
-  nextPage() {
-    if (this.page >= this.totalPages) return;
-    this.page++;
-    // ✅ do NOT call backend again
-    this.applyPagination();
-    this.cdr.detectChanges();
-  }
-
-  prevPage() {
-    if (this.page <= 1) return;
-    this.page--;
-    // ✅ do NOT call backend again
-    this.applyPagination();
-    this.cdr.detectChanges();
-  }
-
-  /* ================== EDIT ================== */
+  onSearchChange() { this.page = 1; this.load(true); }
+  nextPage() { if (this.page >= this.totalPages) return; this.page++; this.applyPagination(); this.cdr.detectChanges(); }
+  prevPage() { if (this.page <= 1) return; this.page--; this.applyPagination(); this.cdr.detectChanges(); }
 
   editRow(row: any) {
-    this.mode = 'edit';
-    this.error = null;
-    this.draft = { ...row };
-    this.originalDraft = { ...row };
-    this.stationValidated = false;
+    this.mode = 'edit'; this.error = null; this.draft = { ...row }; this.originalDraft = { ...row }; this.stationValidated = false;
+    this.validating = false; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.clearHighlight();
 
-    // Reset transient form/action state for fresh open
-    this.validating = false;
-    this.saving = false;
-    this.deleting = false;
-    this.geomEditing = false;
-    this.dragSub?.unsubscribe();
-    this.dragSub = undefined;
-    this.mapZoom.clearHighlight();
-
-    const id = Number(row?.objectid);
-    if (!Number.isFinite(id)) return;
+    const id = Number(row?.objectid); if (!Number.isFinite(id)) return;
 
     this.api.getStationById(id).subscribe({
       next: (full) => {
-
         const n = this.normalizeStation(full);
         this.draft = { ...this.draft, ...n };
-
-        // ensure draft always has latest lat/lng
-        this.draft.lat = n.lat;
-        this.draft.lng = n.lng;
-        this.originalDraft = { ...this.draft };
-
+        this.draft.lat = n.lat; this.draft.lng = n.lng; this.originalDraft = { ...this.draft };
         if (Number.isFinite(n.lat) && Number.isFinite(n.lng)) {
-          this.mapZoom.zoomTo({
-            type: 'latlng',
-            lat: n.lat,
-            lng: n.lng,
-            zoom: 17,
-            draggable: false,
-          } as any);
+          this.mapZoom.zoomTo({ type: 'latlng', lat: n.lat, lng: n.lng, zoom: 17, draggable: false } as any);
         }
-
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error('getStationById failed:', err);
-        this.error = err?.error?.error || 'Failed to load station details';
-        this.cdr.detectChanges();
-      },
+      error: (err) => { console.error('getStationById failed:', err); this.error = err?.error?.error || 'Failed to load station details'; this.cdr.detectChanges(); },
     });
   }
 
   zoomToStationFromRow(row: any) {
     const lat = Number(row?.lat ?? row?.ycoord ?? row?.latitude);
     const lng = Number(row?.lon ?? row?.lng ?? row?.xcoord ?? row?.longitude);
-
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      this.mapZoom.zoomTo({
-        type: 'latlng',
-        lat,
-        lng,
-        zoom: 17,
-        draggable: false,
-      } as any);
+      this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: 17, draggable: false } as any);
       return;
     }
-
-    const id = Number(row?.objectid);
-    if (!Number.isFinite(id)) return;
-
-    this.api.getStationById(id).subscribe({
-      next: (full) => {
-        const n = this.normalizeStation(full);
-        if (!Number.isFinite(n.lat) || !Number.isFinite(n.lng)) return;
-
-        this.mapZoom.zoomTo({
-          type: 'latlng',
-          lat: n.lat,
-          lng: n.lng,
-          zoom: 17,
-          draggable: false,
-        } as any);
-      },
-      error: (err) => {
-        console.error('zoomToStationFromRow/getStationById failed:', err);
-      },
-    });
+    const id = Number(row?.objectid); if (!Number.isFinite(id)) return;
+    this.api.getStationById(id).subscribe({ next: (full) => { const n = this.normalizeStation(full); if (!Number.isFinite(n.lat) || !Number.isFinite(n.lng)) return; this.mapZoom.zoomTo({ type: 'latlng', lat: n.lat, lng: n.lng, zoom: 17, draggable: false } as any); }, error: (err) => { console.error('zoomToStationFromRow/getStationById failed:', err); } });
   }
 
   private normalizeStation(s: any) {
@@ -641,151 +382,52 @@ export class EditPanel implements OnInit, OnDestroy {
       constituency: s?.constituncy ?? s?.constituency,
       lat: Number(s?.lat ?? s?.ycoord ?? s?.latitude),
       lng: Number(s?.lon ?? s?.lng ?? s?.xcoord ?? s?.longitude),
-
     };
   }
-
-  // ================== GEOMETRY FLOW ==================
 
   startGeometryEdit() {
     if (this.isReviewer()) return;
     if (!this.draft) return;
-
-    const lat = Number(this.draft.lat);
-    const lng = Number(this.draft.lng);
-
+    const lat = Number(this.draft.lat); const lng = Number(this.draft.lng);
     alert('Edit Geometry Mode is ON. You can now move the station point.');
-
     this.geomEditing = true;
-
-    this.mapZoom.zoomTo({
-      type: 'latlng',
-      lat,
-      lng,
-      zoom: 17,
-      draggable: true,
-    });
-
+    this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: 17, draggable: true });
     this.dragSub?.unsubscribe();
-    this.dragSub = this.edit.dragEnd$.subscribe(({ lat: newLat, lng: newLng }) => {
-      if (!this.draft) return;
-      this.draft.lat = newLat;
-      this.draft.lng = newLng;
-      this.cdr.detectChanges();
-    });
+    this.dragSub = this.edit.dragEnd$.subscribe(({ lat: newLat, lng: newLng }) => { if (!this.draft) return; this.draft.lat = newLat; this.draft.lng = newLng; this.cdr.detectChanges(); });
   }
 
   saveGeometry() {
     if (this.isReviewer()) return;
     if (!this.geomEditing) return;
-
     alert('Geometry is fixed and Edit Geometry Mode is OFF.');
-
     this.geomEditing = false;
     this.edit.lockDrag();
-
-    const lat = Number(this.draft?.lat);
-    const lng = Number(this.draft?.lng);
-
+    const lat = Number(this.draft?.lat); const lng = Number(this.draft?.lng);
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      this.mapZoom.zoomTo({
-        type: 'latlng',
-        lat,
-        lng,
-        zoom: 17,
-        draggable: false,
-      } as any);
+      this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: 17, draggable: false } as any);
     }
-
     this.cdr.detectChanges();
   }
 
   cancelEdit() {
-    if (this.originalDraft) {
-      this.draft = { ...this.originalDraft };
-    }
-    this.mode = 'table';
-    this.draft = null;
-    this.originalDraft = null;
-    this.error = null;
-
-    this.validating = false;
-    this.stationValidated = false;
-    this.saving = false;
-    this.deleting = false;
-    this.geomEditing = false;
-    this.dragSub?.unsubscribe();
-    this.dragSub = undefined;
-
-    this.mapZoom.zoomHome();
-    this.mapZoom.clearHighlight();
+    if (this.originalDraft) this.draft = { ...this.originalDraft };
+    this.mode = 'table'; this.draft = null; this.originalDraft = null; this.error = null; this.validating = false; this.stationValidated = false; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.zoomHome(); this.mapZoom.clearHighlight();
   }
 
   send() {
     if (this.isReviewer()) return;
-    if (!this.draft?.objectid) {
-      this.error = 'Station id missing';
-      this.cdr.detectChanges();
-      return;
-    }
-
-    const lat = Number(this.draft.lat);
-    const lng = Number(this.draft.lng);
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      this.error = 'New geometry not captured. Please drag the point and click Save Geometry.';
-      this.cdr.detectChanges();
-      return;
-    }
-
-    const payload = {
-      stationtype: this.draft.stationtype,
-      distkm: this.draft.distkm,
-      distm: this.draft.distm,
-      state: this.draft.state,
-      district: this.draft.district,
-      constituency: this.draft.constituency,
-
-      lat,
-      lng,
-      lon: lng,
-      longitude: lng,
-      latitude: lat,
-    };
-
+    if (!this.draft?.objectid) { this.error = 'Station id missing'; this.cdr.detectChanges(); return; }
+    const lat = Number(this.draft.lat); const lng = Number(this.draft.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) { this.error = 'New geometry not captured. Please drag the point and click Save Geometry.'; this.cdr.detectChanges(); return; }
+    const payload = { stationtype: this.draft.stationtype, distkm: this.draft.distkm, distm: this.draft.distm, state: this.draft.state, district: this.draft.district, constituency: this.draft.constituency, lat, lng, lon: lng, longitude: lng, latitude: lat };
     this.saving = true;
-
-    this.api.updateStation(this.draft.objectid, payload).subscribe({
-      next: () => {
-        this.saving = false;
-
-        this.mode = 'table';
-        this.draft = null;
-
-        this.geomEditing = false;
-        this.dragSub?.unsubscribe();
-        this.dragSub = undefined;
-
-        this.mapZoom.zoomHome();
-        this.mapZoom.clearHighlight();
-
-        setTimeout(() => this.load(false), 0);
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.saving = false;
-        this.error = 'Failed to save changes';
-        this.cdr.detectChanges();
-      },
-    });
+    this.api.updateStation(this.draft.objectid, payload).subscribe({ next: () => { this.saving = false; this.mode = 'table'; this.draft = null; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.zoomHome(); this.mapZoom.clearHighlight(); setTimeout(() => this.load(false), 0); this.cdr.detectChanges(); }, error: () => { this.saving = false; this.error = 'Failed to save changes'; this.cdr.detectChanges(); } });
   }
 
   validateStationCode() {
     if (this.isReviewer()) return;
     if (!this.draft?.sttncode) return;
-
     this.validating = true;
-
     this.api.validateStationCode(this.draft.sttncode).subscribe({
       next: (res: any) => {
         if (!this.draft) return;
@@ -794,180 +436,34 @@ export class EditPanel implements OnInit, OnDestroy {
         const validatedCategory = row?.category || this.draft.category;
         const nameChanged = String(this.draft.sttnname || '') !== String(validatedName || '');
         const categoryChanged = String(this.draft.category || '') !== String(validatedCategory || '');
-
         this.draft.sttnname = validatedName;
         this.draft.category = validatedCategory;
-
         if (this.draft?.objectid && (nameChanged || categoryChanged)) {
-          const payload = {
-            distkm: this.draft.distkm,
-            distm: this.draft.distm,
-            state: this.draft.state,
-            district: this.draft.district,
-            constituncy: this.draft.constituency,
-            sttnname: this.draft.sttnname,
-            category: this.draft.category,
-            sttntype: this.draft.stationtype,
-          };
-
-          this.api.updateStation(this.draft.objectid, payload).subscribe({
-            next: () => {
-              this.validating = false;
-              this.stationValidated = true;
-              alert(res?.message || 'Station code validated successfully');
-              this.cdr.detectChanges();
-            },
-            error: (err: any) => {
-              this.validating = false;
-              alert(err?.error?.message || 'Station code validated but failed to update station details');
-              this.cdr.detectChanges();
-            },
-          });
+          const payload = { distkm: this.draft.distkm, distm: this.draft.distm, state: this.draft.state, district: this.draft.district, constituncy: this.draft.constituency, sttnname: this.draft.sttnname, category: this.draft.category, sttntype: this.draft.stationtype };
+          this.api.updateStation(this.draft.objectid, payload).subscribe({ next: () => { this.validating = false; this.stationValidated = true; alert(res?.message || 'Station code validated successfully'); this.cdr.detectChanges(); }, error: (err: any) => { this.validating = false; alert(err?.error?.message || 'Station code validated but failed to update station details'); this.cdr.detectChanges(); } });
           return;
         }
-
-        this.validating = false;
-        this.stationValidated = true;
-        alert(res?.message || 'Station code validated successfully');
-        this.cdr.detectChanges();
+        this.validating = false; this.stationValidated = true; alert(res?.message || 'Station code validated successfully'); this.cdr.detectChanges();
       },
-      error: (err: any) => {
-        this.validating = false;
-        this.stationValidated = false;
-        alert(err?.error?.message || 'Station code validation failed');
-        this.cdr.detectChanges();
-      },
+      error: (err: any) => { this.validating = false; this.stationValidated = false; alert(err?.error?.message || 'Station code validation failed'); this.cdr.detectChanges(); },
     });
   }
 
-  deleteRow(row: any) {
-    if (!confirm(`Delete station "${row.sttncode}"?`)) return;
-
-    this.deleting = true;
-
-    this.api.deleteStation(row.objectid).subscribe({
-      next: () => {
-        this.deleting = false;
-
-        // remove locally then repaginate
-        this.allRows = this.allRows.filter((r) => r.objectid !== row.objectid);
-        this.filteredRows = this.allRows.filter((r) => this.isVisibleForCurrentView(r));
-
-        if (this.page > this.totalPages) this.page = this.totalPages;
-        this.applyPagination();
-
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.deleting = false;
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  deleteDraft() {
-    if (!this.draft?.objectid) return;
-    const row = { objectid: this.draft.objectid, sttncode: this.draft.sttncode };
-    if (!confirm(`Delete station "${row.sttncode}"?`)) return;
-
-    this.deleting = true;
-
-    this.api.deleteStation(row.objectid).subscribe({
-      next: () => {
-        this.deleting = false;
-
-        this.mode = 'table';
-        this.draft = null;
-        this.originalDraft = null;
-        this.stationValidated = false;
-        this.error = null;
-        this.geomEditing = false;
-        this.dragSub?.unsubscribe();
-        this.dragSub = undefined;
-
-        this.mapZoom.zoomHome();
-        this.mapZoom.clearHighlight();
-
-        setTimeout(() => this.load(false), 0);
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.deleting = false;
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  previewRejectedRow(row: any) {
-    this.editRow(row);
-  }
-
-  sendForwardRejected(row: any) {
-    alert(`Send Forward clicked for station ${row?.sttncode || ''}.`);
-  }
-
-  deleteRejectedRow(row: any) {
-    this.deleteRow(row);
-  }
-
-  acceptDeletionRow(row: any) {
-    alert(`Accept Deletion clicked for station ${row?.sttncode || ''}.`);
-  }
-
-  rejectDeletionRow(row: any) {
-    alert(`Reject Deletion clicked for station ${row?.sttncode || ''}.`);
-  }
-
-  acceptDeletionDraft() {
-    if (!this.draft) return;
-    this.acceptDeletionRow(this.draft);
-  }
-
-  rejectDeletionDraft() {
-    if (!this.draft) return;
-    this.rejectDeletionRow(this.draft);
-  }
+  deleteRow(row: any) { if (!confirm(`Delete station "${row.sttncode}"?`)) return; this.deleting = true; this.api.deleteStation(row.objectid).subscribe({ next: () => { this.deleting = false; this.allRows = this.allRows.filter((r) => r.objectid !== row.objectid); this.filteredRows = this.allRows.filter((r) => this.isVisibleForCurrentView(r)); if (this.page > this.totalPages) this.page = this.totalPages; this.applyPagination(); this.cdr.detectChanges(); }, error: () => { this.deleting = false; this.cdr.detectChanges(); } }); }
+  deleteDraft() { if (!this.draft?.objectid) return; const row = { objectid: this.draft.objectid, sttncode: this.draft.sttncode }; if (!confirm(`Delete station "${row.sttncode}"?`)) return; this.deleting = true; this.api.deleteStation(row.objectid).subscribe({ next: () => { this.deleting = false; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.error = null; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.zoomHome(); this.mapZoom.clearHighlight(); setTimeout(() => this.load(false), 0); this.cdr.detectChanges(); }, error: () => { this.deleting = false; this.cdr.detectChanges(); } }); }
+  previewRejectedRow(row: any) { this.editRow(row); }
+  sendForwardRejected(row: any) { alert(`Send Forward clicked for station ${row?.sttncode || ''}.`); }
+  deleteRejectedRow(row: any) { this.deleteRow(row); }
+  acceptDeletionRow(row: any) { alert(`Accept Deletion clicked for station ${row?.sttncode || ''}.`); }
+  rejectDeletionRow(row: any) { alert(`Reject Deletion clicked for station ${row?.sttncode || ''}.`); }
+  acceptDeletionDraft() { if (!this.draft) return; this.acceptDeletionRow(this.draft); }
+  rejectDeletionDraft() { if (!this.draft) return; this.rejectDeletionRow(this.draft); }
 
   private resetPanelState() {
-    this.mode = 'table';
-    this.rows = [];
-    this.allRows = [];
-    this.filteredRows = [];
-
-    this.total = 0;
-    this.filteredTotal = 0;
-
-    this.page = 1;
-    this.pageSize = 8;
-
-    this.search = '';
-    this.loading = false;
-
-    this.draft = null;
-    this.originalDraft = null;
-    this.stationValidated = false;
-
-    this.saving = false;
-    this.deleting = false;
-    this.validating = false;
-
-    this.geomEditing = false;
-    this.dragSub?.unsubscribe();
-    this.dragSub = undefined;
-
-    this.error = null;
-
-    this.edit.setLayer(null as any);
-    this.mapZoom.clearHighlight();
+    this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.pageSize = 8; this.search = ''; this.loading = false; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.saving = false; this.deleting = false; this.validating = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.error = null; this.edit.setLayer(null as any); this.mapZoom.clearHighlight();
   }
 
   close() {
-    this.mapZoom.zoomHome();
-    this.mapZoom.clearHighlight();
-
-    this.ui.activePanel = null;
-    this.resetPanelState();
-
-    this.edit.disable();
+    this.mapZoom.zoomHome(); this.mapZoom.clearHighlight(); this.ui.activePanel = null; this.resetPanelState(); this.edit.disable();
   }
 }

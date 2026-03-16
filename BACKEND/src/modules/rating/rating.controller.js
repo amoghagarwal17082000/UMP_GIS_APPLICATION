@@ -1,17 +1,16 @@
 const ratingModel = require('./rating.model');
+const authModel = require('../auth/auth.model');
+const { getSessionUserId } = require('../auth/auth.session');
 
 async function createRating(req, res, next) {
   try {
-    const { user_id, user_name, railway, division, rating, comment } = req.body || {};
+    const sessionUserId = getSessionUserId(req);
+    const normalizedUserId = String(sessionUserId || req.body?.user_id || '').trim();
+    const rating = req.body?.rating;
+    const comment = req.body?.comment;
 
-    if (!user_id) {
+    if (!normalizedUserId) {
       const err = new Error('user_id is required');
-      err.status = 400;
-      throw err;
-    }
-
-    if (!user_name || !railway || !division) {
-      const err = new Error('user_name, railway and division are required');
       err.status = 400;
       throw err;
     }
@@ -22,15 +21,21 @@ async function createRating(req, res, next) {
       throw err;
     }
 
-    const normalizedUserId = String(user_id).trim();
-    if (!normalizedUserId) {
-      const err = new Error('user_id is required');
-      err.status = 400;
+    const user = await authModel.findUserById(normalizedUserId);
+    if (!user) {
+      const err = new Error('User not found');
+      err.status = 404;
       throw err;
     }
 
     const result = await ratingModel.createRating(
-      { user_name, railway, division, rating, comment: comment ?? '' },
+      {
+        user_name: user.user_name,
+        railway: user.zone,
+        division: user.division_code,
+        rating,
+        comment: comment ?? '',
+      },
       normalizedUserId
     );
 
@@ -45,15 +50,9 @@ async function createRating(req, res, next) {
 
 async function getLastRating(req, res, next) {
   try {
-    const userId = req.body?.user_id ?? req.query?.user_id;
+    const sessionUserId = getSessionUserId(req);
+    const normalizedUserId = String(sessionUserId || req.body?.user_id || req.query?.user_id || '').trim();
 
-    if (!userId) {
-      const err = new Error('user_id is required');
-      err.status = 400;
-      throw err;
-    }
-
-    const normalizedUserId = String(userId).trim();
     if (!normalizedUserId) {
       const err = new Error('user_id is required');
       err.status = 400;

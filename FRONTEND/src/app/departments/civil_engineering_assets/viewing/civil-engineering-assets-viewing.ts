@@ -3,7 +3,44 @@ import * as L from 'leaflet';
 import 'leaflet-polylinedecorator';
 import { NgZone } from '@angular/core';
 import { Api } from '../../../api/api';
-import { MapLayer } from '../../../services/interface';
+import { circleMarkerOptionsFromLegend, defineLegend, MapLayer, pathStyleFromLegend } from '../../../services/interface';
+
+const STATION_LEGEND = defineLegend({
+  type: 'point' as const,
+  color: '#d32f2f',
+  label: 'Railway Station',
+  fillColor: '#d32f2f',
+  fillOpacity: 0.9,
+  strokeColor: '#ffffff',
+  strokeWidth: 1,
+  radius: 6,
+});
+
+const LANDPLAN_ONTRACK_LEGEND = defineLegend({
+  type: 'polygon' as const,
+  color: '#FFA500',
+  label: 'Landplan Ontrack',
+  fillColor: '#FFA500',
+  fillOpacity: 0.15,
+  strokeColor: '#FFA500',
+  strokeWidth: 3,
+});
+
+const LAND_OFFSET_LEGEND = defineLegend({
+  type: 'line' as const,
+  color: '#000000',
+  label: 'Land Offset',
+  strokeColor: '#000000',
+  strokeWidth: 2,
+});
+
+const LAND_BOUNDARY_LEGEND = defineLegend({
+  type: 'line' as const,
+  color: 'orange',
+  label: 'Land Boundary',
+  strokeColor: 'orange',
+  strokeWidth: 3,
+});
 
 export class StationViewingLayer implements MapLayer {
   id = 'stations';
@@ -13,16 +50,7 @@ export class StationViewingLayer implements MapLayer {
 
   protected readonly LABEL_ZOOM = 12;
 
-  legend = {
-    type: 'point' as const,
-    color: '#d32f2f',
-    label: 'Railway Station',
-    fillColor: '#d32f2f',
-    fillOpacity: 0.9,
-    strokeColor: '#ffffff',
-    strokeWidth: 1,
-    radius: 7,
-  };
+  legend = STATION_LEGEND;
 
   protected layer: L.GeoJSON;
   private lastBbox = '';
@@ -39,14 +67,7 @@ export class StationViewingLayer implements MapLayer {
   ) {
     this.layer = L.geoJSON(null, {
       pointToLayer: (feature: any, latlng: L.LatLng) => {
-        const marker = L.circleMarker(latlng, {
-          radius: 6,
-          fillColor: '#d32f2f',
-          color: '#ffffff',
-          weight: 1,
-          opacity: 1,
-          fillOpacity: 0.9,
-        });
+        const marker = L.circleMarker(latlng, circleMarkerOptionsFromLegend(this.legend));
 
         const p = feature?.properties || {};
         const name = (p.sttnname || '').toString().trim();
@@ -169,15 +190,7 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
 
   minZoom = 10;
 
-  legend = {
-    type: 'polygon' as const,
-    color: '#FFA500',
-    label: 'Landplan Ontrack',
-    fillColor: '#FFA500',
-    fillOpacity: 0.15,
-    strokeColor: '#FFA500',
-    strokeWidth: 3,
-  };
+  legend = LANDPLAN_ONTRACK_LEGEND;
 
   protected layer: L.GeoJSON;
   private lastKey = '';
@@ -188,13 +201,7 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
 
   constructor(protected api: Api, protected onData?: (geojson: any) => void) {
     this.layer = L.geoJSON(null, {
-      style: () => ({
-        color: '#FFA500',
-        weight: 3,
-        opacity: 1,
-        fillColor: '#FFA500',
-        fillOpacity: 0.15,
-      }),
+      style: () => pathStyleFromLegend(this.legend),
       interactive: this.isInteractive(),
       onEachFeature: (feature: any, layer: any) => {
         this.onFeatureReady(feature, layer);
@@ -227,7 +234,6 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
       pane.style.zIndex = '450';
       pane.style.pointerEvents = this.panePointerEvents();
 
-      (this.layer as any).options.pane = paneName;
       this.paneReady = true;
     }
 
@@ -241,6 +247,7 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
 
     if (shouldShow) {
       if (!map.hasLayer(this.layer)) this.layer.addTo(map);
+      this.layer.bringToFront();
       this.loadForMap(map);
     } else {
       if (map.hasLayer(this.layer)) map.removeLayer(this.layer);
@@ -274,7 +281,7 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
       next: (geojson: any) => {
         if (requestId !== this.requestSeq) return;
         if (!geojson || (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature')) {
-          console.error('[LandPlanOntrack] Invalid GeoJSON returned:', geojson);
+          console.error('LandPlanOntrack invalid GeoJSON returned:', geojson);
           return;
         }
 
@@ -297,9 +304,10 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
 
         this.layer.clearLayers();
         this.layer.addData(fc);
+        this.layer.bringToFront();
       },
       error: (err: any) => {
-        console.error('[LandPlanOntrack] API error', err);
+        console.error('LandPlanOntrack API error', err);
       },
     });
   }
@@ -313,13 +321,7 @@ export class LandOffsetLayer implements MapLayer {
 
   minZoom = 11;
 
-  legend = {
-    type: 'line' as const,
-    color: '#000000',
-    label: 'Land Offset',
-    strokeColor: '#000000',
-    strokeWidth: 2,
-  };
+  legend = LAND_OFFSET_LEGEND;
 
   private layer: L.GeoJSON;
   private decorators: L.LayerGroup;
@@ -334,11 +336,7 @@ export class LandOffsetLayer implements MapLayer {
     this.decorators = L.layerGroup();
 
     this.layer = L.geoJSON(null, {
-      style: () => ({
-        color: '#000000',
-        weight: 2,
-        opacity: 1,
-      }),
+      style: () => pathStyleFromLegend(this.legend),
       interactive: false,
     });
   }
@@ -462,7 +460,7 @@ export class LandOffsetLayer implements MapLayer {
                 symbol: (L as any).Symbol.arrowHead({
                   pixelSize: 10,
                   polygon: true,
-                  pathOptions: { color: '#000000', fillColor: '#000000', opacity: 1 },
+                  pathOptions: { color: this.legend.strokeColor || this.legend.color, fillColor: this.legend.strokeColor || this.legend.color, opacity: 1 },
                 }),
               },
               {
@@ -471,7 +469,7 @@ export class LandOffsetLayer implements MapLayer {
                 symbol: (L as any).Symbol.arrowHead({
                   pixelSize: 10,
                   polygon: true,
-                  pathOptions: { color: '#000000', fillColor: '#000000', opacity: 1 },
+                  pathOptions: { color: this.legend.strokeColor || this.legend.color, fillColor: this.legend.strokeColor || this.legend.color, opacity: 1 },
                 }),
               },
             ],
@@ -493,13 +491,7 @@ export class LandBoundaryLayer implements MapLayer {
 
   minZoom = 10;
 
-  legend = {
-    type: 'line' as const,
-    color: 'orange',
-    label: 'Land Boundary',
-    strokeColor: 'orange',
-    strokeWidth: 3,
-  };
+  legend = LAND_BOUNDARY_LEGEND;
 
   private layer!: L.GeoJSON;
   private lastBbox = '';
@@ -509,10 +501,7 @@ export class LandBoundaryLayer implements MapLayer {
 
   constructor(private api: Api, private onData?: (geojson: any) => void) {
     this.layer = L.geoJSON(null, {
-      style: {
-        color: 'orange',
-        weight: 3,
-      },
+      style: pathStyleFromLegend(this.legend),
     });
   }
 
@@ -585,3 +574,11 @@ export class LandBoundaryLayer implements MapLayer {
     });
   }
 }
+
+
+
+
+
+
+
+

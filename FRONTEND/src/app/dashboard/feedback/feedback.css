@@ -1,15 +1,8 @@
-.feedback-page {
-  min-height: 100%;
-  width: 100%;
-  padding: 8px 16px 14px;
+ .feedback-page {
   background: #eef3fb;
 }
 
-.feedback-shell {
-  width: 100%;
-  max-width: 1480px;
-  margin: 0 auto;
-}
+.feedback-shell {}
 
 .feedback-hero {
   display: flex;
@@ -50,53 +43,12 @@
   display: block;
 }
 
-.feedback-hero-badge {
-  min-width: 250px;
-  align-self: center;
-  padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.09);
-}
-
-.feedback-badge-label {
-  margin-bottom: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.feedback-badge-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.feedback-badge-row i {
-  font-size: 30px;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.feedback-badge-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: #ffffff;
-}
-
 .feedback-card {
   border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 16px 36px rgba(31, 57, 90, 0.1);
   padding: 28px 36px 28px;
 }
 
 .feedback-profile-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px 28px;
   margin-bottom: 22px;
 }
 
@@ -274,9 +226,6 @@
 }
 
 @media (max-width: 992px) {
-  .feedback-page {
-    padding: 10px 12px 16px;
-  }
 
   .feedback-hero {
     flex-direction: column;
@@ -288,8 +237,7 @@
   }
 
   .feedback-profile-grid {
-    grid-template-columns: 1fr;
-    gap: 18px;
+    margin-bottom: 18px;
   }
 
   .feedback-field label {
@@ -324,3 +272,52 @@
     font-size: 20px;
   }
 }
+
+@media (max-width: 767.98px) {
+
+  .feedback-card {
+    padding: 20px 18px;
+    border-radius: 18px;
+  }
+
+  .feedback-kicker {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .feedback-title {
+    font-size: 38px;
+  }
+
+  .feedback-field label {
+    font-size: 18px;
+  }
+
+  .feedback-field label i {
+    font-size: 22px;
+  }
+
+  .feedback-static-value {
+    min-height: 58px;
+    padding: 0 16px;
+    font-size: 18px;
+  }
+
+  .feedback-textarea {
+    min-height: 140px;
+    padding: 14px 16px;
+    font-size: 18px;
+  }
+
+  .feedback-helper-text {
+    font-size: 15px;
+    padding-bottom: 14px;
+  }
+
+  .feedback-submit-btn {
+    min-width: min(100%, 320px);
+    height: 58px;
+    font-size: 18px;
+  }
+}
+

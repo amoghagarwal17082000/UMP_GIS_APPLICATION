@@ -1,35 +1,45 @@
-<div class="dashboard-page">
+<div class="container-fluid dashboard-page dashboard-page-shell">
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="row g-4 main-cards">
+        <div class="col-12 col-sm-6 col-xl-4 col-xxl" *ngFor="let card of mainCards">
+          <div
+            class="main-card h-100"
+            [attr.data-color]="card.color"
+            [class.active]="selectedMain === card.key"
+            (click)="onMainCardClick(card.key)"
+          >
+            <div class="main-title">{{ card.title }}</div>
+            <div class="main-value">{{ card.value }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  <!-- ================= MAIN CARDS ================= -->
-  <div class="main-cards">
-    <div
-      class="main-card"
-      *ngFor="let card of mainCards"
-      [attr.data-color]="card.color"
-      [class.active]="selectedMain === card.key"
-      (click)="onMainCardClick(card.key)"
-    >
-      <div class="main-title">{{ card.title }}</div>
-      <div class="main-value">{{ card.value }}</div>
+    <div class="col-12">
+      <div class="row g-4 sub-cards">
+        <div class="col-12 col-sm-6 col-xl-4 col-xxl-3" *ngFor="let card of activeSubCards">
+          <div
+            class="sub-card h-100"
+            [attr.data-color]="activeColor"
+            (click)="onSubCardClick(card)"
+          >
+            <div class="sub-title">{{ card.title }}</div>
+            <div class="sub-value">{{ card.value }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="dashboard-note">
+        <span class="note-icon"><i class="bi bi-info-circle"></i></span>
+        <span>
+          Only relevant asset cards will be active for redirection based on the logged-in user role
+          (Maker / Checker / Approver).
+        </span>
+      </div>
     </div>
   </div>
-
-  <!-- ================= SUB CARDS ================= -->
-<div class="sub-cards">
-  <div
-    class="sub-card"
-    *ngFor="let card of activeSubCards"
-    [attr.data-color]="activeColor"
-    (click)="onSubCardClick(card)"
-  >
-    <div class="sub-title">{{ card.title }}</div>
-    <div class="sub-value">{{ card.value }}</div>
-  </div>
 </div>
 
-<div class="dashboard-note">
-  <span class="note-icon">ℹ️</span>
-  Only relevant asset cards will be active for redirection based on the logged-in user role (Maker / Checker / Approver).
-</div>
-
-</div>

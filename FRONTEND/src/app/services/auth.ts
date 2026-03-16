@@ -1,57 +1,43 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
-import { Api } from '../api/api';
+
+import { AuthApi } from '../api/auth/auth.api';
+import { BASE_URL } from '../api/shared/api-utils';
+import { CurrentUserService } from './current-user';
 
 @Injectable({
   providedIn: 'root',
 })
 export class Auth {
-  constructor(private api: Api) {}
+  private readonly LAST_RATING_CACHE_KEY = 'last_rating_at';
 
-  /**
-   * STEP 1:
-   * Validate username/password and send OTP to registered email.
-   * Backend: POST /api/auth/request-otp  { user_id, password }
-   */
+  constructor(
+    private authApi: AuthApi,
+    private http: HttpClient,
+    private currentUser: CurrentUserService
+  ) {}
+
   requestOtp(username: string, password: string): Observable<any> {
-    return this.api.requestOtp(username, password).pipe(
+    return this.authApi.requestOtp(username, password).pipe(
       tap((res: any) => {
         console.log('REQUEST OTP RESPONSE FROM SERVER:', res);
-        // Do NOT store user here because login is not complete until OTP verified
       })
     );
   }
 
-  /**
-   * STEP 2:
-   * Verify OTP (stored in DB) and complete login.
-   * Backend: POST /api/auth/verify-otp  { user_id, otp }
-   */
-verifyOtp(user_id: string, otp: string) {
-  return this.api.verifyOtp(user_id, otp).pipe(
-    tap((res: any) => {
-      if (res?.success) {
-        const u = res.user || {};
-        localStorage.setItem('user_id', u.user_id || '');
-        localStorage.setItem('user_name', u.user_name || '');
-        localStorage.setItem('railway', u.railway || '');
-        localStorage.setItem('division', u.division || '');
-        localStorage.setItem('department', u.department || '');
-        localStorage.setItem('user_type', u.user_type || '');
-        localStorage.setItem('unit_type', u.unit_type || '');
-      }
-    })
-  );
-}
+  verifyOtp(user_id: string, otp: string) {
+    return this.authApi.verifyOtp(user_id, otp).pipe(
+      tap((res: any) => {
+        if (res?.success) {
+          this.currentUser.setUser(res.user || null);
+        }
+      })
+    );
+  }
 
-
-  /**
-   * OPTIONAL:
-   * Resend OTP (new OTP stored in DB and mailed)
-   * Backend: POST /api/auth/resend-otp  { user_id }
-   */
   resendOtp(username: string): Observable<any> {
-    return this.api.resendOtp(username).pipe(
+    return this.authApi.resendOtp(username).pipe(
       tap((res: any) => {
         console.log('RESEND OTP RESPONSE FROM SERVER:', res);
       })
@@ -59,19 +45,22 @@ verifyOtp(user_id: string, otp: string) {
   }
 
   logout(): void {
-    localStorage.clear();
+    this.currentUser.clear();
+    localStorage.removeItem(this.LAST_RATING_CACHE_KEY);
+    this.http.post<any>(`${BASE_URL}/api/auth/logout`, {}).subscribe({
+      error: () => {},
+    });
   }
 
   isLoggedIn(): boolean {
-    return !!localStorage.getItem('user_id');
+    return !!this.currentUser.getSnapshot()?.user_id;
   }
 
   getUserType(): string {
-  return localStorage.getItem('user_type') || '';
-}
+    return this.currentUser.getSnapshot()?.user_type || '';
+  }
 
-isAdmin(): boolean {
-  return this.getUserType() === 'Admin';
-}
-
+  isAdmin(): boolean {
+    return this.getUserType() === 'Admin';
+  }
 }
