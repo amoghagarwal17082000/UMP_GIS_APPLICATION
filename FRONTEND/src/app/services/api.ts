@@ -14,7 +14,7 @@ export class Api {
   private readonly BASE_URL = 'http://127.0.0.1:4000';
     // private readonly baseUrl: any= 'http://127.0.0.1:4000/'
 
-  private readonly BASE_URL = BASE_URL;
+  // private readonly BASE_URL = BASE_URL;
 
 
   constructor(private http: HttpClient) {}
