@@ -1,10 +1,8 @@
 const feedbackModel = require('../../modules/feedback/feedback.model');
-const { getSessionUserId } = require('../auth/auth.session');
 
 exports.createFeedback = async (req, res) => {
   try {
-    const sessionUserId = getSessionUserId(req);
-    const user_id = sessionUserId || req.body?.user_id;
+    const user_id = String(req?.user?.sub || req?.user?.user_id || '').trim();
     const message = req.body?.message;
 
     if (!user_id || !message) {

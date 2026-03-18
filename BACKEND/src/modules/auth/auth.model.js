@@ -1,4 +1,9 @@
+const crypto = require('crypto');
 const pool = require('../../config/db');
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(String(token || ''), 'utf8').digest('hex');
+}
 
 async function findUserById(userId) {
   const sql = `
@@ -100,53 +105,31 @@ async function markOtpUsed(userId) {
   await pool.query(sql, [userId]);
 }
 
-
-//**** One active session per user. Re-login replaces token automically.
-let authSessionTableReady = false;
-// token create if not Exist 
-async function ensureAuthSessionTable() {
-  if (authSessionTableReady) return;
-
-  const sql = `
-    CREATE TABLE IF NOT EXISTS auth_session (
-      user_id VARCHAR(128) PRIMARY KEY,
-      token TEXT NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
-      revoked_at TIMESTAMPTZ NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `;
-
-  await pool.query(sql);
-  authSessionTableReady = true;
-}
-
-//JWT token save remove from DB
 async function saveSessionToken(userId, token, expiresAt) {
-  await ensureAuthSessionTable();
-
-  // Upsert keeps only the latest valid token per user.
+  const tokenHash = hashToken(token);
   const sql = `
-    INSERT INTO auth_session (user_id, token, expires_at, revoked_at, created_at, updated_at)
-    VALUES ($1, $2, $3, NULL, NOW(), NOW())
-    ON CONFLICT (user_id)
-    DO UPDATE SET
-      token = EXCLUDED.token,
-      expires_at = EXCLUDED.expires_at,
-      revoked_at = NULL,
-      updated_at = NOW();
+    UPDATE user_master
+    SET jwt_token = $2,
+        expires_at = $3,
+        revoked_at = NULL,
+        created_at = NOW(),
+        updated_at = NOW()
+    WHERE user_id = $1
   `;
 
-  await pool.query(sql, [userId, token, expiresAt]);
+  await pool.query(sql, [userId, tokenHash, expiresAt]);
 }
 
 async function getSessionToken(userId) {
-  await ensureAuthSessionTable();
-
   const sql = `
-    SELECT user_id, token, expires_at, revoked_at
-    FROM auth_session
+    SELECT
+      user_id,
+      jwt_token AS token,
+      expires_at,
+      revoked_at,
+      created_at,
+      updated_at
+    FROM user_master
     WHERE user_id = $1
     LIMIT 1;
   `;
@@ -155,23 +138,44 @@ async function getSessionToken(userId) {
   return rows[0] || null;
 }
 
-
 async function revokeSessionByToken(userId, token) {
-  await ensureAuthSessionTable();
-
-  // Revoke only the currently presented token for precise logout.
+  const tokenHash = hashToken(token);
   const sql = `
-    UPDATE auth_session
-    SET revoked_at = NOW(),
+    UPDATE user_master
+    SET jwt_token = NULL,
+        expires_at = NULL,
+        revoked_at = NOW(),
         updated_at = NOW()
     WHERE user_id = $1
-      AND token = $2;
+      AND jwt_token = $2;
   `;
 
-  await pool.query(sql, [userId, token]);
+  await pool.query(sql, [userId, tokenHash]);
 }
 
+async function clearSession(userId) {
+  const sql = `
+    UPDATE user_master
+    SET jwt_token = NULL,
+        expires_at = NULL,
+        revoked_at = NOW(),
+        updated_at = NOW()
+    WHERE user_id = $1
+  `;
 
+  await pool.query(sql, [userId]);
+}
+
+async function touchSession(userId) {
+  const sql = `
+    UPDATE user_master
+    SET updated_at = NOW()
+    WHERE user_id = $1
+      AND jwt_token IS NOT NULL
+  `;
+
+  await pool.query(sql, [userId]);
+}
 
 module.exports = {
   findUserById,
@@ -184,4 +188,7 @@ module.exports = {
   saveSessionToken,
   getSessionToken,
   revokeSessionByToken,
+  clearSession,
+  touchSession,
+  hashToken,
 };

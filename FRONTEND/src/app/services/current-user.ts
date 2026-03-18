@@ -5,9 +5,12 @@ import { catchError, map } from 'rxjs/operators';
 
 import { BASE_URL } from '../api/shared/api-utils';
 import {
+  clearAccessToken,
   clearCurrentUserSnapshot,
   CurrentUser,
+  getAccessToken,
   getCurrentUserSnapshot,
+  setAccessToken,
   setCurrentUserSnapshot,
 } from './current-user.store';
 
@@ -24,17 +27,32 @@ export class CurrentUserService {
     return this.userSubject.getValue();
   }
 
+  getAccessToken(): string {
+    return getAccessToken();
+  }
+
   setUser(user: CurrentUser | null): void {
     setCurrentUserSnapshot(user);
     this.userSubject.next(user);
   }
 
+  setAuth(user: CurrentUser | null, token: string | null): void {
+    setAccessToken(token);
+    this.setUser(user);
+  }
+
   clear(): void {
+    clearAccessToken();
     clearCurrentUserSnapshot();
     this.userSubject.next(null);
   }
 
   async loadMe(force = false): Promise<CurrentUser | null> {
+    if (!getAccessToken()) {
+      this.clear();
+      return null;
+    }
+
     if (!force) {
       const current = this.getSnapshot();
       if (current) return current;
@@ -47,7 +65,11 @@ export class CurrentUserService {
         catchError(() => of(null))
       )
     ).then((user) => {
-      this.setUser(user);
+      if (!user) {
+        this.clear();
+      } else {
+        this.setUser(user);
+      }
       this.loadPromise = null;
       return user;
     });

@@ -84,7 +84,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   ) {}
 
   ngAfterViewInit(): void {
-    void this.currentUser.loadMe().finally(() => {
+    void this.currentUser.loadMe(true).finally(() => {
       this.zone.runOutsideAngular(() => {
         requestAnimationFrame(() => this.initializeMapSafely());
       });
@@ -202,4 +202,5 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     try { if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); }
   }
 }
+
 

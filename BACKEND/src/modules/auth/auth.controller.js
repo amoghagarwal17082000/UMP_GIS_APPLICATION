@@ -1,28 +1,26 @@
 const authModel = require('./auth.model');
 const otpService = require('../../services/otp/otp-service');
-
 const jwt = require('jsonwebtoken');
-const activeResend = new Map(); // user_id -> true
-const { clearSessionCookie, getSessionUserId, setSessionCookie } = require('./auth.session');
+const activeResend = new Map();
 
 function genOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+function getJwtSecret() {
+  return String(process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || '').trim();
+}
 
-// Issue Token
 async function issueAccessToken(user) {
-  const secret = process.env.JWT_SECRET;
+  const secret = getJwtSecret();
   if (!secret) {
     const err = new Error('JWT_SECRET not configured');
     err.status = 500;
     throw err;
   }
 
-  const expiresIn = process.env.JWT_EXPIRES_IN || '8h';         
-
+  const expiresIn = process.env.JWT_EXPIRES_IN || '8h';
   const payload = {
-    // Keep payload minimal; user profile comes from DB-backed APIs.
     sub: user.user_id,
     user_id: user.user_id,
     user_type: user.user_type,
@@ -31,7 +29,6 @@ async function issueAccessToken(user) {
   };
 
   const token = jwt.sign(payload, secret, { expiresIn });
-  // token and expiry to support server-side invalidation on logout.
   const decoded = jwt.decode(token);
   const expMs = Number(decoded?.exp || 0) * 1000;
   const expiresAt = new Date(expMs);
@@ -39,10 +36,6 @@ async function issueAccessToken(user) {
   await authModel.saveSessionToken(user.user_id, token, expiresAt);
   return token;
 }
-
-/**
- * Legacy login (if used)
- */
 
 function toUserPayload(user) {
   if (!user) return null;
@@ -60,7 +53,6 @@ function toUserPayload(user) {
   };
 }
 
-
 async function login(req, res, next) {
   try {
     const { user_id, password } = req.body || {};
@@ -72,35 +64,20 @@ async function login(req, res, next) {
     }
 
     const user = await authModel.findUserById(user_id);
-
     if (!user || user.password !== password) {
       const err = new Error('Invalid user_id or password');
       err.status = 401;
       throw err;
     }
 
-    // ✅ Create token
     const accessToken = await issueAccessToken(user);
 
-    // ✅ Set cookie (if needed)
-    setSessionCookie(res, user.user_id);
-
-    // ✅ Send SINGLE response
     res.json({
       success: true,
       accessToken,
       tokenType: 'Bearer',
-      user: {
-        user_id: user.user_id,
-        user_name: user.user_name,
-        railway: user.zone,
-        division: user.division_code,
-        department: user.department,
-        user_type: user.user_type,
-        unit_type: user.unit_type,
-      }
+      user: toUserPayload(user),
     });
-
   } catch (err) {
     next(err);
   }
@@ -133,7 +110,6 @@ async function requestOtp(req, res, next) {
     if (otpState?.otp && otpState?.otp_expires_at && otpState?.otp_used === false) {
       const expiresAtMs = new Date(otpState.otp_expires_at).getTime();
       const nowMs = Date.now();
-
       const notExpired = nowMs <= expiresAtMs;
 
       let withinReuseWindow = false;
@@ -201,7 +177,6 @@ async function verifyOtp(req, res, next) {
     }
 
     const otpState = await authModel.getOtpState(user_id);
-
     if (!otpState?.otp || !otpState?.otp_expires_at) {
       const err = new Error('OTP not found. Please request again.');
       err.status = 401;
@@ -232,7 +207,6 @@ async function verifyOtp(req, res, next) {
 
       const attempts = Number(otpState.otp_attempts || 0) + 1;
       const maxAttempts = Number(process.env.OTP_MAX_ATTEMPTS || 5);
-
       if (attempts >= maxAttempts) {
         await authModel.clearOtp(user_id);
         const err = new Error('Too many invalid attempts. Please request a new OTP.');
@@ -246,37 +220,18 @@ async function verifyOtp(req, res, next) {
     }
 
     await authModel.clearOtp(user_id);
-    setSessionCookie(res, user.user_id);
-
-    const accessToken = await issueAccessToken(user);  // token create
+    const accessToken = await issueAccessToken(user);
 
     return res.json({
       success: true,
-
-      accessToken,          // token
-      tokenType: 'Bearer',     // token type
-      user: {
-        user_id: user.user_id,
-        user_name: user.user_name,
-        railway: user.zone,
-        division: user.division_code,   // ✅ FIXED
-        department: user.department,
-        user_type: user.user_type,
-        unit_type: user.unit_type,
-      },
-
+      accessToken,
+      tokenType: 'Bearer',
       user: toUserPayload(user),
-
     });
   } catch (err) {
     next(err);
   }
 }
-
-
-/**
- * Resend OTP
- */
 
 async function resendOtp(req, res, next) {
   try {
@@ -307,7 +262,6 @@ async function resendOtp(req, res, next) {
     }
 
     const otpState = await authModel.getOtpState(user_id);
-
     let otpToUse = null;
     if (otpState?.otp && otpState?.otp_expires_at && otpState?.otp_used === false) {
       const nowMs = Date.now();
@@ -340,53 +294,30 @@ async function resendOtp(req, res, next) {
   }
 }
 
-
-// Logout
-
-async function logout(req, res, next) {
-  try {
-    const userId = String(req?.user?.sub || req?.user?.user_id || '').trim();
-    const token = String(req?.authToken || '').trim();
-
-    if (!userId || !token) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-
-    // Immediate invalidation: token remains signed but is rejected by DB session check.
-    await authModel.revokeSessionByToken(userId, token);
-
-    return res.json({
-      success: true,
-      message: 'Logged out successfully',
-    });
-  } catch (err) {
-    return next(err);
-  }
-}
-
 async function getCurrentUser(req, res, next) {
   try {
-    const userId = getSessionUserId(req);
+    const userId = String(req?.user?.sub || req?.user?.user_id || '').trim();
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
     const user = await authModel.findUserById(userId);
     if (!user) {
-      clearSessionCookie(res);
       return res.status(401).json({ success: false, message: 'Session invalid' });
     }
 
     return res.json({ success: true, user: toUserPayload(user) });
   } catch (err) {
     next(err);
-
   }
 }
 
 async function logout(req, res, next) {
   try {
-    clearSessionCookie(res);
+    const userId = String(req?.user?.sub || req?.user?.user_id || '').trim();
+    if (userId) {
+      await authModel.clearSession(userId);
+    }
     return res.json({ success: true, message: 'Logged out' });
   } catch (err) {
     next(err);
@@ -399,7 +330,5 @@ module.exports = {
   verifyOtp,
   resendOtp,
   getCurrentUser,
-
   logout,
-}
-  
+};
