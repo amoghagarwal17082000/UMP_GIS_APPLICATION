@@ -42,12 +42,20 @@
               <h5 class="mb-0">User List / Layer Assign</h5>
             </div>
 
-            <div class="col-12 col-xl-auto">
-              <div class="d-flex flex-wrap gap-2 justify-content-xl-end">
-                <button class="btn btn-warning btn-sm">+ Assign Layer</button>
-                <button class="btn btn-warning btn-sm">+ Assign Checker</button>
-              </div>
-            </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+            <h5 class="mb-2">User List / Layer Assign</h5>
+
+           <div class="action-buttons">
+  <button class="btn action-btn me-2 mb-2">+ Assign Layer</button>
+<button
+  class="btn action-btn me-2 mb-2"
+  (click)="openAssignCheckerModal()"
+>
+  + Assign Checker
+</button>
+</div>
+
           </div>
 
           <ul class="nav nav-tabs mb-3 flex-nowrap overflow-auto user-tabs">
@@ -74,79 +82,223 @@
             </div>
           </div>
 
-          <div class="table-responsive flex-grow-1 user-table-wrap">
-            <table class="table table-bordered table-striped table-sm align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>#</th>
-                  <th>User Name</th>
-                  <th>User Type</th>
-                  <th>Unit Type</th>
-                  <th>Zone</th>
-                  <th>Division</th>
-                  <th>Department</th>
-                  <th>HRMS ID</th>
-                  <th>Designation</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
 
-              <tbody>
-                <tr *ngFor="let user of paginatedUsers; index as i; trackBy: trackById">
-                  <td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
-                  <td>{{ user.user_name }}</td>
-                  <td>{{ user.user_type }}</td>
-                  <td>{{ user.unit_type }}</td>
-                  <td>{{ user.zone }}</td>
-                  <td>{{ user.division }}</td>
-                  <td>{{ user.department_id }}</td>
-                  <td>{{ user.hrmsid }}</td>
-                  <td>{{ user.designation }}</td>
-                  <td>
-                    <button class="btn btn-sm btn-primary me-1">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </td>
-                </tr>
+          <!-- TABLE -->
+<div class="table-responsive flex-grow-1">
 
-                <tr *ngIf="paginatedUsers.length === 0">
-                  <td colspan="10" class="text-center text-muted">
-                    No users found
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+<table class="table user-table align-middle">
 
-          <div class="row g-3 align-items-center mt-3">
-            <div class="col-12 col-lg">
-              <small>
-                Showing
-                {{ filteredUsers.length ? ((currentPage - 1) * pageSize + 1) : 0 }}
-                -
-                {{ (currentPage - 1) * pageSize + paginatedUsers.length }}
-                of {{ filteredUsers.length }} entries
-              </small>
-            </div>
+<thead>
+<tr>
+<th>#</th>
 
-            <div class="col-12 col-lg-auto">
-              <div class="d-flex flex-wrap justify-content-lg-end gap-1">
-                <button class="btn btn-light btn-sm" (click)="goToPage(1)">&laquo;</button>
-                <button class="btn btn-light btn-sm" (click)="prevPage()">&lsaquo;</button>
-                <span class="px-2 align-self-center">
-                  Page {{ currentPage }} / {{ totalPages || 1 }}
-                </span>
-                <button class="btn btn-light btn-sm" (click)="nextPage()">&rsaquo;</button>
-                <button class="btn btn-light btn-sm" (click)="goToPage(totalPages)">&raquo;</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+<th>
+User Name
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>
+User Type
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>
+Unit Type
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>
+Zone
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>
+Division
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>
+Department
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>
+HRMS ID
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>
+Designation
+<span class="sort-icons">▲▼</span>
+</th>
+
+<th>Actions</th>
+
+</tr>
+</thead>
+
+<tbody>
+
+<tr *ngFor="let user of paginatedUsers; index as i; trackBy: trackById">
+
+<td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
+
+<td>{{ user.user_name }}</td>
+<td>{{ user.user_type }}</td>
+<td>{{ user.unit_type }}</td>
+<td>{{ user.zone }}</td>
+<td>{{ user.division }}</td>
+<td>{{ user.department_id }}</td>
+<td>{{ user.hrmsid }}</td>
+<td>{{ user.designation }}</td>
+
+<td class="action-buttons">
+
+<button class="btn-action btn-edit">
+<i class="bi bi-pencil-fill"></i>
+</button>
+
+<button class="btn-action btn-delete">
+<i class="bi bi-trash-fill"></i>
+</button>
+
+</td>
+
+</tr>
+
+<tr *ngIf="paginatedUsers.length === 0">
+<td colspan="10" class="text-center text-muted">
+No users found
+</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<div class="d-flex justify-content-between align-items-center mt-3">
+
+  <small>
+    Showing
+    {{ (currentPage - 1) * pageSize + 1 }}
+    -
+    {{ (currentPage - 1) * pageSize + paginatedUsers.length }}
+    of {{ filteredUsers.length }} entries
+  </small>
+
+  <div>
+
+    <button class="btn btn-light btn-sm me-1" (click)="goToPage(1)">«</button>
+
+    <button class="btn btn-light btn-sm me-1" (click)="prevPage()">‹</button>
+
+    <span class="mx-2">
+      Page {{ currentPage }} / {{ totalPages }}
+    </span>
+
+    <button class="btn btn-light btn-sm me-1" (click)="nextPage()">›</button>
+
+    <button class="btn btn-light btn-sm" (click)="goToPage(totalPages)">»</button>
+
+  </div>
+
+</div>
+
     </div>
   </div>
+</div>
+
+
+</div>
+
+
+<div
+  class="modal-backdrop-custom"
+  *ngIf="showAssignCheckerModal"
+>
+
+<div class="assign-checker-modal">
+
+<div class="modal-header">
+
+<h5>Assign Checker</h5>
+
+<button class="close-btn" (click)="closeAssignCheckerModal()">✕</button>
+
+</div>
+
+<hr>
+
+<div class="row">
+
+<div class="col-md-6">
+
+<label>Maker</label>
+
+<select
+  class="form-control"
+  [(ngModel)]="selectedMaker"
+>
+
+<option [ngValue]="null">Select Maker</option>
+
+<option
+  *ngFor="let maker of makers"
+  [ngValue]="maker.objectid"
+>
+{{ maker.user_name }}
+</option>
+
+</select>
+
+</div>
+
+<div class="col-md-6">
+
+<label>Checker</label>
+
+<select
+  class="form-control"
+  [(ngModel)]="selectedChecker"
+  [disabled]="!selectedMaker"
+>
+
+<option [ngValue]="null">
+Please select a maker first
+</option>
+
+<option
+  *ngFor="let checker of checkers"
+  [ngValue]="checker.objectid"
+>
+{{ checker.user_name }}
+</option>
+
+</select>
+
+</div>
+
+</div>
+
+<div class="modal-actions">
+
+<button class="btn btn-orange" (click)="assignChecker()">
+  Add
+</button>
+
+<button
+  class="btn btn-outline-secondary"
+  (click)="closeAssignCheckerModal()"
+>
+Cancel
+</button>
+
+</div>
+
+</div>
+
 </div>
 

@@ -20,6 +20,14 @@ export class UserManagementComponent implements OnInit {
   pageSize = 12;
   currentPage = 1;
 
+  makers: any[] = [];
+checkers: any[] = [];
+
+selectedMaker: any = null;
+selectedChecker: any = null;
+
+showAssignCheckerModal = false;
+
   stats = [
     { label: 'Total', value: 0 },
     { label: 'Admin', value: 0 },
@@ -152,5 +160,68 @@ export class UserManagementComponent implements OnInit {
       this.currentPage = page;
     }
   }
+
+ openAssignCheckerModal() {
+
+  this.showAssignCheckerModal = true;
+
+  this.selectedMaker = null;
+  this.selectedChecker = null;
+
+  this.api.getMakerCheckerList().subscribe({
+
+    next: (res) => {
+
+      this.makers = res.makers || [];
+      this.checkers = res.checkers || [];
+
+      this.cdr.detectChanges(); // ✅ force UI refresh
+
+    },
+
+    error: (err) => {
+      console.error('Failed to load maker/checker list', err);
+    }
+
+  });
+
+}
+
+closeAssignCheckerModal() {
+  this.showAssignCheckerModal = false;
+}
+
+assignChecker() {
+
+  if (!this.selectedMaker || !this.selectedChecker) {
+    alert("Please select Maker and Checker");
+    return;
+  }
+
+  const payload = {
+    maker_id: this.selectedMaker,
+    checker_id: this.selectedChecker
+  };
+
+  this.api.assignChecker(payload).subscribe({
+
+    next: (res) => {
+
+      console.log("Checker assigned successfully", res);
+
+      alert("Checker assigned successfully");
+
+      this.closeAssignCheckerModal();
+
+    },
+
+    error: (err) => {
+      console.error("Failed to assign checker", err);
+      alert("Failed to assign checker");
+    }
+
+  });
+
+}
 
 }

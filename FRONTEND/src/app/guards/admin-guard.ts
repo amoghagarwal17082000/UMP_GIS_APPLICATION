@@ -7,7 +7,7 @@ export const adminGuard: CanActivateFn = async (): Promise<boolean | UrlTree> =>
   const router = inject(Router);
   const currentUser = inject(CurrentUserService);
 
-  const user = await currentUser.loadMe();
+  const user = await currentUser.loadMe(true);
 
   if (user?.user_type === 'Admin') {
     return true;

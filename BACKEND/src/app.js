@@ -5,6 +5,7 @@ const path = require('path');
 
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
+const authenticateToken = require('./middleware/auth');
 const authRoutes = require('./modules/auth/auth.routes');
 const commonLayersRoutes = require('./modules/common/view/layers/layers.routes');
 const ceaViewRoutes = require('./modules/departments/civilEngineeringAssets/view/layers/layers.routes');
@@ -14,7 +15,9 @@ const userManagementRoutes = require('./modules/user-management/view/users/users
 const ratingRoutes = require('./modules/rating/rating.routes');
 const feedbackRoutes = require('./modules/feedback/feedback.routes');
 
+
 const app = express();
+//ggg
 
 app.use(cors({
   origin(origin, callback) {
@@ -41,13 +44,19 @@ app.get('/__health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/common/view/layers', commonLayersRoutes);
-app.use('/api/civil_engineering_assets/view/layers', ceaViewRoutes);
-app.use('/api/civil_engineering_assets/view/dashboard', ceaDashboardRoutes);
-app.use('/api/civil_engineering_assets/edit', ceaEditRoutes);
-app.use('/api/rating', ratingRoutes);
-app.use('/api/feedback', feedbackRoutes);
-app.use('/api/user-management/view/users', userManagementRoutes);
+
+
+
+// ✅ change these two:
+app.use('/api/common/view/layers', authenticateToken, commonLayersRoutes);
+app.use('/api/civil_engineering_assets/view/layers', authenticateToken, ceaViewRoutes);
+app.use('/api/civil_engineering_assets/view/dashboard', authenticateToken, ceaDashboardRoutes);
+app.use('/api/civil_engineering_assets/edit', authenticateToken, ceaEditRoutes);
+app.use('/api/rating', authenticateToken, ratingRoutes);
+app.use('/api/user-management/view/users',authenticateToken, userManagementRoutes);
+app.use('/api/feedback',authenticateToken, feedbackRoutes);
+
+
 
 app.use(notFound);
 app.use(errorHandler);

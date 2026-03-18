@@ -1,4 +1,9 @@
+const crypto = require('crypto');
 const pool = require('../../config/db');
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(String(token || ''), 'utf8').digest('hex');
+}
 
 async function findUserById(userId) {
   const sql = `
@@ -100,6 +105,78 @@ async function markOtpUsed(userId) {
   await pool.query(sql, [userId]);
 }
 
+async function saveSessionToken(userId, token, expiresAt) {
+  const tokenHash = hashToken(token);
+  const sql = `
+    UPDATE user_master
+    SET jwt_token = $2,
+        expires_at = $3,
+        revoked_at = NULL,
+        created_at = NOW(),
+        updated_at = NOW()
+    WHERE user_id = $1
+  `;
+
+  await pool.query(sql, [userId, tokenHash, expiresAt]);
+}
+
+async function getSessionToken(userId) {
+  const sql = `
+    SELECT
+      user_id,
+      jwt_token AS token,
+      expires_at,
+      revoked_at,
+      created_at,
+      updated_at
+    FROM user_master
+    WHERE user_id = $1
+    LIMIT 1;
+  `;
+
+  const { rows } = await pool.query(sql, [userId]);
+  return rows[0] || null;
+}
+
+async function revokeSessionByToken(userId, token) {
+  const tokenHash = hashToken(token);
+  const sql = `
+    UPDATE user_master
+    SET jwt_token = NULL,
+        expires_at = NULL,
+        revoked_at = NOW(),
+        updated_at = NOW()
+    WHERE user_id = $1
+      AND jwt_token = $2;
+  `;
+
+  await pool.query(sql, [userId, tokenHash]);
+}
+
+async function clearSession(userId) {
+  const sql = `
+    UPDATE user_master
+    SET jwt_token = NULL,
+        expires_at = NULL,
+        revoked_at = NOW(),
+        updated_at = NOW()
+    WHERE user_id = $1
+  `;
+
+  await pool.query(sql, [userId]);
+}
+
+async function touchSession(userId) {
+  const sql = `
+    UPDATE user_master
+    SET updated_at = NOW()
+    WHERE user_id = $1
+      AND jwt_token IS NOT NULL
+  `;
+
+  await pool.query(sql, [userId]);
+}
+
 module.exports = {
   findUserById,
   getUserEmailById,
@@ -108,4 +185,10 @@ module.exports = {
   getOtpState,
   incrementOtpAttempts,
   markOtpUsed,
+  saveSessionToken,
+  getSessionToken,
+  revokeSessionByToken,
+  clearSession,
+  touchSession,
+  hashToken,
 };

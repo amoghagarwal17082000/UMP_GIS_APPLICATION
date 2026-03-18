@@ -1,11 +1,9 @@
 const ratingModel = require('./rating.model');
 const authModel = require('../auth/auth.model');
-const { getSessionUserId } = require('../auth/auth.session');
 
 async function createRating(req, res, next) {
   try {
-    const sessionUserId = getSessionUserId(req);
-    const normalizedUserId = String(sessionUserId || req.body?.user_id || '').trim();
+    const normalizedUserId = String(req?.user?.sub || req?.user?.user_id || '').trim();
     const rating = req.body?.rating;
     const comment = req.body?.comment;
 
@@ -50,8 +48,7 @@ async function createRating(req, res, next) {
 
 async function getLastRating(req, res, next) {
   try {
-    const sessionUserId = getSessionUserId(req);
-    const normalizedUserId = String(sessionUserId || req.body?.user_id || req.query?.user_id || '').trim();
+    const normalizedUserId = String(req?.user?.sub || req?.user?.user_id || '').trim();
 
     if (!normalizedUserId) {
       const err = new Error('user_id is required');

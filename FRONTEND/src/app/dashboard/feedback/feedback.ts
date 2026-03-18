@@ -1,9 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Api } from 'src/app/services/api';
 import { CurrentUserService } from 'src/app/services/current-user';
+
 
 @Component({
   selector: 'app-feedback',
@@ -11,7 +13,9 @@ import { CurrentUserService } from 'src/app/services/current-user';
   templateUrl: './feedback.html',
   styleUrl: './feedback.css',
 })
+
 export class Feedback implements OnInit {
+
   feedbackForm: any = {
     name: '',
     email: '',
@@ -59,4 +63,5 @@ export class Feedback implements OnInit {
       this.cd.detectChanges();
     });
   }
+
 }

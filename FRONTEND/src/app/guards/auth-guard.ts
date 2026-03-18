@@ -7,7 +7,7 @@ export const authGuard: CanActivateFn = async (_route, state): Promise<boolean |
   const router = inject(Router);
   const currentUser = inject(CurrentUserService);
 
-  const user = await currentUser.loadMe();
+  const user = await currentUser.loadMe(true);
   const ok = !!user?.user_id && !!user?.division && !!user?.user_type;
 
   if (ok) return true;

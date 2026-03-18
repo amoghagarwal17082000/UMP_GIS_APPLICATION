@@ -30,7 +30,7 @@ export class Auth {
     return this.authApi.verifyOtp(user_id, otp).pipe(
       tap((res: any) => {
         if (res?.success) {
-          this.currentUser.setUser(res.user || null);
+          this.currentUser.setAuth(res.user || null, res.accessToken || null);
         }
       })
     );
@@ -45,15 +45,15 @@ export class Auth {
   }
 
   logout(): void {
-    this.currentUser.clear();
-    localStorage.removeItem(this.LAST_RATING_CACHE_KEY);
     this.http.post<any>(`${BASE_URL}/api/auth/logout`, {}).subscribe({
       error: () => {},
     });
+    this.currentUser.clear();
+    localStorage.removeItem(this.LAST_RATING_CACHE_KEY);
   }
 
   isLoggedIn(): boolean {
-    return !!this.currentUser.getSnapshot()?.user_id;
+    return !!this.currentUser.getSnapshot()?.user_id && !!this.currentUser.getAccessToken();
   }
 
   getUserType(): string {

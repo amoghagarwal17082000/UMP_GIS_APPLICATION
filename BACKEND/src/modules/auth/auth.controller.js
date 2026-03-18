@@ -1,10 +1,40 @@
 const authModel = require('./auth.model');
 const otpService = require('../../services/otp/otp-service');
-const { clearSessionCookie, getSessionUserId, setSessionCookie } = require('./auth.session');
+const jwt = require('jsonwebtoken');
 const activeResend = new Map();
 
 function genOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function getJwtSecret() {
+  return String(process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || '').trim();
+}
+
+async function issueAccessToken(user) {
+  const secret = getJwtSecret();
+  if (!secret) {
+    const err = new Error('JWT_SECRET not configured');
+    err.status = 500;
+    throw err;
+  }
+
+  const expiresIn = process.env.JWT_EXPIRES_IN || '8h';
+  const payload = {
+    sub: user.user_id,
+    user_id: user.user_id,
+    user_type: user.user_type,
+    division: user.division_code,
+    department: user.department,
+  };
+
+  const token = jwt.sign(payload, secret, { expiresIn });
+  const decoded = jwt.decode(token);
+  const expMs = Number(decoded?.exp || 0) * 1000;
+  const expiresAt = new Date(expMs);
+
+  await authModel.saveSessionToken(user.user_id, token, expiresAt);
+  return token;
 }
 
 function toUserPayload(user) {
@@ -34,17 +64,18 @@ async function login(req, res, next) {
     }
 
     const user = await authModel.findUserById(user_id);
-
     if (!user || user.password !== password) {
       const err = new Error('Invalid user_id or password');
       err.status = 401;
       throw err;
     }
 
-    setSessionCookie(res, user.user_id);
+    const accessToken = await issueAccessToken(user);
 
     res.json({
       success: true,
+      accessToken,
+      tokenType: 'Bearer',
       user: toUserPayload(user),
     });
   } catch (err) {
@@ -79,7 +110,6 @@ async function requestOtp(req, res, next) {
     if (otpState?.otp && otpState?.otp_expires_at && otpState?.otp_used === false) {
       const expiresAtMs = new Date(otpState.otp_expires_at).getTime();
       const nowMs = Date.now();
-
       const notExpired = nowMs <= expiresAtMs;
 
       let withinReuseWindow = false;
@@ -147,7 +177,6 @@ async function verifyOtp(req, res, next) {
     }
 
     const otpState = await authModel.getOtpState(user_id);
-
     if (!otpState?.otp || !otpState?.otp_expires_at) {
       const err = new Error('OTP not found. Please request again.');
       err.status = 401;
@@ -178,7 +207,6 @@ async function verifyOtp(req, res, next) {
 
       const attempts = Number(otpState.otp_attempts || 0) + 1;
       const maxAttempts = Number(process.env.OTP_MAX_ATTEMPTS || 5);
-
       if (attempts >= maxAttempts) {
         await authModel.clearOtp(user_id);
         const err = new Error('Too many invalid attempts. Please request a new OTP.');
@@ -192,10 +220,12 @@ async function verifyOtp(req, res, next) {
     }
 
     await authModel.clearOtp(user_id);
-    setSessionCookie(res, user.user_id);
+    const accessToken = await issueAccessToken(user);
 
     return res.json({
       success: true,
+      accessToken,
+      tokenType: 'Bearer',
       user: toUserPayload(user),
     });
   } catch (err) {
@@ -232,7 +262,6 @@ async function resendOtp(req, res, next) {
     }
 
     const otpState = await authModel.getOtpState(user_id);
-
     let otpToUse = null;
     if (otpState?.otp && otpState?.otp_expires_at && otpState?.otp_used === false) {
       const nowMs = Date.now();
@@ -267,14 +296,13 @@ async function resendOtp(req, res, next) {
 
 async function getCurrentUser(req, res, next) {
   try {
-    const userId = getSessionUserId(req);
+    const userId = String(req?.user?.sub || req?.user?.user_id || '').trim();
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
     const user = await authModel.findUserById(userId);
     if (!user) {
-      clearSessionCookie(res);
       return res.status(401).json({ success: false, message: 'Session invalid' });
     }
 
@@ -286,7 +314,10 @@ async function getCurrentUser(req, res, next) {
 
 async function logout(req, res, next) {
   try {
-    clearSessionCookie(res);
+    const userId = String(req?.user?.sub || req?.user?.user_id || '').trim();
+    if (userId) {
+      await authModel.clearSession(userId);
+    }
     return res.json({ success: true, message: 'Logged out' });
   } catch (err) {
     next(err);

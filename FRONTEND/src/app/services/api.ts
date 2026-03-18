@@ -10,7 +10,12 @@ type ViewScope = 'common' | 'civil_engineering_assets';
   providedIn: 'root',
 })
 export class Api {
-  private readonly BASE_URL = BASE_URL;
+
+  private readonly BASE_URL = 'http://127.0.0.1:4000';
+    // private readonly baseUrl: any= 'http://127.0.0.1:4000/'
+
+  // private readonly BASE_URL = BASE_URL;
+
 
   constructor(private http: HttpClient) {}
 
@@ -207,5 +212,40 @@ export class Api {
     const params = new HttpParams().set('division', this.getDivision());
     return this.http.get<any>(`${this.BASE_URL}/api/user-management/view/users`, { params });
   }
+
+
+
+// addFeedBack(obj: any){
+// return this.http.post(this.BASE_URL + "v1/api/feedback/create", obj)
+// }
+
+
+getMakerCheckerList() {
+
+  const division = localStorage.getItem('division') || '';
+
+  return this.http.get<any>(
+    `${this.BASE_URL}/api/user-management/view/users/maker-checker-list`,
+    { params: { division } }
+  );
+
+}
+
+assignChecker(data: any) {
+  return this.http.post(`${this.BASE_URL}/api/user-management/view/users/assign-checker`, data);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 

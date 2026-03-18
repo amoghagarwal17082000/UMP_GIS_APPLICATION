@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 
 const authController = require('./auth.controller');
+const authenticateToken = require('../../middleware/auth');
 const captchaService = require('../../services/captcha/captchaService');
 
 router.post('/login', authController.login);
 router.post('/request-otp', authController.requestOtp);
 router.post('/verify-otp', authController.verifyOtp);
 router.post('/resend-otp', authController.resendOtp);
-router.get('/me', authController.getCurrentUser);
-router.post('/logout', authController.logout);
+router.get('/me', authenticateToken, authController.getCurrentUser);
+router.post('/logout', authenticateToken, authController.logout);
 
 router.get('/captcha/new', (req, res) => {
   try {
