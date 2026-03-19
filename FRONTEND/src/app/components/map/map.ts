@@ -84,7 +84,14 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   ) {}
 
   ngAfterViewInit(): void {
-    void this.currentUser.loadMe(true).finally(() => {
+    void this.currentUser.loadMe(true).then((user) => {
+      if (!user?.user_id) {
+        this.zone.run(() => {
+          this.router.navigateByUrl('/login');
+        });
+        return;
+      }
+
       this.zone.runOutsideAngular(() => {
         requestAnimationFrame(() => this.initializeMapSafely());
       });
@@ -178,7 +185,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.sidebarSub?.unsubscribe(); this.sidebarSub = new Subscription();
     this.sidebarSub.add(this.ui.layoutChanged$.subscribe(() => { setTimeout(() => this.forceMapResize(), 320); }));
     this.sidebarSub.add(this.router.events.pipe(filter((e) => e instanceof NavigationStart)).subscribe((e: any) => { const fromUrl = this.router.url || ''; const toUrl = e?.url || ''; const isMapPage = (u: string) => u.includes('/dashboard/railway-assets') || u.includes('/map'); if (isMapPage(fromUrl) && !isMapPage(toUrl)) { this.ui.activePanel = null; this.edit.disable(); this.mapZoom.clearHighlight(); this.clearZoomArtifacts(); this.applyEditSuppression(); } }));
-    const base = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles ï¿½ Esri' }).addTo(this.map);
+    const base = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles © Esri' }).addTo(this.map);
     base.once('load', () => { this.forceMapResize(); setTimeout(() => { if (this.map) this.layerManager.reloadAll(this.map); }, 250); });
     this.registerDepartmentLayers();
     this.map.whenReady(() => {
@@ -202,5 +209,3 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     try { if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); }
   }
 }
-
-

@@ -28,10 +28,29 @@ app-sidebar {
   background: #f9fafb;
 }
 
+.dashboard-main.gis-main {
+  overflow: hidden;
+}
+
 .dashboard-content {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+.dashboard-content.gis-content {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+}
+
+.dashboard-content.gis-content app-gis-dashboard {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 @media (max-width: 991.98px) {

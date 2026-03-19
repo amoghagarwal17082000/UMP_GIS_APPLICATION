@@ -1,6 +1,5 @@
 const configMap = require('./edit.config');
 const model = require('./edit.model');
-const { getSessionUserId } = require('../../../auth/auth.session');
 
 function resolveConfig(layer) {
   const config = configMap[layer];
@@ -162,7 +161,7 @@ async function validateStation(req, res, next) {
 async function sendStationEdit(req, res, next) {
   try {
     const config = resolveConfig('station');
-    const makerUserId = getSessionUserId(req);
+    const makerUserId = String(req?.user?.sub || req?.user?.user_id || '').trim();
     const division = String(req.query.division || '').trim();
     const { id } = req.params;
 
