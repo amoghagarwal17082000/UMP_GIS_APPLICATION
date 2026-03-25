@@ -1,8 +1,6 @@
 const configMap = require('./edit.config');
 const model = require('./edit.model');
 
-/* ========== Resolve Layer Config ========== */
-
 function resolveConfig(layer) {
   const config = configMap[layer];
   if (!config) {
@@ -12,8 +10,6 @@ function resolveConfig(layer) {
   }
   return config;
 }
-
-/* ========== GET BY ID ========== */
 
 async function getById(req, res, next) {
   try {
@@ -41,7 +37,31 @@ async function getById(req, res, next) {
   }
 }
 
-/* ========== CREATE ========== */
+async function getDraftById(req, res, next) {
+  try {
+    const { layer, id } = req.params;
+    const division = String(req.query.division || '').trim();
+
+    if (!division) {
+      const err = new Error('division is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const config = resolveConfig(layer);
+    const row = await model.getDraftById(config, Number(id), division);
+
+    if (!row) {
+      const err = new Error('Draft record not found');
+      err.status = 404;
+      throw err;
+    }
+
+    res.json(row);
+  } catch (err) {
+    next(err);
+  }
+}
 
 async function create(req, res, next) {
   try {
@@ -63,8 +83,6 @@ async function create(req, res, next) {
   }
 }
 
-/* ========== UPDATE ========== */
-
 async function update(req, res, next) {
   try {
     const { layer, id } = req.params;
@@ -77,12 +95,7 @@ async function update(req, res, next) {
     }
 
     const config = resolveConfig(layer);
-    const row = await model.update(
-      config,
-      Number(id),
-      division,
-      req.body
-    );
+    const row = await model.update(config, Number(id), division, req.body);
 
     if (!row) {
       const err = new Error('Record not found');
@@ -96,8 +109,6 @@ async function update(req, res, next) {
   }
 }
 
-/* ========== DELETE ========== */
-
 async function remove(req, res, next) {
   try {
     const { layer, id } = req.params;
@@ -110,11 +121,7 @@ async function remove(req, res, next) {
     }
 
     const config = resolveConfig(layer);
-    const deleted = await model.remove(
-      config,
-      Number(id),
-      division
-    );
+    const deleted = await model.remove(config, Number(id), division);
 
     if (!deleted) {
       const err = new Error('Record not found');
@@ -127,8 +134,6 @@ async function remove(req, res, next) {
     next(err);
   }
 }
-
-/* ========== TABLE ========== */
 
 async function getTable(req, res, next) {
   try {
@@ -143,22 +148,32 @@ async function getTable(req, res, next) {
     }
 
     const config = resolveConfig(layer);
-
-    const result = await model.getTable(
-      config,
-      page,
-      pageSize,
-      q,
-      division
-    );
-
+    const result = await model.getTable(config, page, pageSize, q, division);
     res.json(result);
   } catch (err) {
     next(err);
   }
 }
 
-/* ========== VALIDATE STATION ========== */
+async function getDraftTable(req, res, next) {
+  try {
+    const { layer } = req.params;
+    const { page = 1, pageSize = 10, q = '', status = '' } = req.query;
+    const division = String(req.query.division || '').trim();
+
+    if (!division) {
+      const err = new Error('division is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const config = resolveConfig(layer);
+    const result = await model.getDraftTable(config, page, pageSize, q, division, String(status || '').trim());
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
 
 async function validateStation(req, res, next) {
   try {
@@ -189,11 +204,146 @@ async function validateStation(req, res, next) {
   }
 }
 
+async function sendNewStationEdit(req, res, next) {
+  try {
+    const config = resolveConfig('station');
+    const makerUserId = String(req?.user?.sub || req?.user?.user_id || '').trim();
+    const submittingUserType = String(req?.user?.user_type || '').trim();
+    const division = String(req.query.division || '').trim();
+
+    if (!makerUserId) {
+      const err = new Error('Not authenticated');
+      err.status = 401;
+      throw err;
+    }
+
+    if (!division) {
+      const err = new Error('division is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const result = await model.sendNewStationEdit(config, division, req.body || {}, makerUserId, submittingUserType);
+
+    res.status(201).json({
+      success: true,
+      message: 'New station sent to checker',
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+async function sendStationEdit(req, res, next) {
+  try {
+    const config = resolveConfig('station');
+    const makerUserId = String(req?.user?.sub || req?.user?.user_id || '').trim();
+    const submittingUserType = String(req?.user?.user_type || '').trim();
+    const division = String(req.query.division || '').trim();
+    const { id } = req.params;
+
+    if (!makerUserId) {
+      const err = new Error('Not authenticated');
+      err.status = 401;
+      throw err;
+    }
+
+    if (!division) {
+      const err = new Error('division is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) {
+      const err = new Error('Invalid station id');
+      err.status = 400;
+      throw err;
+    }
+
+    const result = await model.sendStationEdit(config, numericId, division, req.body || {}, makerUserId, submittingUserType);
+
+    if (!result) {
+      const err = new Error('Record not found');
+      err.status = 404;
+      throw err;
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Station edit sent to checker',
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateStationDraftStatus(req, res, next) {
+  try {
+    const config = resolveConfig('station');
+    const actingUserId = String(req?.user?.sub || req?.user?.user_id || '').trim();
+    const actingUserType = String(req?.user?.user_type || '').trim();
+    const division = String(req.query.division || '').trim();
+    const { id } = req.params;
+    const nextStatus = String(req.body?.status || '').trim();
+
+    if (!actingUserId) {
+      const err = new Error('Not authenticated');
+      err.status = 401;
+      throw err;
+    }
+
+    if (!division) {
+      const err = new Error('division is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) {
+      const err = new Error('Invalid draft id');
+      err.status = 400;
+      throw err;
+    }
+
+    const result = await model.updateStationDraftStatus(
+      config,
+      numericId,
+      division,
+      nextStatus,
+      actingUserId,
+      actingUserType
+    );
+
+    if (!result?.draft) {
+      const err = new Error('Draft record not found');
+      err.status = 404;
+      throw err;
+    }
+
+    res.json({
+      success: true,
+      message: `Station draft status updated to ${nextStatus}`,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getById,
+  getDraftById,
   create,
   update,
   remove,
   getTable,
+  getDraftTable,
   validateStation,
+  sendStationEdit,
+  sendNewStationEdit,
+  updateStationDraftStatus,
 };
+
+

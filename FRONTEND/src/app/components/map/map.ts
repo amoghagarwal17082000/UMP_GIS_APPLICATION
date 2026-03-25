@@ -60,6 +60,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private readonly LAND_PLAN_ID = 'landplan_ontrack';
   private reloadTimer: any = null;
   private routeSub?: Subscription;
+  private createStationDblClickHandler?: (e: L.LeafletMouseEvent) => void;
 
   private readonly departmentAliases: Record<string, DepartmentModuleKey> = {
     'civil engineering assets': 'civil_engineering_assets',
@@ -84,7 +85,14 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   ) {}
 
   ngAfterViewInit(): void {
-    void this.currentUser.loadMe(true).finally(() => {
+    void this.currentUser.loadMe(true).then((user) => {
+      if (!user?.user_id) {
+        this.zone.run(() => {
+          this.router.navigateByUrl('/login');
+        });
+        return;
+      }
+
       this.zone.runOutsideAngular(() => {
         requestAnimationFrame(() => this.initializeMapSafely());
       });
@@ -117,6 +125,10 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   private isEditableLayer(x: any): x is EditableLayer { return x === 'stations' || x === 'landplan'; }
   private normalizeDepartmentName(value: string | null | undefined): string { return (value || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+  private updateStationCreateModeUi(): void { if (!this.map) return; const isCreatingStation = this.edit.enabled && this.edit.editLayer === 'stations' && this.edit.creatingStation; const container = this.map.getContainer(); container.style.cursor = isCreatingStation ? 'crosshair' : ''; if (isCreatingStation) this.map.doubleClickZoom.disable(); else this.map.doubleClickZoom.enable(); }
+
+  private handleStationCreateDoubleClick(e: L.LeafletMouseEvent): void { if (!this.map) return; if (!this.edit.enabled || this.edit.editLayer !== 'stations' || !this.edit.creatingStation) return; const divisionBuffer = this.layerManager.findById('division_buffer') as DivisionBufferLayer | undefined; if (!divisionBuffer?.containsLatLng?.(e.latlng)) { this.zone.run(() => { alert('New station can only be created inside the division buffer.'); }); return; } const lat = Number(e.latlng.lat); const lng = Number(e.latlng.lng); if (!Number.isFinite(lat) || !Number.isFinite(lng)) return; this.zone.run(() => { this.edit.emitCreateStationPoint(lat, lng); this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: 17, draggable: false } as any); }); }
 
   private resolveDepartmentModule(): { key: DepartmentModuleKey; label: string } {
     const rawDepartment = this.currentUser.getSnapshot()?.department || '';
@@ -175,14 +187,16 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.ui.activePanel = null; this.edit.disable();
     this.map = L.map(el, { preferCanvas: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 4, wheelDebounceTime: 40, wheelPxPerZoomLevel: 90 }).setView([22.5, 79], 5);
     this.mapRegistry.setMap(this.map);
+    this.createStationDblClickHandler = (e: L.LeafletMouseEvent) => this.handleStationCreateDoubleClick(e);
+    this.map.on('dblclick', this.createStationDblClickHandler);
     this.sidebarSub?.unsubscribe(); this.sidebarSub = new Subscription();
     this.sidebarSub.add(this.ui.layoutChanged$.subscribe(() => { setTimeout(() => this.forceMapResize(), 320); }));
     this.sidebarSub.add(this.router.events.pipe(filter((e) => e instanceof NavigationStart)).subscribe((e: any) => { const fromUrl = this.router.url || ''; const toUrl = e?.url || ''; const isMapPage = (u: string) => u.includes('/dashboard/railway-assets') || u.includes('/map'); if (isMapPage(fromUrl) && !isMapPage(toUrl)) { this.ui.activePanel = null; this.edit.disable(); this.mapZoom.clearHighlight(); this.clearZoomArtifacts(); this.applyEditSuppression(); } }));
-    const base = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles ï¿½ Esri' }).addTo(this.map);
+    const base = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles © Esri' }).addTo(this.map);
     base.once('load', () => { this.forceMapResize(); setTimeout(() => { if (this.map) this.layerManager.reloadAll(this.map); }, 250); });
     this.registerDepartmentLayers();
     this.map.whenReady(() => {
-      this.forceMapResize(); this.ui.activePanel = null; this.edit.disable(); this.clearZoomArtifacts(); this.mapZoom.clearHighlight(); this.layerManager.addAll(this.map!); this.layerManager.reloadAll(this.map!); setTimeout(() => { if (this.map) this.layerManager.reloadAll(this.map); }, 500); this.map!.once('moveend', () => { if (this.map) this.layerManager.reloadVisible(this.map); }); this.captureHomeAfterFirstSettle(); this.initDeepLinking(); this.onMoveOrZoom = () => this.scheduleReload(); this.map!.on('moveend', this.onMoveOrZoom); this.editSuppressionSub?.unsubscribe(); this.editSuppressionSub = this.edit.stateChanged$.subscribe(() => { this.syncEditAwareLayers(); this.applyEditSuppression(); }); this.syncEditAwareLayers(); this.applyEditSuppression(); this.lockDragSub?.unsubscribe(); this.lockDragSub = this.edit.lockDrag$.subscribe(() => { if (!this.dragMarker) return; this.dragMarker.dragging?.disable(); this.dragMarker.off('drag'); this.dragMarker.off('dragend'); }); this.mapZoomSub?.unsubscribe(); this.mapZoomSub = this.mapZoom.zoomTo$.subscribe((t: ZoomTarget) => { if (!this.map) return; this.clearZoomArtifacts(); if (t.type === 'clear') return; if (t.type === 'home') { this.zoomToHome(); return; } if (t.type === 'latlng') { const z = t.zoom ?? 17; const ll = L.latLng(t.lat, t.lng); const draggable = !!(t as any).draggable; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); if (draggable) { this.dragMarker = this.createDraggableCircleMarker(ll).addTo(this.map); this.dragMarker.on('drag', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.dragMarker.on('dragend', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.zoomHighlight = this.dragMarker; } else { this.zoomHighlight = L.circleMarker(ll, { radius: 15, weight: 5, color: '#7c3aed', fillColor: '#a78bfa', fillOpacity: 0.6 }).addTo(this.map); } return; } if (t.type === 'xy') { const ll = L.CRS.EPSG3857.unproject(L.point(t.x, t.y)); const z = t.zoom ?? 17; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); this.zoomHighlight = L.circleMarker(ll, { radius: 10, weight: 3, fillOpacity: 0.2 }).addTo(this.map); return; } if (t.type === 'bounds') { const b = L.latLngBounds(L.latLng(t.south, t.west), L.latLng(t.north, t.east)); this.map.invalidateSize(); this.map.fitBounds(b.pad(t.pad ?? 0.2), { animate: false }); } }); this.zoomSub?.unsubscribe(); this.zoomSub = this.attrTable.zoomTo$.subscribe(({ feature }) => { if (!this.map) return; try { if (this.highlightLayer && this.map.hasLayer(this.highlightLayer)) this.map.removeLayer(this.highlightLayer); const gj = L.geoJSON(feature); const bounds = gj.getBounds(); if (bounds?.isValid()) this.map.fitBounds(bounds.pad(0.2), { animate: false }); } catch (e) {} }); this.clearSelectionSub?.unsubscribe(); this.clearSelectionSub = this.attrTable.clearSelection$.subscribe(() => { if (!this.map) return; this.clearZoomArtifacts(); this.zoomToHome(); });
+      this.forceMapResize(); this.ui.activePanel = null; this.edit.disable(); this.clearZoomArtifacts(); this.mapZoom.clearHighlight(); this.layerManager.addAll(this.map!); this.layerManager.reloadAll(this.map!); setTimeout(() => { if (this.map) this.layerManager.reloadAll(this.map); }, 500); this.map!.once('moveend', () => { if (this.map) this.layerManager.reloadVisible(this.map); }); this.captureHomeAfterFirstSettle(); this.initDeepLinking(); this.onMoveOrZoom = () => this.scheduleReload(); this.map!.on('moveend', this.onMoveOrZoom); this.editSuppressionSub?.unsubscribe(); this.editSuppressionSub = this.edit.stateChanged$.subscribe(() => { this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); }); this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); this.lockDragSub?.unsubscribe(); this.lockDragSub = this.edit.lockDrag$.subscribe(() => { if (!this.dragMarker) return; this.dragMarker.dragging?.disable(); this.dragMarker.off('drag'); this.dragMarker.off('dragend'); }); this.mapZoomSub?.unsubscribe(); this.mapZoomSub = this.mapZoom.zoomTo$.subscribe((t: ZoomTarget) => { if (!this.map) return; this.clearZoomArtifacts(); if (t.type === 'clear') return; if (t.type === 'home') { this.zoomToHome(); return; } if (t.type === 'latlng') { const z = t.zoom ?? 17; const ll = L.latLng(t.lat, t.lng); const draggable = !!(t as any).draggable; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); if (draggable) { this.dragMarker = this.createDraggableCircleMarker(ll).addTo(this.map); this.dragMarker.on('drag', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.dragMarker.on('dragend', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.zoomHighlight = this.dragMarker; } else { this.zoomHighlight = L.circleMarker(ll, { radius: 15, weight: 5, color: '#7c3aed', fillColor: '#a78bfa', fillOpacity: 0.6 }).addTo(this.map); } return; } if (t.type === 'xy') { const ll = L.CRS.EPSG3857.unproject(L.point(t.x, t.y)); const z = t.zoom ?? 17; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); this.zoomHighlight = L.circleMarker(ll, { radius: 10, weight: 3, fillOpacity: 0.2 }).addTo(this.map); return; } if (t.type === 'bounds') { const b = L.latLngBounds(L.latLng(t.south, t.west), L.latLng(t.north, t.east)); this.map.invalidateSize(); this.map.fitBounds(b.pad(t.pad ?? 0.2), { animate: false }); } }); this.zoomSub?.unsubscribe(); this.zoomSub = this.attrTable.zoomTo$.subscribe(({ feature }) => { if (!this.map) return; try { if (this.highlightLayer && this.map.hasLayer(this.highlightLayer)) this.map.removeLayer(this.highlightLayer); const gj = L.geoJSON(feature); const bounds = gj.getBounds(); if (bounds?.isValid()) this.map.fitBounds(bounds.pad(0.2), { animate: false }); } catch (e) {} }); this.clearSelectionSub?.unsubscribe(); this.clearSelectionSub = this.attrTable.clearSelection$.subscribe(() => { if (!this.map) return; this.clearZoomArtifacts(); this.zoomToHome(); });
     });
   }
 
@@ -199,8 +213,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.zoomSub?.unsubscribe(); this.clearSelectionSub?.unsubscribe(); this.sidebarSub?.unsubscribe(); this.mapZoomSub?.unsubscribe(); this.lockDragSub?.unsubscribe(); this.editSuppressionSub?.unsubscribe(); this.routeSub?.unsubscribe(); this.zoomSub = undefined; this.clearSelectionSub = undefined; this.sidebarSub = undefined; this.mapZoomSub = undefined; this.lockDragSub = undefined; this.editSuppressionSub = undefined; this.routeSub = undefined; if (this.reloadTimer) clearTimeout(this.reloadTimer); this.reloadTimer = null; if (this.map) this.clearZoomArtifacts(); if (!this.map) return;
-    try { if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); }
+    try { if (this.createStationDblClickHandler) this.map.off('dblclick', this.createStationDblClickHandler); if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); this.createStationDblClickHandler = undefined; }
   }
 }
-
 

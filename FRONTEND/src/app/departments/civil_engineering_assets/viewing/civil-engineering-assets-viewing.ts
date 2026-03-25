@@ -13,7 +13,7 @@ const STATION_LEGEND = defineLegend({
   fillOpacity: 0.9,
   strokeColor: '#ffffff',
   strokeWidth: 1,
-  radius: 6,
+  radius: 8,
 });
 
 const LANDPLAN_ONTRACK_LEGEND = defineLegend({
@@ -574,6 +574,7 @@ export class LandBoundaryLayer implements MapLayer {
     });
   }
 }
+
 
 
 

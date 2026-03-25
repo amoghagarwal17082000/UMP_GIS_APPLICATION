@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
-const path = require('path');
 
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
@@ -15,9 +14,7 @@ const userManagementRoutes = require('./modules/user-management/view/users/users
 const ratingRoutes = require('./modules/rating/rating.routes');
 const feedbackRoutes = require('./modules/feedback/feedback.routes');
 
-
 const app = express();
-//ggg
 
 app.use(cors({
   origin(origin, callback) {
@@ -43,23 +40,20 @@ app.get('/__health', (req, res) => {
   res.json({ ok: true });
 });
 
-app.use('/api/auth', authRoutes);
+const apiPrefixes = ['/api', '/ump_gis/api'];
 
-
-
-// ✅ change these two:
-app.use('/api/common/view/layers', authenticateToken, commonLayersRoutes);
-app.use('/api/civil_engineering_assets/view/layers', authenticateToken, ceaViewRoutes);
-app.use('/api/civil_engineering_assets/view/dashboard', authenticateToken, ceaDashboardRoutes);
-app.use('/api/civil_engineering_assets/edit', authenticateToken, ceaEditRoutes);
-app.use('/api/rating', authenticateToken, ratingRoutes);
-app.use('/api/user-management/view/users',authenticateToken, userManagementRoutes);
-app.use('/api/feedback',authenticateToken, feedbackRoutes);
-
-
+for (const prefix of apiPrefixes) {
+  app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/common/view/layers`, authenticateToken, commonLayersRoutes);
+  app.use(`${prefix}/civil_engineering_assets/view/layers`, authenticateToken, ceaViewRoutes);
+  app.use(`${prefix}/civil_engineering_assets/view/dashboard`, authenticateToken, ceaDashboardRoutes);
+  app.use(`${prefix}/civil_engineering_assets/edit`, authenticateToken, ceaEditRoutes);
+  app.use(`${prefix}/rating`, authenticateToken, ratingRoutes);
+  app.use(`${prefix}/user-management/view/users`, authenticateToken, userManagementRoutes);
+  app.use(`${prefix}/feedback`, authenticateToken, feedbackRoutes);
+}
 
 app.use(notFound);
 app.use(errorHandler);
 
 module.exports = app;
-

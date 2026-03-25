@@ -1,4 +1,4 @@
-const pool = require('../../../../config/db');
+const pool = require('../../../../config/postgres');
 
 async function getUsersByDivision(divisionCode) {
 
@@ -129,3 +129,4 @@ module.exports = {
   getAssignedCheckerUsers,
   unassignChecker
 };
+

@@ -19,7 +19,6 @@ export class Api {
     private ratingApi: RatingApi
   ) {}
 
-  // common layers
   getStations(bbox: string) {
     return this.commonViewingApi.getStations(bbox);
   }
@@ -33,7 +32,6 @@ export class Api {
     return this.commonViewingApi.getIndiaBoundary(bbox);
   }
 
-  // civil engineering assets - viewing
   getDivisionBuffer() {
     return this.commonViewingApi.getDivisionBuffer();
   }
@@ -50,12 +48,17 @@ export class Api {
     return this.ceaViewingApi.getLandPlanOnTrack(z);
   }
 
-  // civil engineering assets - editing
   getStationTable(page: number, pageSize: number, search: string) {
     return this.ceaEditingApi.getStationTable(page, pageSize, search);
   }
+  getStationDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.ceaEditingApi.getStationDraftTable(page, pageSize, search, status);
+  }
   updateStation(id: number, payload: any) {
     return this.ceaEditingApi.updateStation(id, payload);
+  }
+  sendStationEdit(id: number, payload: any) {
+    return this.ceaEditingApi.sendStationEdit(id, payload);
   }
   deleteStation(id: number) {
     return this.ceaEditingApi.deleteStation(id);
@@ -63,8 +66,17 @@ export class Api {
   createStation(payload: any) {
     return this.ceaEditingApi.createStation(payload);
   }
+  sendNewStationEdit(payload: any) {
+    return this.ceaEditingApi.sendNewStationEdit(payload);
+  }
   getStationById(id: number) {
     return this.ceaEditingApi.getStationById(id);
+  }
+  getStationDraftById(id: number) {
+    return this.ceaEditingApi.getStationDraftById(id);
+  }
+  updateStationDraftStatus(id: number, status: string) {
+    return this.ceaEditingApi.updateStationDraftStatus(id, status);
   }
   getStationByCode(code: string) {
     return this.ceaEditingApi.getStationByCode(code);
@@ -73,7 +85,6 @@ export class Api {
     return this.ceaEditingApi.validateStationCode(code);
   }
 
-  // auth
   requestOtp(username: string, password: string) {
     return this.authApi.requestOtp(username, password);
   }
@@ -93,7 +104,6 @@ export class Api {
     return this.authApi.login(username, password);
   }
 
-  // common dashboard
   getStationCount(type: string) {
     return this.commonDashboardApi.getStationCount(type);
   }
@@ -125,7 +135,6 @@ export class Api {
     return this.commonDashboardApi.getLandPlanCount(type);
   }
 
-  // rating
   rating(obj: any) {
     return this.ratingApi.rating(obj);
   }
@@ -137,3 +146,4 @@ export class Api {
     return this.feedbackApi.addFeedBack(obj);
   }
 }
+

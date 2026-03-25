@@ -1,19 +1,22 @@
 const { Pool } = require('pg');
+const { configuration } = require('./configuration.ts');
+
+const config = configuration();
 
 function createPool(database) {
   return new Pool({
-    host: process.env.PGHOST,
+    host: config.POSTGRES.DB_HOST,
     database,
-    user: process.env.PGUSER,
-    password: process.env.PGPASSWORD,
-    port: Number(process.env.PGPORT || 5432),
+    user: config.POSTGRES.USERNAME,
+    password: config.POSTGRES.PASSWORD,
+    port: config.POSTGRES.DB_PORT,
     max: 20,
     idleTimeoutMillis: 30000,
   });
 }
 
-const pool = createPool(process.env.PGDATABASE);
-const irAssetDbPool = createPool(process.env.IR_ASSET_DB_DATABASE || 'ir_asset_db');
+const pool = createPool(config.POSTGRES.DB_NAME);
+const irAssetDbPool = createPool(config.POSTGRES.IR_ASSET_DB_NAME);
 
 pool.on('error', (err) => {
   console.error('Unexpected PG pool error', err);

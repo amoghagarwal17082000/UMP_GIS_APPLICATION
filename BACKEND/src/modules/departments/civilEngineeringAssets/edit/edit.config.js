@@ -3,6 +3,16 @@ module.exports = {
     table: 'sde.station',
     idColumn: 'objectid',
     idStrategy: 'manual', // manual MAX()+1 for now
+    draftWorkflow: {
+      table: 'sde.station_edit',
+      editIdColumn: 'edit_id',
+      originalIdColumn: 'original_id',
+      statusColumn: 'status',
+      checkerColumn: 'checkerdet',
+      approverColumn: 'approverdet',
+      originalStatusValue: 'Under Editing',
+      draftStatusValue: 'Sent to Checker'
+    },
     validation: {
       table: 'sde.station_1_code',
       idColumn: 'objectid',
@@ -61,3 +71,4 @@ module.exports = {
     ]
   }
 };
+

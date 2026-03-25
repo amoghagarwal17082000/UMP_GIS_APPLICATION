@@ -1,4 +1,4 @@
-const pool = require("../../config/db");
+const pool = require("../../config/postgres");
 
 exports.createFeedback = async (user_id, message) => {
   const userQuery = `
@@ -55,4 +55,5 @@ exports.getAllFeedback = async () => {
     total: result.rowCount,
   };
 };
+
 

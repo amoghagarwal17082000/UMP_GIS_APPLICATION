@@ -8,45 +8,36 @@ import { UserManagementComponent } from './dashboard/user-management/user-manage
 import { adminGuard } from './guards/admin-guard';
 import { Feedback } from './dashboard/feedback/feedback';
 
-
-
-
 export const routes: Routes = [
-
-  // Default → Login
   { path: '', redirectTo: 'login', pathMatch: 'full' },
-
-  // Login
   { path: 'login', component: Login },
-
-  // Dashboard (protected)
   {
     path: 'dashboard',
     component: DashboardLayout,
     canActivate: [authGuard],
     children: [
-      { path: '', 
+      {
+        path: '',
         component: DashboardHome,
-        data: { title: 'Dashboard' }
-       },
-      { path: 'railway-assets', 
-        component: GisDashboardComponent,
-        data: {title: 'Railway Asset Editing'}
+        data: { title: 'Dashboard' },
       },
-       {
-      path: 'user-management',
-      component: UserManagementComponent,
-      canActivate: [adminGuard], 
-      data: { title: 'User Management' }
-    },
-    {
-  path: 'feedback',
-  component: Feedback,
-  data: { title: 'Feedback' }
-}
-    ]
+      {
+        path: 'railway-assets',
+        component: GisDashboardComponent,
+        data: { title: 'Railway Asset Editing' },
+      },
+      {
+        path: 'user-management',
+        component: UserManagementComponent,
+        canActivate: [adminGuard],
+        data: { title: 'User Management' },
+      },
+      {
+        path: 'feedback',
+        component: Feedback,
+        data: { title: 'Feedback' },
+      },
+    ],
   },
-
-  // Wildcard
-  { path: '**', redirectTo: 'login' }
+  { path: '**', redirectTo: 'login' },
 ];

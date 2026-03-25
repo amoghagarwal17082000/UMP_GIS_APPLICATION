@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const pool = require('../../config/db');
+const pool = require('../../config/postgres');
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(String(token || ''), 'utf8').digest('hex');
@@ -192,3 +192,4 @@ module.exports = {
   touchSession,
   hashToken,
 };
+

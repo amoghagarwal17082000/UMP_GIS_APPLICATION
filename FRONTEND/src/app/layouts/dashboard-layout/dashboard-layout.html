@@ -1,19 +1,15 @@
 <div class="dashboard-layout">
-
-  <!-- TOPBAR FULL WIDTH -->
   <app-dashboard-topbar></app-dashboard-topbar>
 
-  <!-- BODY -->
   <div class="dashboard-body">
     <app-sidebar></app-sidebar>
 
-    <div class="dashboard-main">
+    <div class="dashboard-main" [class.gis-main]="isGisRoute">
       <app-dashboard-page-header></app-dashboard-page-header>
-      
-      <div class="dashboard-content">
+
+      <div class="dashboard-content" [class.gis-content]="isGisRoute">
         <router-outlet></router-outlet>
       </div>
     </div>
   </div>
-
 </div>

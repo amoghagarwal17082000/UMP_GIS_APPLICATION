@@ -4,8 +4,11 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "start": "npm run start:development",
+    "dev": "set NODE_ENV=development&& node --watch src/server.js",
+    "start:development": "set NODE_ENV=development&& node src/server.js",
+    "start:staging": "set NODE_ENV=staging&& node src/server.js",
+    "start:production": "set NODE_ENV=production&& node src/server.js"
   },
   "keywords": [],
   "author": "",

@@ -1,4 +1,4 @@
-const pool = require('../../../../../config/db');
+const pool = require('../../../../../config/postgres');
 
 async function getCount(tableName, division, type) {
   let statusCondition = '';

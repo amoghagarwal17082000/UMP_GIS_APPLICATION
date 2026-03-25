@@ -1,4 +1,4 @@
-const pool = require('../../config/db');
+const pool = require('../../config/postgres');
 
 async function createRating(data, userId) {
   const sql = `
@@ -55,3 +55,4 @@ module.exports = {
   createRating,
   getLastRating,
 };
+

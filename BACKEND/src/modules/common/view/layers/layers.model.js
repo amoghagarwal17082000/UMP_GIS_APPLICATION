@@ -1,4 +1,4 @@
-const pool = require('../../../../config/db');
+const pool = require('../../../../config/postgres');
 
 async function getLayerGeoJSON(layerConfig, whereSql, params, division) {
   let divisionSql = '';
@@ -38,3 +38,4 @@ async function getLayerGeoJSON(layerConfig, whereSql, params, division) {
 module.exports = {
   getLayerGeoJSON
 };
+

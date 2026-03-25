@@ -104,7 +104,7 @@
     <ng-container *ngIf="currentTableLayer && mode === 'table'">
 
       <div class="toolbar">
-        <button class="add-btn" *ngIf="!isMakerRejectedView()">Add New Record</button>
+        <button class="add-btn" *ngIf="!isMakerRejectedView() && currentTableLayer === 'stations'" (click)="startAddStation()">Add New Record</button>
         <div class="spacer"></div>
         <label class="search">Search:</label>
         <input
@@ -181,9 +181,9 @@
                       <button
                         class="action-btn accept-btn"
                         (click)="acceptRow(r)"
-                        title="Forward"
-                        aria-label="Forward"
-                        *ngIf="!isCheckerSentToApproverView()"
+                        [title]="isApprover() ? 'Finalised' : 'Forward'"
+                        [attr.aria-label]="isApprover() ? 'Finalised' : 'Forward'"
+                        *ngIf="(isChecker() || isApprover()) && !isCheckerSentToApproverView()"
                       >
                         <i class="bi bi-check2"></i>
                       </button>
@@ -192,7 +192,7 @@
                         (click)="rejectRow(r)"
                         title="Sent Back"
                         aria-label="Sent Back"
-                        *ngIf="!isCheckerSentToApproverView()"
+                        *ngIf="(isChecker() || isApprover()) && !isCheckerSentToApproverView()"
                       >
                         <i class="bi bi-x-lg"></i>
                       </button>
@@ -261,7 +261,7 @@
 
     <!-- Station Code + Validate -->
     <div class="field full">
-      <label class="field-label">Station Code</label>
+      <label class="field-label">Station Code <span *ngIf="isMandatoryStationField('sttncode')">*</span></label>
       <div class="field-inline">
         <input
           class="field-input"
@@ -282,7 +282,7 @@
     </div>
 
     <div class="field">
-      <label class="field-label">Station Name</label>
+      <label class="field-label">Station Name <span *ngIf="isMandatoryStationField('sttnname')">*</span></label>
         <input
           class="field-input"
           type="text"
@@ -297,33 +297,33 @@
     </div>
 
     <div class="field">
-      <label class="field-label">Station Type</label>
+      <label class="field-label">Station Type <span *ngIf="isMandatoryStationField('stationtype')">*</span></label>
       <input class="field-input" type="text" [(ngModel)]="draft.stationtype" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
     </div>
 
 
     <div class="field">
-      <label class="field-label">Dist (KM)</label>
+      <label class="field-label">Dist (KM) <span *ngIf="isMandatoryStationField('distkm')">*</span></label>
       <input class="field-input" type="number" [(ngModel)]="draft.distkm" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
     </div>
 
     <div class="field">
-      <label class="field-label">Dist (M)</label>
+      <label class="field-label">Dist (M) <span *ngIf="isMandatoryStationField('distm')">*</span></label>
       <input class="field-input" type="number" [(ngModel)]="draft.distm" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
     </div>
 
     <div class="field">
-      <label class="field-label">State</label>
+      <label class="field-label">State <span *ngIf="isMandatoryStationField('state')">*</span></label>
       <input class="field-input" type="text" [(ngModel)]="draft.state" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
     </div>
 
     <div class="field">
-      <label class="field-label">District</label>
+      <label class="field-label">District <span *ngIf="isMandatoryStationField('district')">*</span></label>
       <input class="field-input" type="text" [(ngModel)]="draft.district" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
     </div>
 
     <div class="field">
-      <label class="field-label">Category</label>
+      <label class="field-label">Category <span *ngIf="isMandatoryStationField('category')">*</span></label>
       <input
         class="field-input"
         type="text"
@@ -333,7 +333,7 @@
     </div>
 
     <div class="field full">
-      <label class="field-label">Constituency</label>
+      <label class="field-label">Constituency <span *ngIf="isMandatoryStationField('constituency')">*</span></label>
       <input class="field-input" type="text" [(ngModel)]="draft.constituency" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
     </div>
   </div>
@@ -350,11 +350,11 @@
   </ng-container>
 
   <ng-container *ngIf="isReviewer() && !isCheckerDeletionProposedView()">
-    <button class="btn primary" type="button" (click)="sendToApproverDraft()">
-      Sent to Approver
+    <button class="btn primary" type="button" (click)="sendToApproverDraft()" [disabled]="saving">
+      {{ isApprover() ? 'Finalised' : 'Sent to Approver' }}
     </button>
-    <button class="btn ghost" type="button" (click)="sendBackToMakerDraft()">
-      Sent Back to Maker
+    <button class="btn ghost" type="button" (click)="sendBackToMakerDraft()" [disabled]="saving">
+      Sent Back
     </button>
   </ng-container>
 
@@ -389,7 +389,7 @@
   </div>
 
   <p class="note">
-    * For Station: Dist(KM)/Dist(M) optional • For Landplan: Polygon geometry required
+    * For Station: All starred fields are mandatory | For Landplan: Polygon geometry required
   </p>
 
 </div>
@@ -397,3 +397,5 @@
 
   </div>
 </div>
+
+
