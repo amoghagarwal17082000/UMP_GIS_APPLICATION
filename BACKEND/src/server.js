@@ -7,7 +7,7 @@ if (!require.extensions['.ts']) {
 }
 
 const envName = process.env.NODE_ENV || 'development';
-const envPath = path.join(__dirname, 'config', 'env', `${envName}.env`);
+const envPath = path.join(__dirname, './config/env', `${envName}.env`);
 
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
@@ -20,6 +20,10 @@ const { configuration } = require('./config/configuration.ts');
 
 const PORT = configuration().PORT;
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Server running on http://127.0.0.1:${PORT}`);
+// app.listen(PORT, '127.0.0.1', () => {
+//   console.log(`Server running on http://127.0.0.1:${PORT}`);
+// });
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });

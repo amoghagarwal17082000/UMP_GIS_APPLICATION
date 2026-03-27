@@ -21,6 +21,9 @@ app.use(cors({
     const allowed = new Set([
       'http://localhost:4200',
       'http://127.0.0.1:4200',
+      'http://10.77.56.70',
+      'http://10.77.56.70:80',
+      
     ]);
 
     if (!origin || allowed.has(origin)) {
