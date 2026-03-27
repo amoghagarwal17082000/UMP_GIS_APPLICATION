@@ -1,6 +1,24 @@
 <div class="container-fluid dashboard-page dashboard-page-shell">
   <div class="row g-4">
     <div class="col-12">
+      <div class="status-section-header">
+        <div class="status-heading-row">
+          <span class="status-heading-symbol" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img" focusable="false">
+              <path d="M16 9h4l-2 30h-4l2-30Zm12 0h4l2 30h-4l-2-30Z" fill="#f8fafc"/>
+              <path d="M17.2 13.5h13.6v3H17.2v-3Zm-.8 7.5h15.2v3H16.4v-3Zm-.8 7.5h16.8v3H15.6v-3Z" fill="#f59e0b"/>
+              <path d="M18.8 39h2.4l1.2 4h-2.4l-1.2-4Zm8.8 0h2.4l-1.2 4h-2.4l1.2-4Z" fill="#f8fafc"/>
+            </svg>
+          </span>
+          <h2 class="status-heading">Layer Wise Status Count</h2>
+        </div>
+        <p class="status-subheading">
+          Track asset counts by workflow stage across the assigned railway layers.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-12">
       <div class="row g-4 main-cards">
         <div class="col-12 col-sm-6 col-xl-4 col-xxl" *ngFor="let card of mainCards">
           <div
@@ -33,11 +51,12 @@
 
     <div class="col-12">
       <div class="dashboard-note">
-        <span class="note-icon"><i class="bi bi-info-circle"></i></span>
-        <span>
+        <span class="note-icon"><i class="bi bi-info-circle-fill"></i></span>
+        <div class="note-text">
+          <span class="note-label">Access note:</span>
           Only relevant asset cards will be active for redirection based on the logged-in user role
           (Maker / Checker / Approver).
-        </span>
+        </div>
       </div>
     </div>
   </div>

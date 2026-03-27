@@ -747,3 +747,53 @@
   display: block;
   transform: none;
 }
+
+
+/* Final actions alignment override */
+#panelEdit .tbl tbody td {
+  vertical-align: middle;
+}
+
+#panelEdit .tbl td.actions-cell {
+  vertical-align: middle;
+  text-align: center;
+  padding-right: 16px;
+}
+
+#panelEdit .tbl td.actions-cell .actions-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+#panelEdit .tbl td.actions-cell button.preview-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+}
+
+#panelEdit .tbl td.actions-cell button.preview-btn i {
+  color: #ffffff;
+}
+
+
+/* Force actions cell back to table-cell layout */
+#panelEdit .tbl td.actions-cell {
+  display: table-cell !important;
+  vertical-align: middle !important;
+  text-align: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+#panelEdit .tbl td.actions-cell .actions-wrap {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transform: translateX(-8px);
+}

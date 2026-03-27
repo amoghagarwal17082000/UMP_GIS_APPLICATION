@@ -60,6 +60,15 @@ export class Api {
   sendStationEdit(id: number, payload: any) {
     return this.ceaEditingApi.sendStationEdit(id, payload);
   }
+  requestStationDeletion(id: number) {
+    return this.ceaEditingApi.requestStationDeletion(id);
+  }
+  requestStationDraftDeletion(id: number) {
+    return this.ceaEditingApi.requestStationDraftDeletion(id);
+  }
+  resendStationDraft(id: number, payload: any) {
+    return this.ceaEditingApi.resendStationDraft(id, payload);
+  }
   deleteStation(id: number) {
     return this.ceaEditingApi.deleteStation(id);
   }

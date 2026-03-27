@@ -36,6 +36,12 @@ app-sidebar {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-content::-webkit-scrollbar {
+  display: none;
 }
 
 .dashboard-content.gis-content {
