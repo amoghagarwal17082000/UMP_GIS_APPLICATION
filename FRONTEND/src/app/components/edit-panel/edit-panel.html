@@ -76,8 +76,7 @@
           (change)="onLayerChange()"
         >
           <option [ngValue]="null">Select Layer</option>
-          <option value="stations">Stations</option>
-          <option value="landplan">Land Plan on Track</option>
+          <option *ngFor="let option of layerOptions" [value]="option.value">{{ option.label }}</option>
         </select>
       </label>
     </div>
@@ -90,8 +89,7 @@
           (change)="onRejectedLayerChange()"
         >
           <option [ngValue]="null">Select Layer</option>
-          <option value="stations">Stations</option>
-          <option value="landplan">Land Plan on Track</option>
+          <option *ngFor="let option of layerOptions" [value]="option.value">{{ option.label }}</option>
         </select>
       </label>
     </div>
@@ -104,7 +102,7 @@
     <ng-container *ngIf="currentTableLayer && mode === 'table'">
 
       <div class="toolbar">
-        <button class="add-btn" *ngIf="!isMakerRejectedView() && currentTableLayer === 'stations'" (click)="startAddStation()">Add New Record</button>
+        <button class="add-btn" *ngIf="isMaker() && makerTab === 'edit' && currentTableLayer === 'stations'" (click)="startAddStation()">Add New Record</button>
         <div class="spacer"></div>
         <label class="search">Search:</label>
         <input
@@ -149,7 +147,7 @@
                   </ng-container>
                   <ng-template #plainCell>{{ formatCell(r, col.key) }}</ng-template>
                 </td>
-                <td class="actions-cell">
+                <td class="actions-cell"><div class="actions-wrap">
                   <ng-container *ngIf="isMakerRejectedView(); else regularActions">
                     <button class="action-btn preview-btn" (click)="previewRejectedRow(r)" title="Preview" aria-label="Preview">
                       <i class="bi bi-pencil-fill"></i>
@@ -210,6 +208,7 @@
                     </ng-template>
                   </ng-template>
                   </ng-template>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -258,83 +257,37 @@
   </div>
 
   <div class="form-grid">
+    <div class="field" *ngFor="let field of formFields" [class.full]="field.full">
+      <label class="field-label">
+        {{ field.label }}
+        <span *ngIf="field.required">*</span>
+      </label>
 
-    <!-- Station Code + Validate -->
-    <div class="field full">
-      <label class="field-label">Station Code <span *ngIf="isMandatoryStationField('sttncode')">*</span></label>
-      <div class="field-inline">
+      <div class="field-inline" *ngIf="showValidateButton(field); else standardField">
         <input
           class="field-input"
-          type="text"
-          [(ngModel)]="draft.sttncode"
-          [readonly]="isStationFieldsLocked()"
+          [type]="field.type || 'text'"
+          [(ngModel)]="draft[field.key]"
+          [readonly]="isFieldReadonly(field)"
         />
         <button
           class="btn secondary"
           type="button"
           (click)="validateStationCode()"
           [disabled]="validating"
-          *ngIf="!isReviewer() && !isMakerSentForDeletionView()"
         >
           {{ validating ? 'Validating...' : 'Validate' }}
         </button>
       </div>
-    </div>
 
-    <div class="field">
-      <label class="field-label">Station Name <span *ngIf="isMandatoryStationField('sttnname')">*</span></label>
+      <ng-template #standardField>
         <input
           class="field-input"
-          type="text"
-          [(ngModel)]="draft.sttnname"
-          [readonly]="isStationFieldsLocked()"
+          [type]="field.type || 'text'"
+          [(ngModel)]="draft[field.key]"
+          [readonly]="isFieldReadonly(field)"
         />
-    </div>
-
-    <div class="field" *ngIf="isMakerSentForDeletionView()">
-      <label class="field-label">Status</label>
-      <input class="field-input" type="text" [value]="draft?.status || '--'" readonly />
-    </div>
-
-    <div class="field">
-      <label class="field-label">Station Type <span *ngIf="isMandatoryStationField('stationtype')">*</span></label>
-      <input class="field-input" type="text" [(ngModel)]="draft.stationtype" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
-    </div>
-
-
-    <div class="field">
-      <label class="field-label">Dist (KM) <span *ngIf="isMandatoryStationField('distkm')">*</span></label>
-      <input class="field-input" type="number" [(ngModel)]="draft.distkm" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
-    </div>
-
-    <div class="field">
-      <label class="field-label">Dist (M) <span *ngIf="isMandatoryStationField('distm')">*</span></label>
-      <input class="field-input" type="number" [(ngModel)]="draft.distm" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
-    </div>
-
-    <div class="field">
-      <label class="field-label">State <span *ngIf="isMandatoryStationField('state')">*</span></label>
-      <input class="field-input" type="text" [(ngModel)]="draft.state" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
-    </div>
-
-    <div class="field">
-      <label class="field-label">District <span *ngIf="isMandatoryStationField('district')">*</span></label>
-      <input class="field-input" type="text" [(ngModel)]="draft.district" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
-    </div>
-
-    <div class="field">
-      <label class="field-label">Category <span *ngIf="isMandatoryStationField('category')">*</span></label>
-      <input
-        class="field-input"
-        type="text"
-        [(ngModel)]="draft.category"
-        [readonly]="isStationFieldsLocked()"
-      />
-    </div>
-
-    <div class="field full">
-      <label class="field-label">Constituency <span *ngIf="isMandatoryStationField('constituency')">*</span></label>
-      <input class="field-input" type="text" [(ngModel)]="draft.constituency" [readonly]="isReviewer() || isMakerSentForDeletionView()" />
+      </ng-template>
     </div>
   </div>
 
@@ -349,7 +302,7 @@
     </button>
   </ng-container>
 
-  <ng-container *ngIf="isReviewer() && !isCheckerDeletionProposedView()">
+  <ng-container *ngIf="isReviewer() && supportsCurrentLayerPersistence() && !isCheckerDeletionProposedView()">
     <button class="btn primary" type="button" (click)="sendToApproverDraft()" [disabled]="saving">
       {{ isApprover() ? 'Finalised' : 'Sent to Approver' }}
     </button>
@@ -358,7 +311,7 @@
     </button>
   </ng-container>
 
-  <ng-container *ngIf="isMaker()">
+  <ng-container *ngIf="isMaker() && supportsCurrentLayerPersistence()">
     <button class="btn ghost" type="button" (click)="deleteDraft()" [disabled]="deleting">
       {{ deleting ? 'Deleting...' : 'Delete Record' }}
     </button>
@@ -389,7 +342,7 @@
   </div>
 
   <p class="note">
-    * For Station: All starred fields are mandatory | For Landplan: Polygon geometry required
+    {{ currentLayerSchema?.note || '* Layer form fields are configuration-driven.' }}
   </p>
 
 </div>

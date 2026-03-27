@@ -42,6 +42,24 @@ export class CivilEngineeringAssetsEditingApi {
     });
   }
 
+  requestStationDeletion(id: number) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/${id}/request-deletion`, null, {
+      params: { division: getDivision() },
+    });
+  }
+
+  requestStationDraftDeletion(id: number) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/draft/${id}/request-deletion`, null, {
+      params: { division: getDivision() },
+    });
+  }
+
+  resendStationDraft(id: number, payload: any) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/draft/${id}/resend`, payload, {
+      params: { division: getDivision() },
+    });
+  }
+
   sendNewStationEdit(payload: any) {
     return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/send-new`, payload, {
       params: { division: getDivision() },

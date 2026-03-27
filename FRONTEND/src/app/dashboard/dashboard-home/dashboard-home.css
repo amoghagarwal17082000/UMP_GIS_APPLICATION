@@ -3,6 +3,85 @@
   width: 100%;
   min-height: 100%;
   box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-page::-webkit-scrollbar {
+  display: none;
+}
+
+.status-section-header {
+  position: relative;
+  overflow: hidden;
+  padding: 14px 20px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(32, 168, 216, 0.2), transparent 32%),
+    linear-gradient(135deg, #0b2f6b 0%, #174ea6 58%, #20a8d8 100%);
+  box-shadow: 0 18px 36px rgba(11, 47, 107, 0.22);
+}
+
+.status-section-header::after {
+  content: "";
+  position: absolute;
+  inset: auto -40px -46px auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-kicker {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.status-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-heading-symbol {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 8px 16px rgba(245, 158, 11, 0.22));
+}
+
+.status-heading-symbol svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.status-heading {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.status-subheading {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .main-card {
@@ -124,21 +203,46 @@
 }
 
 .dashboard-note {
-  padding: 12px 16px;
-  background: #eef4ff;
-  border-left: 4px solid #2c3e94;
-  font-size: 16px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #eef4ff 0%, #dbeafe 100%);
+  border: 1px solid #93c5fd;
+  border-left: 5px solid #1d4ed8;
+  font-size: 15px;
   font-weight: 500;
-  color: #2c3e94;
-  border-radius: 6px;
+  color: #1e3a8a;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.1);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .note-icon {
-  font-size: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
   line-height: 1;
+  flex: 0 0 auto;
+}
+
+.note-label {
+  margin-right: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+
+.note-text {
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: #1e3a8a;
 }
 
 @keyframes fadeIn {
@@ -152,7 +256,30 @@
   }
 }
 
-@media (max-width: 768px) {.main-card {
+@media (max-width: 768px) {
+  .status-section-header {
+    padding: 13px 16px;
+    border-radius: 18px;
+  }
+
+  .status-heading-row {
+    align-items: flex-start;
+  }
+
+  .status-heading-symbol {
+    width: 30px;
+    height: 30px;
+  }
+
+  .status-heading {
+    font-size: 22px;
+  }
+
+  .status-subheading {
+    font-size: 12px;
+  }
+
+  .main-card {
     min-height: 260px;
     padding: 24px;
   }
@@ -176,9 +303,47 @@
   .sub-value {
     font-size: 28px;
   }
+
+  .dashboard-note {
+    padding: 9px 12px;
+    gap: 8px;
+  }
+
+  .note-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .note-text {
+    font-size: 14px;
+  }
 }
 
-@media (max-width: 480px) {.main-card {
+@media (max-width: 480px) {
+  .status-section-header {
+    padding: 12px 14px;
+  }
+
+  .status-heading {
+    font-size: 18px;
+  }
+
+  .status-heading-symbol {
+    width: 26px;
+    height: 26px;
+  }
+
+  .status-kicker {
+    font-size: 11px;
+    letter-spacing: 1.4px;
+  }
+
+  .status-subheading {
+    font-size: 11px;
+  }
+
+  .main-card {
     min-height: 220px;
     padding: 18px;
   }
@@ -197,6 +362,25 @@
 
   .sub-value {
     font-size: 24px;
+  }
+
+  .dashboard-note {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .note-icon {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+
+  .note-label {
+    font-size: 12px;
+  }
+
+  .note-text {
+    font-size: 13px;
   }
 }
 

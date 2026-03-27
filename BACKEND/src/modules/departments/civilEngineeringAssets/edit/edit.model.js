@@ -133,6 +133,26 @@ async function getUserNameByUserId(client, userId) {
   return rows[0]?.user_name ? String(rows[0].user_name).trim() : String(userId || '').trim();
 }
 
+async function updateMainStatusByObjectId(client, config, objectId, division, status) {
+  const numericId = Number(objectId);
+  if (!Number.isFinite(numericId)) return null;
+
+  const sql = `
+    UPDATE ${config.table}
+    SET status = $1
+    WHERE ${config.idColumn} = $2
+      AND UPPER(division) = UPPER($3)
+    RETURNING *
+  `;
+
+  const { rows } = await client.query(sql, [status, numericId, division]);
+  return rows[0] || null;
+}
+
+async function updateMainStatusFromDraft(client, config, workflow, draft, division, status) {
+  return updateMainStatusByObjectId(client, config, draft?.[workflow.editIdColumn], division, status);
+}
+
 function normalizeStationDraftPayload(data, originalRow) {
   const lat = Number(data?.lat ?? data?.latitude ?? data?.ycoord ?? originalRow?.latitude ?? originalRow?.ycoord);
   const lng = Number(data?.lng ?? data?.lon ?? data?.longitude ?? data?.xcoord ?? originalRow?.longitude ?? originalRow?.xcoord);
@@ -170,6 +190,8 @@ function getStationBaseRecordFromDraft(config, draft, division) {
     category: draft?.category ?? null,
     division,
     status: draft?.original_id ? 'Asset Edited and Finalised' : 'Sent to Database',
+    final_modified_by: draft?.edited_by ?? null,
+    final_modified_date: draft?.edited_at ?? null,
   };
 }
 
@@ -317,8 +339,8 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
   }
 
   const normalizedStatus = String(nextStatus || '').trim();
-  const checkerAllowedStatuses = new Set(['Sent to Approver', 'Sent Back to Maker']);
-  const approverAllowedStatuses = new Set(['Sent to Database', 'Sent Back to Maker']);
+  const checkerAllowedStatuses = new Set(['Sent to Approver', 'Sent Back to Maker', 'Sent to Approver for Deletion']);
+  const approverAllowedStatuses = new Set(['Sent to Database', 'Sent Back to Maker', 'Asset Deleted']);
   const allowedStatuses = normalizedUserType === 'checker' ? checkerAllowedStatuses : approverAllowedStatuses;
   if (!allowedStatuses.has(normalizedStatus)) {
     const err = new Error('Invalid draft status transition');
@@ -347,8 +369,10 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
     }
 
     const currentStatus = String(draft?.[workflow.statusColumn] || '').trim().toLowerCase();
-    const expectedCurrentStatus = normalizedUserType === 'checker' ? 'sent to checker' : 'sent to approver';
-    if (currentStatus !== expectedCurrentStatus) {
+    const checkerExpectedStatuses = new Set(['sent to checker', 'sent to checker for deletion']);
+    const approverExpectedStatuses = new Set(['sent to approver', 'sent to approver for deletion']);
+    const expectedStatuses = normalizedUserType === 'checker' ? checkerExpectedStatuses : approverExpectedStatuses;
+    if (!expectedStatuses.has(currentStatus)) {
       const err = new Error(
         normalizedUserType === 'checker'
           ? 'Only checker-pending drafts can be updated through this action'
@@ -384,6 +408,40 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
       setClauses.push('modified_date = NOW()::timestamp without time zone');
     }
 
+    if (
+      normalizedUserType === 'checker' &&
+      (normalizedStatus === 'Sent to Approver' || normalizedStatus === 'Sent to Approver for Deletion') &&
+      draftTableColumns.includes('checked_by')
+    ) {
+      params.push(actingUserName);
+      setClauses.push(`checked_by = $${params.length}`);
+    }
+
+    if (
+      normalizedUserType === 'checker' &&
+      (normalizedStatus === 'Sent to Approver' || normalizedStatus === 'Sent to Approver for Deletion') &&
+      draftTableColumns.includes('checked_at')
+    ) {
+      setClauses.push('checked_at = NOW()::timestamp without time zone');
+    }
+
+    if (
+      normalizedUserType === 'approver' &&
+      (normalizedStatus === 'Sent to Database' || normalizedStatus === 'Asset Deleted') &&
+      draftTableColumns.includes('approved_by')
+    ) {
+      params.push(actingUserName);
+      setClauses.push(`approved_by = $${params.length}`);
+    }
+
+    if (
+      normalizedUserType === 'approver' &&
+      (normalizedStatus === 'Sent to Database' || normalizedStatus === 'Asset Deleted') &&
+      draftTableColumns.includes('approved_at')
+    ) {
+      setClauses.push('approved_at = NOW()::timestamp without time zone');
+    }
+
     params.push(draftObjectId);
     params.push(division);
 
@@ -398,6 +456,16 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
     const { rows } = await client.query(updateSql, params);
 
     let mainRecord = null;
+    if (normalizedUserType === 'checker' && normalizedStatus === 'Sent to Approver for Deletion') {
+      mainRecord = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Sent to Approver for Deletion');
+    } else if (
+      (normalizedUserType === 'checker' || normalizedUserType === 'approver') &&
+      normalizedStatus === 'Sent Back to Maker' &&
+      (currentStatus === 'sent to checker for deletion' || currentStatus === 'sent to approver for deletion')
+    ) {
+      mainRecord = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Sent Back to Maker');
+    }
+
     if (normalizedUserType === 'approver' && normalizedStatus === 'Sent to Database') {
       const mainTableColumns = await getTableColumns(client, config.table);
       const baseRecord = getStationBaseRecordFromDraft(config, draft, division);
@@ -420,10 +488,293 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
       }
     }
 
+    if (normalizedUserType === 'approver' && normalizedStatus === 'Asset Deleted') {
+      mainRecord = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Asset Deleted');
+    }
+
     await client.query('COMMIT');
     return {
       draft: rows[0],
       main: mainRecord,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function requestStationDeletion(config, id, division, makerUserId, submittingUserType) {
+  if (!config.draftWorkflow) {
+    const err = new Error('Draft workflow config not found for layer');
+    err.status = 400;
+    throw err;
+  }
+
+  if (String(submittingUserType || '').trim().toLowerCase() !== 'maker') {
+    const err = new Error('Only maker can request deletion');
+    err.status = 403;
+    throw err;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const originalRow = await getByIdWithClient(client, config, id, division, true);
+    if (!originalRow) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const workflow = config.draftWorkflow;
+    const draftTableColumns = await getTableColumns(client, workflow.table);
+    const assignments = await getDraftAssignments(client, makerUserId, division);
+
+    const record = {
+      ...originalRow,
+      division,
+      railway: draftTableColumns.includes('railway') ? (assignments.makerRailwayCode ?? originalRow.railway ?? null) : undefined,
+      zone_name: draftTableColumns.includes('zone_name') ? (originalRow.railway ?? null) : undefined,
+      fname: draftTableColumns.includes('fname') ? (originalRow.railway ?? null) : undefined,
+      div_name: draftTableColumns.includes('div_name') ? (assignments.makerDivisionName ?? division ?? null) : undefined,
+      department: draftTableColumns.includes('department') ? (assignments.makerDepartment ?? null) : undefined,
+      [workflow.editIdColumn]: originalRow[config.idColumn],
+      [workflow.originalIdColumn]: originalRow.gis_unique_id ?? null,
+      [workflow.statusColumn]: 'Sent to Checker for Deletion',
+      [workflow.checkerColumn]: assignments.checkerUserId,
+      [workflow.approverColumn]: assignments.approverUserId,
+      modified_by: draftTableColumns.includes('modified_by') ? assignments.makerUserName : undefined,
+      modified_date: draftTableColumns.includes('modified_date') ? '__NOW__' : undefined,
+      objectid: draftTableColumns.includes('objectid') ? await getNextManualId(client, workflow.table, 'objectid') : undefined,
+      globalid: draftTableColumns.includes('globalid') ? generateGUID() : undefined,
+    };
+
+    const { insertColumns, placeholders, values } = buildStationDraftInsert(draftTableColumns, config, record);
+    const insertSql = `
+      INSERT INTO ${workflow.table} (
+        ${insertColumns.join(',')}
+      )
+      VALUES (
+        ${placeholders.join(',')}
+      )
+      RETURNING *
+    `;
+
+    const { rows } = await client.query(insertSql, values);
+    const original = await updateMainStatusByObjectId(client, config, id, division, 'Sent to Checker for Deletion');
+
+    await client.query('COMMIT');
+    return {
+      draft: rows[0],
+      original,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function requestStationDraftDeletion(config, draftObjectId, division, makerUserId, submittingUserType) {
+  if (!config.draftWorkflow) {
+    const err = new Error('Draft workflow config not found for layer');
+    err.status = 400;
+    throw err;
+  }
+
+  if (String(submittingUserType || '').trim().toLowerCase() !== 'maker') {
+    const err = new Error('Only maker can request deletion');
+    err.status = 403;
+    throw err;
+  }
+
+  const workflow = config.draftWorkflow;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const draftSql = `
+      SELECT *
+      FROM ${workflow.table}
+      WHERE objectid = $1
+        AND UPPER(division) = UPPER($2)
+      FOR UPDATE
+    `;
+    const { rows: draftRows } = await client.query(draftSql, [draftObjectId, division]);
+    const draft = draftRows[0];
+    if (!draft) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const currentStatus = String(draft?.[workflow.statusColumn] || '').trim().toLowerCase();
+    if (currentStatus !== 'sent back to maker') {
+      const err = new Error('Only sent-back drafts can be sent for deletion from maker rejected records');
+      err.status = 400;
+      throw err;
+    }
+
+    const draftTableColumns = await getTableColumns(client, workflow.table);
+    const makerUserName = await getUserNameByUserId(client, makerUserId);
+    const params = ['Sent to Checker for Deletion'];
+    const setClauses = [`${workflow.statusColumn} = $1`];
+
+    if (draftTableColumns.includes('modified_by')) {
+      params.push(makerUserName);
+      setClauses.push(`modified_by = $${params.length}`);
+    }
+    if (draftTableColumns.includes('modified_date')) {
+      setClauses.push('modified_date = NOW()::timestamp without time zone');
+    }
+
+    params.push(draftObjectId);
+    params.push(division);
+
+    const updateSql = `
+      UPDATE ${workflow.table}
+      SET ${setClauses.join(', ')}
+      WHERE objectid = $${params.length - 1}
+        AND UPPER(division) = UPPER($${params.length})
+      RETURNING *
+    `;
+    const { rows } = await client.query(updateSql, params);
+    const main = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Sent to Checker for Deletion');
+
+    await client.query('COMMIT');
+    return {
+      draft: rows[0],
+      main,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function resendStationDraft(config, draftObjectId, division, data, makerUserId, submittingUserType) {
+  if (!config.draftWorkflow) {
+    const err = new Error('Draft workflow config not found for layer');
+    err.status = 400;
+    throw err;
+  }
+
+  if (String(submittingUserType || '').trim().toLowerCase() !== 'maker') {
+    const err = new Error('Only maker can resend draft');
+    err.status = 403;
+    throw err;
+  }
+
+  const workflow = config.draftWorkflow;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const draftSql = `
+      SELECT *
+      FROM ${workflow.table}
+      WHERE objectid = $1
+        AND UPPER(division) = UPPER($2)
+      FOR UPDATE
+    `;
+    const { rows: draftRows } = await client.query(draftSql, [draftObjectId, division]);
+    const draft = draftRows[0];
+    if (!draft) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const currentStatus = String(draft?.[workflow.statusColumn] || '').trim().toLowerCase();
+    if (currentStatus !== 'sent back to maker') {
+      const err = new Error('Only sent-back drafts can be resent to checker');
+      err.status = 400;
+      throw err;
+    }
+
+    const draftTableColumns = await getTableColumns(client, workflow.table);
+    const assignments = await getDraftAssignments(client, makerUserId, division);
+    const makerUserName = await getUserNameByUserId(client, makerUserId);
+    const merged = normalizeStationDraftPayload(data || {}, draft);
+
+    const record = {
+      ...draft,
+      ...merged,
+      division,
+      railway: draftTableColumns.includes('railway')
+        ? (assignments.makerRailwayCode ?? data?.railway ?? draft?.railway ?? null)
+        : undefined,
+      zone_name: draftTableColumns.includes('zone_name')
+        ? (data?.zone_name ?? draft?.zone_name ?? null)
+        : undefined,
+      fname: draftTableColumns.includes('fname')
+        ? (data?.fname ?? data?.zone_name ?? draft?.fname ?? draft?.zone_name ?? null)
+        : undefined,
+      div_name: draftTableColumns.includes('div_name')
+        ? (assignments.makerDivisionName ?? data?.div_name ?? draft?.div_name ?? division ?? null)
+        : undefined,
+      department: draftTableColumns.includes('department')
+        ? (data?.department ?? assignments.makerDepartment ?? draft?.department ?? null)
+        : undefined,
+      [workflow.statusColumn]: workflow.draftStatusValue,
+      [workflow.checkerColumn]: assignments.checkerUserId,
+      [workflow.approverColumn]: assignments.approverUserId,
+      edited_by: draftTableColumns.includes('edited_by') ? makerUserName : undefined,
+      edited_at: draftTableColumns.includes('edited_at') ? '__NOW__' : undefined,
+      modified_by: draftTableColumns.includes('modified_by') ? makerUserName : undefined,
+      modified_date: draftTableColumns.includes('modified_date') ? '__NOW__' : undefined,
+    };
+
+    const setClauses = [];
+    const values = [];
+    draftTableColumns.forEach((column) => {
+      if (column === 'objectid' || column === 'globalid') return;
+      if (column === config.geometry?.column) return;
+      if (!Object.prototype.hasOwnProperty.call(record, column)) return;
+      const value = record[column];
+      if (value === undefined) return;
+      if (value === '__NOW__') {
+        setClauses.push(`${column} = NOW()::timestamp without time zone`);
+        return;
+      }
+      values.push(value);
+      setClauses.push(`${column} = $${values.length}`);
+    });
+
+    const x = Number(record[config.geometry?.xField]);
+    const y = Number(record[config.geometry?.yField]);
+    if (config.geometry?.enabled && config.geometry.column && Number.isFinite(x) && Number.isFinite(y)) {
+      setClauses.push(`${config.geometry.column} = ST_SetSRID(ST_MakePoint(${x}, ${y}), 4326)`);
+    }
+
+    values.push(draftObjectId);
+    values.push(division);
+
+    const updateSql = `
+      UPDATE ${workflow.table}
+      SET ${setClauses.join(', ')}
+      WHERE objectid = $${values.length - 1}
+        AND UPPER(division) = UPPER($${values.length})
+      RETURNING *
+    `;
+
+    const { rows } = await client.query(updateSql, values);
+    const original = await updateMainStatusFromDraft(
+      client,
+      config,
+      workflow,
+      draft,
+      division,
+      workflow.originalStatusValue
+    );
+
+    await client.query('COMMIT');
+    return {
+      draft: rows[0],
+      original,
     };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -835,6 +1186,9 @@ module.exports = {
   getById,
   getDraftById,
   updateStationDraftStatus,
+  requestStationDeletion,
+  requestStationDraftDeletion,
+  resendStationDraft,
   create,
   update,
   remove,

@@ -91,5 +91,6 @@ export class EditState {
     this.selectedFeatureId = id;
     this.draft = { ...(feature.properties || {}) };
     this.creatingStation = false;
+    this.notify();
   }
 }

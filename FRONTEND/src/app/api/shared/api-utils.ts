@@ -18,6 +18,14 @@ export function getDivision(): string {
   return (getCurrentUserSnapshot()?.division || '').trim();
 }
 
+export function hasDivision(): boolean {
+  return getDivision().length > 0;
+}
+
+export function emptyFeatureCollection(): { type: 'FeatureCollection'; features: any[] } {
+  return { type: 'FeatureCollection', features: [] };
+}
+
 export function withDivision(params: Record<string, any>): HttpParams {
   let httpParams = new HttpParams().set('division', getDivision());
   Object.entries(params || {}).forEach(([k, v]) => {
