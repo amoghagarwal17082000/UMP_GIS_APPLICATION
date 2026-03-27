@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Api } from 'src/app/services/api';
+import { Api } from 'src/app/api/api';
 import { CurrentUserService } from 'src/app/services/current-user';
 
 

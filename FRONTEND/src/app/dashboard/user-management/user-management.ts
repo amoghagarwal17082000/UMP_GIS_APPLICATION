@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Api } from 'src/app/services/api';
+import { Api } from 'src/app/api/api';
 
 @Component({
   selector: 'app-user-management',
@@ -46,7 +46,7 @@ showAssignCheckerModal = false;
   loadUsers(): void {
 
     this.api.getUsers().subscribe({
-      next: (res) => {
+      next: (res: any) => {
 
         this.users = res || [];
         this.filteredUsers = [...this.users];
@@ -56,7 +56,7 @@ showAssignCheckerModal = false;
         this.cdr.detectChanges();
 
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Failed to load users', err);
       }
     });
@@ -170,7 +170,7 @@ showAssignCheckerModal = false;
 
   this.api.getMakerCheckerList().subscribe({
 
-    next: (res) => {
+    next: (res: any) => {
 
       this.makers = res.makers || [];
       this.checkers = res.checkers || [];
@@ -179,7 +179,7 @@ showAssignCheckerModal = false;
 
     },
 
-    error: (err) => {
+    error: (err: any) => {
       console.error('Failed to load maker/checker list', err);
     }
 

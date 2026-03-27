@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
+const morgan = require('morgan');
 
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
@@ -16,33 +17,63 @@ const feedbackRoutes = require('./modules/feedback/feedback.routes');
 
 const app = express();
 
+function formatIstTimestamp(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second} IST`;
+}
+
+
+/* ---------- CORS ---------- */
+const allowedOrigins = new Set([
+  'http://localhost:4200',
+  'http://127.0.0.1:4200',
+  'http://10.77.56.70',
+  'http://10.77.56.70:80',
+]);
+
 app.use(cors({
   origin(origin, callback) {
-    const allowed = new Set([
-      'http://localhost:4200',
-      'http://127.0.0.1:4200',
-      'http://10.77.56.70',
-      'http://10.77.56.70:80',
-      
-    ]);
-
-    if (!origin || allowed.has(origin)) {
-      callback(null, true);
-      return;
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
     }
-
-    callback(new Error('CORS origin not allowed'));
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
   },
   credentials: true,
 }));
+
+/* ---------- Logging ---------- */
+morgan.token('ist-date', () => formatIstTimestamp());
+app.use(morgan(':remote-addr - - [:ist-date] \":method :url HTTP/:http-version\" :status :res[content-length] \":referrer\" \":user-agent\"'));
+
+/* Optional custom request log */
+app.use((req, res, next) => {
+  console.log(`[${formatIstTimestamp()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+/* ---------- Middlewares ---------- */
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 app.set('trust proxy', 1);
 
+/* ---------- Health ---------- */
 app.get('/__health', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ---------- Routes ---------- */
 const apiPrefixes = ['/api', '/ump_gis/api'];
 
 for (const prefix of apiPrefixes) {
@@ -56,6 +87,7 @@ for (const prefix of apiPrefixes) {
   app.use(`${prefix}/feedback`, authenticateToken, feedbackRoutes);
 }
 
+/* ---------- 404 + Error ---------- */
 app.use(notFound);
 app.use(errorHandler);
 
