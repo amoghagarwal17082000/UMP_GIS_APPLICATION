@@ -11,6 +11,7 @@ const TRACK_LEGEND = defineLegend({
   strokeWidth: 2,
 });
 
+
 export class TrackLayer implements MapLayer {
   id = 'tracks';
   title = 'Railway Tracks';
@@ -31,6 +32,7 @@ export class TrackLayer implements MapLayer {
   addTo(map: L.Map) {
     if (this.visible) {
       this.layer.addTo(map);
+      this.layer.bringToFront();
     }
   }
 
@@ -55,6 +57,7 @@ export class TrackLayer implements MapLayer {
         if (requestId !== this.requestSeq) return;
         this.layer.clearLayers();
         this.layer.addData(geojson);
+        this.layer.bringToFront();
         this.onData?.(geojson);
       },
       error: (err: any) => console.error('Track layer error', err),

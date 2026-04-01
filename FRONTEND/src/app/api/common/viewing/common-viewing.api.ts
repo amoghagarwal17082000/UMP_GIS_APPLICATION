@@ -1,7 +1,13 @@
 import { Injectable } from '@angular/core';
 import { of } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { BASE_URL, emptyFeatureCollection, getDivision, hasDivision, withDivision } from '../../shared/api-utils';
+import {
+  BASE_URL,
+  emptyFeatureCollection,
+  getDivision,
+  hasDivision,
+  withDivision,
+} from '../../shared/api-utils';
 
 @Injectable({ providedIn: 'root' })
 export class CommonViewingApi {
@@ -44,5 +50,26 @@ export class CommonViewingApi {
 
   getDivisionBufferKey(z: number) {
     return `division=${getDivision()}|z=${z}`;
+  }
+
+  getDepartmentLayerCatalog(departmentRef: string) {
+    if (!departmentRef?.trim()) {
+      return of({ success: true, data: [] });
+    }
+
+    return this.http.get<any>(`${BASE_URL}/api/common/view/layers/department/${encodeURIComponent(departmentRef)}/layers`, {
+      params: withDivision({}),
+    });
+  }
+
+  getDepartmentLayerData(departmentRef: string, layerKey: string, bbox: string) {
+    if (!hasDivision() || !departmentRef?.trim() || !layerKey?.trim()) {
+      return of(emptyFeatureCollection());
+    }
+
+    return this.http.get<any>(
+      `${BASE_URL}/api/common/view/layers/department/${encodeURIComponent(departmentRef)}/layers/${encodeURIComponent(layerKey)}`,
+      { params: withDivision({ bbox }) }
+    );
   }
 }

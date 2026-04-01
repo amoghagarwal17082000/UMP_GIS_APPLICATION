@@ -13,6 +13,7 @@
 .legend-item {
   display: flex;
   align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
   font-size: 18px;
 }
@@ -22,52 +23,170 @@
 }
 
 .symbol {
-  margin-right: 12px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 2px solid transparent;
   flex: 0 0 auto;
   box-sizing: border-box;
+  overflow: visible;
 }
 
-.symbol.point {
-  width: 16px;
-  height: 16px;
+.symbol-circle,
+.symbol-diamond,
+.symbol-ring,
+.symbol-ring-slash {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
 }
 
-.symbol.line {
+.symbol-diamond {
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+
+.symbol-diamond .symbol-text {
+  transform: rotate(-45deg);
+}
+
+.symbol-triangle {
+  width: 0;
+  height: 0;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-bottom: 19px solid currentColor;
+  background: transparent !important;
+  border-top: 0 !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  position: relative;
+}
+
+.symbol-triangle .symbol-text {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #1f2937 !important;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.symbol-square {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+  border: 2px solid transparent;
+}
+
+.symbol-ring,
+.symbol-ring-slash {
+  background: #fff !important;
+}
+
+.symbol-ring-slash::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  border-radius: 999px;
+}
+
+.symbol-line {
   width: 30px;
   height: 0;
   border: none;
   border-top-width: 3px;
   border-top-style: solid;
   background: transparent !important;
-  position: relative;
 }
 
-.symbol-arrow-line::before,
-.symbol-arrow-line::after {
-  content: "";
+.symbol-dashed {
+  border-top-style: dashed;
+}
+
+.symbol-track {
+  width: 28px;
+  height: 18px;
+}
+
+.track-rail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.track-rail-left {
+  left: 7px;
+}
+
+.track-rail-right {
+  right: 7px;
+}
+
+.track-sleeper {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.track-sleeper:nth-of-type(3) { top: 2px; }
+.track-sleeper:nth-of-type(4) { top: 6px; }
+.track-sleeper:nth-of-type(5) { top: 10px; }
+.track-sleeper:nth-of-type(6) { top: 14px; }
+
+.symbol-text {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10px;
+  min-height: 10px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+
+.symbol-circle .symbol-text,
+.symbol-ring .symbol-text,
+.symbol-ring-slash .symbol-text,
+.symbol-diamond .symbol-text {
   position: absolute;
   top: 50%;
-  width: 0;
-  height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
-.symbol-arrow-line::before {
-  left: -1px;
-  border-right: 8px solid currentColor;
+.symbol-diamond .symbol-text {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
-.symbol-arrow-line::after {
-  right: -1px;
-  border-left: 8px solid currentColor;
-}
-
-.symbol.polygon {
+.symbol-image {
+  display: block;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
+  object-fit: contain;
 }
+
+
+.symbol-image-wrapper {
+  width: 20px;
+  height: 20px;
+  background: transparent !important;
+  border: none !important;
+}
+

@@ -8,6 +8,7 @@ import { ActivatedRoute, Router, NavigationStart } from '@angular/router';
 import { Api } from '../../api/api';
 import { StationLayer } from '../../departments/civil_engineering_assets/editing/station';
 import {
+  DynamicDepartmentLayer,
   LandBoundaryLayer,
   LandPlanOntrackViewingLayer,
   LandOffsetLayer,
@@ -32,6 +33,13 @@ import { MapZoomService, ZoomTarget } from '../../services/map-zoom';
 
 type EditableLayer = 'stations' | 'landplan';
 type DepartmentModuleKey = 'civil_engineering_assets' | 'civil_engineering_assets_offtrack' | 'unknown';
+type DepartmentLayerMeta = {
+  layerName: string;
+  layerKey: string;
+  tableName?: string | null;
+  department?: string;
+  departmentId?: string;
+};
 
 @Component({
   selector: 'app-map',
@@ -68,6 +76,18 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     civil_engineering_assets: 'civil_engineering_assets',
     civil_engineering_assets_offtrack: 'civil_engineering_assets_offtrack',
   };
+
+  private readonly commonAttributeTabs: LayerKey[] = ['Km Post', 'Railway Track'];
+  private readonly builtInDepartmentLayerKeys = new Set([
+    'station',
+    'land_boundary',
+    'land_offset',
+    'land_plan_on_track',
+    'division_buffer',
+    'km_post',
+    'india_railway_track',
+    'railway_track',
+  ]);
 
   constructor(
     private api: Api,
@@ -131,29 +151,85 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private handleStationCreateDoubleClick(e: L.LeafletMouseEvent): void { if (!this.map) return; if (!this.edit.enabled || this.edit.editLayer !== 'stations' || !this.edit.creatingStation) return; const divisionBuffer = this.layerManager.findById('division_buffer') as DivisionBufferLayer | undefined; if (!divisionBuffer?.containsLatLng?.(e.latlng)) { this.zone.run(() => { alert('New station can only be created inside the division buffer.'); }); return; } const lat = Number(e.latlng.lat); const lng = Number(e.latlng.lng); if (!Number.isFinite(lat) || !Number.isFinite(lng)) return; this.zone.run(() => { this.edit.emitCreateStationPoint(lat, lng); this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: 17, draggable: false } as any); }); }
 
   private resolveDepartmentModule(): { key: DepartmentModuleKey; label: string } {
-    const rawDepartment = this.currentUser.getSnapshot()?.department || '';
+    const rawDepartment = localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '';
     const normalized = this.normalizeDepartmentName(rawDepartment);
     const key = this.departmentAliases[normalized] || 'unknown';
     if (key === 'civil_engineering_assets') return { key, label: 'Civil Engineering Assets Layers' };
     if (key === 'civil_engineering_assets_offtrack') return { key, label: 'Civil Engineering Assets Offtrack Layers' };
     return { key, label: rawDepartment?.trim() || 'Department Layers' };
   }
+  private toLayerTitle(value: string): string {
+    return String(value || '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+  private shouldSkipDynamicDepartmentLayer(layerKey: string, departmentKey: DepartmentModuleKey): boolean {
+    if (this.builtInDepartmentLayerKeys.has(layerKey)) return true;
+    if (departmentKey === 'civil_engineering_assets' && layerKey === 'station') return true;
+    return false;
+  }
+  private registerDynamicDepartmentLayers(
+    departmentRef: string,
+    departmentKey: DepartmentModuleKey,
+    attributeTabs: LayerKey[]
+  ): void {
+    if (!departmentRef.trim()) {
+      this.attrTable.setTabs(attributeTabs);
+      return;
+    }
+    this.api.getDepartmentLayerCatalog(departmentRef).subscribe({
+      next: (res: any) => {
+        const layers: DepartmentLayerMeta[] = Array.isArray(res?.data) ? res.data : [];
+        const nextTabs = [...attributeTabs];
+        layers.forEach((meta) => {
+          const layerKey = String(meta?.layerKey || '').trim();
+          if (!layerKey || this.shouldSkipDynamicDepartmentLayer(layerKey, departmentKey)) return;
+          const title = this.toLayerTitle(meta?.layerName || layerKey);
+          this.layerManager.registerOnce(
+            new DynamicDepartmentLayer(
+              `department_${layerKey}`,
+              title,
+              this.api,
+              departmentRef,
+              layerKey,
+              (g: any) => this.attrTable.pushFeatureCollection(title, g)
+            )
+          );
+          if (!nextTabs.includes(title)) nextTabs.push(title);
+        });
+        this.attrTable.setTabs(nextTabs);
+        if (this.map) {
+          this.layerManager.applyVisibility(this.map);
+          this.layerManager.reloadAll(this.map);
+        }
+      },
+      error: (err: any) => {
+        console.error('Department layer catalog error', err);
+        this.attrTable.setTabs(attributeTabs);
+      },
+    });
+  }
 
   private registerDepartmentLayers(): void {
     const department = this.resolveDepartmentModule();
-    const attributeTabs: LayerKey[] = ['Km Post', 'Railway Track'];
+    const departmentRef = String(localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '').trim();
+    const attributeTabs: LayerKey[] = [...this.commonAttributeTabs];
     this.layerManager.clear(); this.layerManager.setActiveDepartmentLabel(department.label);
     this.layerManager.registerOnce(new IndiaBoundaryLayer(this.api));
     this.layerManager.registerOnce(new DivisionBufferLayer(this.api));
     this.layerManager.registerOnce(new TrackLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Railway Track', g)));
+    if (department.key === 'civil_engineering_assets') {
+      attributeTabs.unshift('Station', 'Land Plan Ontrack', 'Land Offset', 'Land Boundary');
+      this.layerManager.registerOnce(new StationViewingLayer(this.api, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)));
+      this.layerManager.registerOnce(new LandOffsetLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)));
+      this.layerManager.registerOnce(new LandBoundaryLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)));
+      this.layerManager.registerOnce(new LandPlanOntrackViewingLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Plan Ontrack', g)));
+    }
     this.layerManager.registerOnce(new KmPostLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Km Post', g)));
-    if (department.key !== 'civil_engineering_assets' && department.key !== 'civil_engineering_assets_offtrack') { this.attrTable.setTabs(attributeTabs); return; }
-    attributeTabs.unshift('Station', 'Land Plan Ontrack', 'Land Offset', 'Land Boundary');
-    this.layerManager.registerOnce(new StationViewingLayer(this.api, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)));
-    this.layerManager.registerOnce(new LandOffsetLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)));
-    this.layerManager.registerOnce(new LandBoundaryLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)));
-    this.layerManager.registerOnce(new LandPlanOntrackViewingLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Plan Ontrack', g)));
     this.attrTable.setTabs(attributeTabs);
+    this.registerDynamicDepartmentLayers(departmentRef, department.key, attributeTabs);
   }
 
   private syncEditAwareLayers(): void {
@@ -192,7 +268,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.sidebarSub?.unsubscribe(); this.sidebarSub = new Subscription();
     this.sidebarSub.add(this.ui.layoutChanged$.subscribe(() => { setTimeout(() => this.forceMapResize(), 320); }));
     this.sidebarSub.add(this.router.events.pipe(filter((e) => e instanceof NavigationStart)).subscribe((e: any) => { const fromUrl = this.router.url || ''; const toUrl = e?.url || ''; const isMapPage = (u: string) => u.includes('/dashboard/railway-assets') || u.includes('/map'); if (isMapPage(fromUrl) && !isMapPage(toUrl)) { this.ui.activePanel = null; this.edit.disable(); this.mapZoom.clearHighlight(); this.clearZoomArtifacts(); this.applyEditSuppression(); } }));
-    const base = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles � Esri' }).addTo(this.map);
+    const base = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles Ã‚Â© Esri' }).addTo(this.map);
     base.once('load', () => { this.forceMapResize(); setTimeout(() => { if (this.map) this.layerManager.reloadAll(this.map); }, 250); });
     this.registerDepartmentLayers();
     this.map.whenReady(() => {
@@ -216,4 +292,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     try { if (this.createStationDblClickHandler) this.map.off('dblclick', this.createStationDblClickHandler); if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); this.createStationDblClickHandler = undefined; }
   }
 }
+
+
+
 

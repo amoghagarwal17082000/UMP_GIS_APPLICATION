@@ -170,7 +170,7 @@ login() {
 this.api
   .validateCaptcha(this.captchaId, this.captchaValue.trim())
   .pipe(
-    timeout(2500), // ✅ if captcha validation takes >2.5s, treat as failure
+    timeout(10000),
     catchError((err) => {
       console.error('[CAPTCHA] validate timeout/error', err);
       return of({ success: false, message: 'Captcha validation timeout. Please try again.' });
@@ -206,7 +206,11 @@ this.api
             this.otpSending = false;
 
             if (res?.success) {
-              this.infoMsg = res?.message || 'OTP sent to registered email.';
+              this.zone.run(() => {
+                this.loginStep = 'OTP';
+                this.infoMsg = res?.message || 'OTP sent to registered email.';
+                this.cdr.detectChanges();
+              });
             } else {
               this.showError(res?.message || res?.error || 'Invalid user ID or password');
               this.zone.run(() => (this.loginStep = 'LOGIN'));

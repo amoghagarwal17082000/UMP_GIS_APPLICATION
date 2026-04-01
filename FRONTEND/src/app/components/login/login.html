@@ -1,7 +1,7 @@
 <!-- ===============================
      BACKGROUND MAP (GIS CONTEXT)
 ================================ -->
-<img src="assets/images/Indian railway network in daylight.png" class="bg-map" alt="Map background" />
+<img src="assets/images/Indian railway network in daylight.png" class="bg-map" alt="Railway background" />
 
 <div class="train-loader-overlay" *ngIf="showTrainAnimation" [class.fade-out]="loaderFadingOut">
   <div class="train-loader-card">
@@ -14,233 +14,177 @@
   </div>
 </div>
 
-<!-- ===============================
-     LANGUAGE PILL (TOP RIGHT)
-================================ -->
 <div class="lang-pill">
   <span class="lang-icon">A</span>
   <span>English</span>
 </div>
 
-<!-- ===============================
-     LOGIN WRAPPER
-================================ -->
 <div class="login-wrapper" [class.fade-out]="loginFadingOut">
-
-  <!-- ===============================
-       PORTAL CARD
-  ================================ -->
   <div class="portal-card">
+    <div class="portal-header">
+      <div class="header-seg">
+        <img src="assets/images/indian-national-emblem-ashoka.webp" class="logo" alt="Government of India" />
+      </div>
 
-  <!-- ===============================
-       HEADER (LOGOS STRIP)
-  ================================ -->
-  <div class="portal-header">
+      <div class="header-seg">
+        <img src="assets/images/amofficialcris_logo.jpg" class="logo" alt="CRIS Logo" />
+      </div>
 
-    <div class="header-seg">
-      <img src="assets/images/indian-national-emblem-ashoka.webp" class="logo" alt="Government of India" />
-    </div>
-
-    <div class="header-seg">
-      <img src="assets/images/amofficialcris_logo.jpg" class="logo" alt="CRIS Logo" />
-    </div>
-
-    <div class="header-seg">
-      <img src="assets/images/Indian_Railways.svg" class="logo" alt="IR Logo" />
-    </div>
-
-  </div>
-
-  <div class="portal-body">
-
-    <!-- Title -->
-    <div class="brand-row">
-      <div class="brand-title">
-        <span class="rail-I" aria-hidden="true"></span>
-        ndian Railways Geo Application
+      <div class="header-seg">
+        <img src="assets/images/Indian_Railways.svg" class="logo" alt="Indian Railways Logo" />
       </div>
     </div>
 
-    <!-- Subtitle -->
-    <div class="hint">
-      {{ loginStep === 'LOGIN' ? 'Please enter details to proceed' : 'Enter OTP received on mail' }}
-    </div>
-
-    <!-- ===============================
-         STEP 1: USERNAME + PASSWORD
-    ================================ -->
-    <form
-      *ngIf="loginStep === 'LOGIN'"
-      class="form-area"
-      (ngSubmit)="login()"
-      #loginForm="ngForm"
-    >
-
-      <div class="field">
-        <input
-          type="text"
-          name="username"
-          class="line-input"
-          placeholder="Enter User ID"
-          required
-          [(ngModel)]="username"
-        />
+    <div class="portal-body">
+      <div class="brand-row">
+        <h1 class="brand-title">
+          <span class="rail-track-mark" aria-hidden="true"></span>
+          <span>ndian Railways Geo Application</span>
+        </h1>
       </div>
 
-      <div class="field pw-field">
-        <input
-          [type]="showPassword ? 'text' : 'password'"
-          name="password"
-          class="line-input"
-          placeholder="Enter Password"
-          required
-          [(ngModel)]="password"
-        />
-
-        <button
-          type="button"
-          class="eye-btn"
-          (click)="showPassword = !showPassword"
-          aria-label="Toggle password visibility"
-        >
-          {{ showPassword ? '🙈' : '👁' }}
-        </button>
+      <div class="hint">
+        {{ loginStep === 'LOGIN' ? 'Sign in to continue' : 'Enter OTP received on mail' }}
       </div>
 
-      <label class="check-row">
-        <input type="checkbox" name="consent" required [(ngModel)]="consent" />
-        <span>
-          I consent to IR Asset Management Portal's
-          <a href="#" class="link">Privacy Policy</a>
-          and
-          <a href="#" class="link">Terms Of Use</a>
-        </span>
-      </label>
-
-<!-- CAPTCHA ROW (image + refresh + input) -->
-<div class="captcha-row">
-
-  <!-- Captcha Image (from backend SVG) -->
-  <div class="captcha-img" aria-label="captcha image">
-<img *ngIf="captchaImage" [src]="captchaImage" class="captcha-svg" alt="captcha"/>
-
-  </div>
-
-  <!-- Refresh Button -->
-  <button
-    type="button"
-    class="captcha-refresh"
-    aria-label="Refresh captcha"
-    (click)="refreshCaptcha()"
-  >
-    ↻
-  </button>
-
-  <!-- Captcha Input -->
-  <input
-    type="text"
-    name="captchaValue"
-    class="captcha-input"
-    placeholder="Input Captcha"
-    required
-    [(ngModel)]="captchaValue"
-    autocomplete="off"
-  />
-
-</div>
-
-
-      <!-- Sign in button below consent -->
-      <div class="sign-in-row">
-        <button
-          type="submit"
-          class="next-btn sign-in-btn"
-          [disabled]="loading || otpSending || !loginForm.valid"
-        >
-          {{ loading ? 'Signing in…' : 'Sign in' }}
-        </button>
-      </div>
-
-      <!-- Optional: keep captcha / user icon at bottom -->
-      <!-- <div class="actions-row">
-        <div></div>
-        <div class="captcha-box" aria-label="captcha placeholder">
-          <span style="color:#0b86a7;">👤</span>
+      <form
+        *ngIf="loginStep === 'LOGIN'"
+        class="form-area"
+        (ngSubmit)="login()"
+        #loginForm="ngForm"
+      >
+        <div class="field">
+          <input
+            type="text"
+            name="username"
+            class="line-input"
+            placeholder="Enter User ID"
+            required
+            autocomplete="username"
+            [(ngModel)]="username"
+          />
         </div>
-      </div> -->
 
-      <div *ngIf="error" class="error-text">
-        {{ error }}
-      </div>
+        <div class="field pw-field">
+          <input
+            [type]="showPassword ? 'text' : 'password'"
+            name="password"
+            class="line-input"
+            placeholder="Enter Password"
+            required
+            autocomplete="current-password"
+            [(ngModel)]="password"
+          />
 
-    </form>
+          <button
+            type="button"
+            class="eye-btn"
+            (click)="showPassword = !showPassword"
+            aria-label="Toggle password visibility"
+          >
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
+        </div>
 
+        <label class="check-row">
+          <input type="checkbox" name="consent" required [(ngModel)]="consent" />
+          <span>
+            I agree to the Asset Management Portal's
+            <a href="#" class="link">Privacy Policy</a>
+            and
+            <a href="#" class="link">Terms Of Use</a>.
+          </span>
+        </label>
 
-    <!-- ===============================
-         STEP 2: OTP SCREEN (same card)
-    ================================ -->
-<form
-  *ngIf="loginStep === 'OTP'"
-  class="form-area"
-  (ngSubmit)="verifyOtp()"
-  #otpForm="ngForm"
->
-  <!-- ✅ server message shown here -->
-  <div class="hint" style="margin-top: 0;" *ngIf="infoMsg">
-    {{ infoMsg }}
+        <div class="captcha-row">
+          <div class="captcha-img" aria-label="captcha image">
+            <img *ngIf="captchaImage" [src]="captchaImage" class="captcha-svg" alt="captcha" />
+          </div>
+
+          <button
+            type="button"
+            class="captcha-refresh"
+            aria-label="Refresh captcha"
+            (click)="refreshCaptcha()"
+          >
+            ?
+          </button>
+
+          <input
+            type="text"
+            name="captchaValue"
+            class="captcha-input"
+            placeholder="Enter Captcha"
+            required
+            autocomplete="off"
+            [(ngModel)]="captchaValue"
+          />
+        </div>
+
+        <div class="sign-in-row">
+          <button
+            type="submit"
+            class="next-btn sign-in-btn"
+            [disabled]="loading || otpSending"
+          >
+            {{ loading ? 'Signing in...' : 'Sign in' }}
+          </button>
+        </div>
+
+        <div *ngIf="error" class="error-text">
+          {{ error }}
+        </div>
+      </form>
+
+      <form
+        *ngIf="loginStep === 'OTP'"
+        class="form-area"
+        (ngSubmit)="verifyOtp()"
+        #otpForm="ngForm"
+      >
+        <div class="info-text" *ngIf="infoMsg">
+          {{ infoMsg }}
+        </div>
+
+        <div class="field">
+          <input
+            type="text"
+            name="otp"
+            class="line-input text-center"
+            placeholder="Enter OTP"
+            required
+            minlength="4"
+            maxlength="8"
+            autocomplete="one-time-code"
+            [(ngModel)]="otp"
+          />
+        </div>
+
+        <div class="sign-in-row">
+          <button
+            type="submit"
+            class="next-btn sign-in-btn"
+            [disabled]="loading"
+          >
+            {{ loading ? 'Connecting...' : 'Verify OTP' }}
+          </button>
+
+          <button
+            type="button"
+            class="next-btn"
+            (click)="resendOtp()"
+            [disabled]="loading"
+          >
+            Resend OTP
+          </button>
+        </div>
+
+        <div *ngIf="error" class="error-text">
+          {{ error }}
+        </div>
+      </form>
+
+      <div class="portal-footer">Centre for Railway Information Systems</div>
+    </div>
   </div>
-
-  <div class="field">
-    <input
-      type="text"
-      name="otp"
-      class="line-input text-center"
-      placeholder="Enter OTP"
-      required
-      minlength="4"
-      maxlength="8"
-      [(ngModel)]="otp"
-      autocomplete="one-time-code"
-    />
-  </div>
-
-<div class="sign-in-row">
-  <button
-    type="submit"
-    class="next-btn sign-in-btn"
-    [disabled]="loading || !otpForm.valid"
-  >
-    {{ loading ? 'Connecting…' : 'Verify OTP' }}
-  </button>
-
-  <button
-    type="button"
-    class="next-btn"
-    (click)="resendOtp()"
-    [disabled]="loading"
-  >
-    Resend OTP
-  </button>
-</div>
-
-
-  <!-- <div class="actions-row otp-actions">
-    <button type="button" class="link-btn" (click)="backToLogin()" [disabled]="loading">
-      ← Back
-    </button>
-
-    <button type="button" class="link-btn" (click)="resendOtp()" [disabled]="loading">
-      Resend OTP
-    </button>
-  </div> -->
-
-  <div *ngIf="error" class="error-text">
-    {{ error }}
-  </div>
-</form>
-
-
-  </div>
-</div>
-
 </div>

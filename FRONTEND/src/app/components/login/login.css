@@ -1,26 +1,32 @@
-/* =========================================================
-   GLOBAL RESET & BASE
-========================================================= */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
   font-family: "Segoe UI", Arial, sans-serif;
 }
 
-/* =========================================================
-   BACKGROUND MAP (GIS CONTEXT – ALWAYS VISIBLE)
-========================================================= */
-.bg-map{
+.bg-map {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  transform: scale(1.02);
 }
 
-.train-loader-overlay{
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(7, 26, 58, 0.26), rgba(4, 19, 43, 0.6)),
+    radial-gradient(circle at top, rgba(94, 140, 220, 0.18), transparent 42%);
+}
+
+.train-loader-overlay {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -32,680 +38,481 @@ html, body {
   transition: opacity 280ms ease, transform 320ms ease;
 }
 
-.train-loader-overlay.fade-out{
+.train-loader-overlay.fade-out {
   opacity: 0;
   transform: scale(1.03);
 }
 
-.train-loader-card{
+.train-loader-card {
   width: min(190px, 46vw);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
   border-radius: 16px;
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   box-shadow:
-    0 14px 34px rgba(0,0,0,0.32),
-    inset 0 0 0 1px rgba(255,255,255,0.08);
+    0 14px 34px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.train-loader-gif{
+.train-loader-gif {
   width: min(140px, 34vw);
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 8px 14px rgba(0,0,0,0.22));
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.22));
 }
 
-/* Softer vignette overlay (premium) */
-body::before{
-  content: "";
+.lang-pill {
   position: fixed;
-  inset: 0;
-  background: radial-gradient(
-    1200px 720px at 40% 35%,
-    rgba(0,0,0,0.10),
-    rgba(0,0,0,0.45)
-  );
-  z-index: 1;
+  top: 20px;
+  right: 24px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(8, 28, 60, 0.44);
+  color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  font-weight: 600;
 }
 
-/* =========================================================
-   LOGIN WRAPPER
-========================================================= */
-.login-wrapper{
+.lang-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 12px;
+}
+
+.login-wrapper {
   position: fixed;
   inset: 0;
   z-index: 2;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 32px 20px;
   opacity: 1;
   transform: translateY(0);
   transition: opacity 260ms ease, transform 300ms ease;
 }
 
-.login-wrapper.fade-out{
+.login-wrapper.fade-out {
   opacity: 0;
   transform: translateY(-14px) scale(0.985);
 }
 
-/* =========================================================
-   PORTAL CARD (ENHANCED + TALLER + BEAUTIFUL BORDER)
-========================================================= */
-.portal-card{
-  width: 600px;
-  max-width: 94vw;
-
-  height: 82vh;
-  min-height: 720px;     /* ✅ more room for bigger form */
-  max-height: 860px;
-
-  border-radius: 18px;
-  overflow: hidden;
-  border: none;
-
-  box-shadow:
-    0 22px 60px rgba(0,0,0,0.48),
-    0 0 0 1px rgba(255,255,255,0.08) inset;
-
-  display: flex;
-  flex-direction: column;
+.portal-card {
   position: relative;
-  transform: translateZ(0);
-  transition: transform 280ms ease, opacity 240ms ease, box-shadow 280ms ease;
+  width: 620px;
+  max-width: 94vw;
+  min-height: 770px;
+  height: 84vh;
+  max-height: 860px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(10, 28, 64, 0.78), rgba(12, 33, 74, 0.72));
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* Gradient border ring */
-.portal-card::after{
+.portal-card::before {
   content: "";
   position: absolute;
   inset: 0;
-  padding: 1px;
-  border-radius: 18px;
   pointer-events: none;
-
-  background: linear-gradient(
-    135deg,
-    rgba(18,194,233,0.78),
-    rgba(0,212,255,0.24),
-    rgba(255,255,255,0.16)
-  );
-
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 18%, rgba(255, 255, 255, 0.08), transparent 24%);
 }
 
-/* Soft glow behind the card */
-.portal-card::before{
-  content: "";
-  position: absolute;
-  inset: -14px;
-  border-radius: 22px;
-  pointer-events: none;
-
-  background: radial-gradient(
-    700px 320px at 40% 0%,
-    rgba(0,212,255,0.18),
-    transparent 60%
-  );
-
-  filter: blur(10px);
-  opacity: 0.9;
-  z-index: 0;
-}
-
-/* =========================================================
-   HEADER STRIP (LARGER PREMIUM LOGOS)
-========================================================= */
-.portal-header{
+.portal-header {
   position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  width: 100%;
-
-  min-height: 160px;   /* ✅ bigger header */
-  max-height: 180px;
-
-  background: rgba(255,255,255,0.96);
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  z-index: 2;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding: 38px 34px 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* subtle top accent */
-.portal-header::before{
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 5px;
-  background: linear-gradient(90deg,#12c2e9,#00d4ff,#12c2e9);
-  opacity: 0.95;
-}
-
-.header-seg{
+.header-seg {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px 28px;   /* ✅ more room */
 }
 
-/* Clean vertical separators */
-.header-seg:not(:last-child)::after{
+.header-seg:not(:last-child)::after {
   content: "";
   position: absolute;
-  right: 0;
-  top: 22%;
-  bottom: 22%;
+  right: -14px;
+  top: 12%;
+  bottom: 12%;
   width: 1px;
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(0,0,0,0.18),
+    rgba(255, 255, 255, 0.3),
     transparent
   );
 }
 
-/* Larger Logo Styling with framed box */
-.header-seg img{
-  max-height: 100px;   /* ✅ bigger logos */
-  width: auto;
+.header-seg img {
+  width: 100%;
+  max-width: 144px;
+  height: 106px;
   object-fit: contain;
-
-  padding: 12px 20px;
+  padding: 18px 22px;
   border-radius: 14px;
-
-  background: rgba(255,255,255,0.78);
-
+  background: rgba(255, 255, 255, 0.95);
   box-shadow:
-    0 8px 22px rgba(0,0,0,0.15),
-    inset 0 1px 0 rgba(255,255,255,0.7);
-
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+    0 8px 18px rgba(3, 10, 27, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.header-seg img:hover{
-  transform: translateY(-3px);
-  box-shadow:
-    0 12px 32px rgba(0,0,0,0.20),
-    inset 0 1px 0 rgba(255,255,255,0.9);
-}
-
-/* =========================================================
-   TEAL BODY (MORE SPACE FOR FORM)
-========================================================= */
-.portal-body{
-  background: linear-gradient(180deg, #0a7b96 0%, #0b86a7 52%, #086a82 100%);
+.portal-body {
+  position: relative;
+  z-index: 1;
+  padding: 40px 46px 28px;
   color: #ffffff;
-  flex: 1;
-
-  padding: 50px 60px 40px;  /* ✅ increased */
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
-  border-top: 1px solid rgba(255,255,255,0.06);
-  z-index: 2;
+  flex: 1;
+  justify-content: space-between;
 }
 
-/* =========================================================
-   TITLE
-========================================================= */
-.brand-row{
+.brand-row {
   display: flex;
-  justify-content: center;   /* ✅ center the whole title block */
-  align-items: center;
-  width: 100%;
+  justify-content: center;
 }
 
-
-
-.brand-title{
-  display: flex;
+.brand-title {
+  margin: 0;
+  display: inline-flex;
   align-items: center;
   gap: 14px;
-
-  font-size: 28px;   /* Slightly reduced to fit in one line */
+  text-align: center;
+  font-size: 29px;
+  line-height: 1.25;
   font-weight: 800;
-  letter-spacing: 0.3px;
-  line-height: 1.2;
-
-  color: rgba(255,255,255,0.96);
-  text-shadow: 0 3px 12px rgba(0,0,0,0.25);
-
-  white-space: nowrap;        /* ✅ FORCE single line */
-  overflow: hidden;           /* ✅ Prevent overflow */
-  text-overflow: ellipsis;    /* Optional safety */
+  letter-spacing: 0.2px;
+  color: #ffffff;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
 }
 
-
-
-
-/* =========================================================
-   RAIL TRACK "I" SYMBOL (║═║)
-========================================================= */
-.rail-I{
+.rail-track-mark {
   position: relative;
+  display: inline-block;
   width: 18px;
-  height: 44px;
+  height: 42px;
   flex: 0 0 auto;
-  transform: translateY(6px); /* ✅ aligns with first line */
-  opacity: 0.95;
+  transform: translateY(2px);
 }
 
-
-.rail-I::before{
+.rail-track-mark::before,
+.rail-track-mark::after {
   content: "";
   position: absolute;
-  left: 0;
   top: 0;
   width: 3px;
   height: 100%;
-  background: rgba(255,255,255,0.95);
   border-radius: 2px;
+  background: rgba(255, 255, 255, 0.95);
 }
 
-.rail-I::after{
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 3px;
-  height: 100%;
-  background: rgba(255,255,255,0.95);
-  border-radius: 2px;
+.rail-track-mark::before {
+  left: 1px;
 }
 
-.rail-I{
+.rail-track-mark::after {
+  right: 1px;
+}
+
+.rail-track-mark {
   background:
-    linear-gradient(rgba(255,255,255,0.95), rgba(255,255,255,0.95))
-      center 54% / 12px 3px no-repeat,
     repeating-linear-gradient(
       to bottom,
-      rgba(255,255,255,0.22) 0px,
-      rgba(255,255,255,0.22) 2px,
-      transparent 2px,
-      transparent 9px
+      transparent 0 4px,
+      rgba(255, 255, 255, 0.92) 4px 7px,
+      transparent 7px 12px
     ) center / 12px 100% no-repeat;
 }
 
-/* =========================================================
-   SUBTEXT
-========================================================= */
-.hint{
-  margin-top: 14px;
-  font-size: 15px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.85);
-
-  max-width: 520px;        /* ✅ align with heading width */
-  margin-left: auto;
-  margin-right: auto;
+.hint {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.86);
 }
 
-
-/* =========================================================
-   FORM AREA (MORE SPACING)
-========================================================= */
-.form-area{
-  flex: 1;
+.form-area {
+  margin-top: 34px;
   display: flex;
   flex-direction: column;
-  margin-top: 36px;
-  gap: 26px;   /* ✅ more spacing between form items */
+  gap: 22px;
 }
 
-.field{ margin-top: 0; }
+.field {
+  margin: 0;
+}
 
-/* =========================================================
-   ENHANCED INPUTS (TALLER)
-========================================================= */
-.line-input{
+.line-input,
+.captcha-input {
   width: 100%;
-  height: 56px;          /* ✅ taller */
+  height: 54px;
   padding: 0 18px;
-  color: rgba(255,255,255,0.95);
-
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.22);
-  border-radius: 14px;
-
-  outline: none;
-  font-size: 17px;       /* ✅ bigger text */
-  transition: 200ms ease;
-}
-
-.line-input::placeholder{
-  color: rgba(255,255,255,0.60);
-}
-
-.line-input:focus{
-  border-color: rgba(0, 255, 255, 0.35);
-  box-shadow: 0 0 0 4px rgba(0, 255, 255, 0.12);
-  background: rgba(255,255,255,0.10);
-}
-
-/* OTP centered input */
-.text-center{
-  text-align: center;
-  letter-spacing: 2px;
-}
-
-/* =========================================================
-   PASSWORD FIELD + EYE ICON
-========================================================= */
-.pw-field{ position: relative; }
-.pw-field .line-input{ padding-right: 68px; }
-
-.eye-btn{
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-
-  width: 40px;
-  height: 40px;
-  border: none;
   border-radius: 12px;
-
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.88);
-  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(10, 25, 57, 0.36);
+  color: #ffffff;
   font-size: 16px;
-  transition: 160ms ease;
-  z-index: 5;
+  outline: none;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
-.eye-btn:hover{ background: rgba(255,255,255,0.16); }
-.eye-btn:focus{ outline: none; }
+.line-input::placeholder,
+.captcha-input::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
 
-/* =========================================================
-   TERMS (BIGGER + SPACED)
-========================================================= */
-.check-row{
-  font-size: 14px;
+.line-input:focus,
+.captcha-input:focus {
+  border-color: rgba(152, 192, 255, 0.88);
+  background: rgba(13, 32, 72, 0.5);
+  box-shadow: 0 0 0 3px rgba(108, 156, 255, 0.16);
+}
+
+.pw-field {
+  position: relative;
+}
+
+.pw-field .line-input {
+  padding-right: 78px;
+}
+
+.eye-btn {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  min-width: 54px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+}
+
+.eye-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.check-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  font-size: 14px;
   line-height: 1.45;
-  color: rgba(255,255,255,0.88);
+  color: rgba(255, 255, 255, 0.84);
 }
 
-.check-row input{
+.check-row input {
   width: 18px;
   height: 18px;
-  margin-top: 3px;
-  accent-color: #00d4ff;
+  margin-top: 2px;
+  accent-color: #1b63d1;
 }
 
-.link{
-  color: #9ef2ff;
+.link {
+  color: #ffffff;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-/* =========================================================
-   OTP BUTTON ROW OVERRIDE (NIC / Premium)
-   Keep same classes, only override inside .sign-in-row
-========================================================= */
-
-.sign-in-row {
-  display: flex;
-  gap: 12px;
-  margin-top: 14px;
-  align-items: stretch;
-}
-
-/* Override global next-btn ONLY here */
-.sign-in-row .next-btn {
-  width: auto;              /* ✅ cancel width:100% */
-  height: 44px;             /* ✅ NIC standard height */
-  border-radius: 6px;       /* ✅ govt style */
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  box-shadow: none;         /* ✅ remove flashy shadow */
-  transform: none;          /* ✅ no lift effect */
-}
-
-/* Primary button (Verify OTP) stays dominant */
-.sign-in-row .sign-in-btn {
-  flex: 1;                  /* takes remaining space */
-  background: #0b5fa5;      /* NIC blue */
-  color: #fff;
-}
-
-/* Keep hover subtle */
-.sign-in-row .sign-in-btn:hover {
-  background: #094f8a;
-  box-shadow: none;
-  transform: none;
-}
-
-/* Secondary button (Resend OTP) */
-.sign-in-row .next-btn:not(.sign-in-btn) {
-  flex: 0 0 160px;          /* fixed nice width */
-  border: 1px solid #cfd8dc;
-  background: #f5f7f9;
-  color: #0b5fa5;
-}
-
-/* Secondary hover */
-.sign-in-row .next-btn:not(.sign-in-btn):hover {
-  background: #e3eef8;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Disabled state (keep clean) */
-.sign-in-row .next-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-
-/* =========================================================
-   OTP ACTIONS (Back / Resend)
-========================================================= */
-.otp-actions{
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 4px;
-}
-
-.link-btn{
-  background: transparent;
-  border: none;
-  padding: 10px 0;
-  color: rgba(255,255,255,0.86);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.link-btn:disabled{
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-/* =========================================================
-   BOTTOM AREA (icon stays at bottom-right)
-========================================================= */
-.actions-row{
-  margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 22px;
-}
-
-/* =========================================================
-   CAPTCHA ROW (classic like sample - left image)
-========================================================= */
-
 .captcha-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 150px 46px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
-  gap: 10px;
-  margin-top: 14px;
 }
 
-
-/* Image container */
 .captcha-img {
-  width: 150px;
-  height: 44px;
-  border-radius: 6px; /* small professional rounding */
-  background: #ffffff;
-  border: 1px solid #cfd8dc;
+  height: 46px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.96);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
 
-
-/* Captcha image */
 .captcha-svg {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 4px 6px;
+  padding: 2px 6px;
 }
 
-
-/* Refresh button */
 .captcha-refresh {
-  width: 44px;
-  height: 44px;
-  border-radius: 6px;
-  border: 1px solid #cfd8dc;
-  background: #f5f7f9;
-  color: #0b5fa5;
-  font-size: 18px;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #213b70;
+  font-size: 22px;
   cursor: pointer;
-  transition: background 0.2s ease;
 }
 
-.captcha-refresh:hover {
-  background: #e3eef8;
+.sign-in-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.captcha-refresh:active {
-  background: #d4e4f5;
+.next-btn {
+  height: 52px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 20px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 180ms ease, opacity 180ms ease;
 }
 
+.next-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
 
-/* Captcha input */
-.captcha-input {
+.next-btn:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
+.sign-in-btn {
   flex: 1;
-  height: 44px;
-  border-radius: 6px; /* NOT curvy, structured */
-  border: 1px solid #cfd8dc;
-  background: #ffffff;
-  color: #1a1a1a;
-  padding: 0 14px;
+  color: #ffffff;
+  background: linear-gradient(180deg, #1f66d6 0%, #0d49ac 100%);
+  box-shadow: 0 10px 20px rgba(8, 40, 100, 0.24);
+}
+
+.sign-in-row .next-btn:not(.sign-in-btn) {
+  min-width: 146px;
+  color: #173c75;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.text-center {
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+.error-text,
+.info-text {
+  padding: 12px 14px;
+  border-radius: 12px;
   font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-
-/* Focus effect */
-.captcha-input:focus {
-  border-color: #0b5fa5;
-  box-shadow: 0 0 0 2px rgba(11, 95, 165, 0.15);
+.error-text {
+  background: rgba(199, 41, 73, 0.18);
+  border: 1px solid rgba(255, 126, 147, 0.26);
+  color: #ffe3e7;
 }
 
-
-/* Placeholder color */
-.captcha-input::placeholder {
-  color: #7a8a96;
+.info-text {
+  background: rgba(88, 149, 255, 0.15);
+  border: 1px solid rgba(147, 191, 255, 0.24);
+  color: #e4efff;
 }
 
+.portal-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
 
-/* Responsive */
-@media (max-width: 420px) {
+@media (max-width: 640px) {
+  .lang-pill {
+    top: 14px;
+    right: 14px;
+  }
+
+  .portal-card {
+    width: 100%;
+    border-radius: 18px;
+    min-height: 680px;
+    height: auto;
+    max-height: none;
+  }
+
+  .portal-header {
+    gap: 12px;
+    padding: 18px 18px 16px;
+  }
+
+  .header-seg img {
+    height: 58px;
+    max-width: 82px;
+    padding: 8px 10px;
+  }
+
+  .portal-body {
+    padding: 22px 18px 18px;
+  }
+
+  .brand-title {
+    font-size: 20px;
+    gap: 10px;
+  }
+
+  .rail-track-mark {
+    width: 14px;
+    height: 32px;
+  }
+
   .captcha-row {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr 42px;
   }
 
   .captcha-img {
-    width: 100%;
+    grid-column: 1 / span 1;
+  }
+
+  .captcha-refresh {
+    grid-column: 2 / span 1;
   }
 
   .captcha-input {
-    flex: 1 1 100%;
-  }
-}
-
-
-/* =========================================================
-   MESSAGES
-========================================================= */
-.error-text{
-  margin-top: 6px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255, 0, 0, 0.12);
-  border: 1px solid rgba(255, 0, 0, 0.20);
-  color: rgba(255,255,255,0.92);
-  font-size: 13px;
-}
-
-.info-text{
-  margin-top: 6px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(0, 255, 255, 0.10);
-  border: 1px solid rgba(0, 255, 255, 0.18);
-  color: rgba(255,255,255,0.92);
-  font-size: 13px;
-}
-
-/* =========================================================
-   RESPONSIVE
-========================================================= */
-@media (max-width: 576px){
-  .portal-card{
-    width: 100%;
-    height: 88vh;
-    min-height: 600px;
-    max-height: 92vh;
+    grid-column: 1 / -1;
   }
 
-  .portal-header{
-    min-height: 130px;
-    max-height: 150px;
+  .sign-in-row {
+    flex-direction: column;
   }
 
-  .header-seg{
-    padding: 16px 16px;
+  .sign-in-row .next-btn:not(.sign-in-btn) {
+    min-width: 100%;
   }
-
-  .header-seg img{
-    max-height: 76px;
-    padding: 10px 14px;
-  }
-
-  .portal-body{
-    padding: 26px 18px 18px;
-  }
-
-  .brand-title{
-    font-size: 24px;
-    white-space: normal;
-  }
-
-  .rail-I{ height: 34px; }
 }

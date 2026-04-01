@@ -40,6 +40,12 @@ export class Api {
   getDivisionBufferKey(z: number) {
     return this.commonViewingApi.getDivisionBufferKey(z);
   }
+  getDepartmentLayerCatalog(departmentRef: string) {
+    return this.commonViewingApi.getDepartmentLayerCatalog(departmentRef);
+  }
+  getDepartmentLayerData(departmentRef: string, layerKey: string, bbox: string) {
+    return this.commonViewingApi.getDepartmentLayerData(departmentRef, layerKey, bbox);
+  }
   getlandboundary(bbox: string) {
     return this.ceaViewingApi.getLandBoundary(bbox);
   }

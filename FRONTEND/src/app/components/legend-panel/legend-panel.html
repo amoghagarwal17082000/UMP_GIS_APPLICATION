@@ -1,28 +1,30 @@
 <div class="panel">
   <div class="panel-header">
     <span>Legend</span>
-    <button class="panel-close" (click)="close()">×</button>
+    <button class="panel-close" (click)="close()">x</button>
   </div>
 
   <div class="panel-body">
-    <div class="legend-item" *ngFor="let layer of layerManager.getLayers()">
-      <div
-        class="symbol"
-        [ngClass]="layer.legend.type"
-        [class.symbol-arrow-line]="layer.id === 'land_offset'"
-        [style.background]="layer.legend.type === 'line' ? 'transparent' : (layer.legend.fillColor || layer.legend.color)"
-        [style.opacity]="layer.legend.type === 'line' ? 1 : (layer.legend.fillOpacity ?? 1)"
-        [style.border-color]="layer.legend.strokeColor || layer.legend.color"
-        [style.border-width.px]="layer.legend.strokeWidth || 2"
-        [style.width.px]="layer.legend.type === 'point' ? ((layer.legend.radius || 7) * 2 + 2) : null"
-        [style.height.px]="layer.legend.type === 'point' ? ((layer.legend.radius || 7) * 2 + 2) : null"
-        [style.border-top-color]="layer.legend.type === 'line' ? (layer.legend.strokeColor || layer.legend.color) : null"
-        [style.border-top-width.px]="layer.legend.type === 'line' ? (layer.legend.strokeWidth || 2) : null"
-        [style.color]="layer.legend.strokeColor || layer.legend.color"
-      ></div>
+    <div class="legend-item" *ngFor="let layer of getSortedLayers()">
+      <div [ngClass]="getSymbolClasses(layer.legend)" [ngStyle]="getSymbolStyle(layer.legend)">
+        <ng-container *ngIf="layer.legend.imageUrl; else defaultLegendSymbol">
+          <img class="symbol-image" [src]="layer.legend.imageUrl" [alt]="layer.legend.label" />
+        </ng-container>
+        <ng-template #defaultLegendSymbol>
+          <ng-container [ngSwitch]="resolveSymbolKind(layer.legend)">
+            <ng-container *ngSwitchCase="'track'">
+              <span class="track-rail track-rail-left"></span>
+              <span class="track-rail track-rail-right"></span>
+              <span class="track-sleeper" *ngFor="let sleeper of [1,2,3,4]"></span>
+            </ng-container>
+            <span *ngSwitchDefault class="symbol-text" [style.color]="layer.legend.textColor || layer.legend.strokeColor || layer.legend.color">
+              {{ layer.legend.symbolText || '' }}
+            </span>
+          </ng-container>
+        </ng-template>
+      </div>
 
       <span>{{ layer.legend.label }}</span>
     </div>
   </div>
 </div>
-

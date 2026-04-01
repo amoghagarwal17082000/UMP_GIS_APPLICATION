@@ -10,6 +10,7 @@ const INDIA_BOUNDARY_LEGEND = defineLegend({
   fillOpacity: 0,
   strokeColor: 'black',
   strokeWidth: 2,
+  symbolKind: 'line' as const,
 });
 
 export class IndiaBoundaryLayer implements MapLayer {
@@ -18,7 +19,6 @@ export class IndiaBoundaryLayer implements MapLayer {
   visible = true;
   layerGroup = 'common' as const;
   legend = INDIA_BOUNDARY_LEGEND;
-
   private layer: L.GeoJSON;
   private lastKey = '';
 

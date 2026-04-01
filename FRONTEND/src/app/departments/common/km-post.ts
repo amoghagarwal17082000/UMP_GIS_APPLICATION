@@ -1,6 +1,8 @@
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
-import { circleMarkerOptionsFromLegend, defineLegend, MapLayer } from '../../services/interface';
+import { defineLegend, MapLayer, pointLayerFromLegend } from '../../services/interface';
+
+const KM_POST_PANE = 'KmPostPane';
 
 const KM_POST_LEGEND = defineLegend({
   type: 'point' as const,
@@ -8,10 +10,21 @@ const KM_POST_LEGEND = defineLegend({
   label: 'KM Post',
   fillColor: '#2563eb',
   fillOpacity: 0.95,
-  strokeColor: '#ffffff',
+  strokeColor: '#1d4ed8',
   strokeWidth: 1,
   radius: 6,
+  symbolKind: 'circle' as const,
 });
+
+function ensureKmPostPane(map: L.Map): void {
+  if (!map.getPane(KM_POST_PANE)) {
+    map.createPane(KM_POST_PANE);
+  }
+  const pane = map.getPane(KM_POST_PANE)!;
+  pane.style.zIndex = '450';
+  pane.style.pointerEvents = 'none';
+}
+
 
 export class KmPostLayer implements MapLayer {
   id = 'km_posts';
@@ -20,45 +33,114 @@ export class KmPostLayer implements MapLayer {
   layerGroup = 'common' as const;
   legend = KM_POST_LEGEND;
 
-  private readonly MIN_ZOOM = 10;
-  private layer: L.GeoJSON;
+  private readonly MIN_ZOOM = 0;
+  private readonly LABEL_ZOOM = 12;
+  private layer: L.FeatureGroup;
   private lastBbox = '';
   private isLoading = false;
   private isOnMap = false;
   private requestSeq = 0;
+  private onZoomEndHandler?: () => void;
+  private onMoveStartHandler?: () => void;
+  private onMoveEndHandler?: () => void;
 
   constructor(private api: Api, private onData?: (geojson: any) => void) {
-    this.layer = L.geoJSON(null, {
-      pointToLayer: (_feature: any, latlng: L.LatLng) =>
-        L.circleMarker(latlng, circleMarkerOptionsFromLegend(this.legend)),
-      onEachFeature: (feature: any, layer: any) => {
-        const p = feature?.properties || {};
-        layer.bindPopup(`
-          <b>KM Post</b><br>
-          KM: ${p.kmpostno ?? '-'}<br>
-          Line: ${p.line ?? '-'}<br>
-          Railway: ${p.railway ?? '-'}
-        `);
-      },
-    });
+    this.layer = L.featureGroup();
+  }
+
+  private createKmPostMarker(feature: any, latlng: L.LatLng): L.Layer {
+    const p = feature?.properties || {};
+    const kmPostNo = (p.kmpostno ?? '').toString().trim();
+    const radius = this.legend.radius ?? 4;
+    const size = radius * 2;
+    const fill = this.legend.fillColor || this.legend.color;
+    const stroke = this.legend.strokeColor || this.legend.color;
+    const marker = L.marker(latlng, {
+      pane: KM_POST_PANE,
+      keyboard: false,
+      interactive: true,
+      icon: L.divIcon({
+        className: 'map-symbol-icon km-post-symbol-icon',
+        html: '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + fill + ';border:1px solid ' + stroke + ';box-sizing:border-box;"></div>',
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+      }),
+    }) as any;
+    if (kmPostNo && marker.bindTooltip) {
+      marker.bindTooltip(kmPostNo, {
+        permanent: false,
+        direction: 'top',
+        offset: L.point(0, -8),
+        opacity: 0.95,
+        className: 'station-label',
+      });
+    }
+    if (marker.bindPopup) {
+      marker.bindPopup(
+        '<b>KM Post</b><br>' +
+        'KM: ' + (p.kmpostno ?? '-') + '<br>' +
+        'Line: ' + (p.line ?? '-') + '<br>' +
+        'Railway: ' + (p.railway ?? '-')
+      );
+    }
+    return marker;
   }
 
   addTo(map: L.Map) {
     if (!this.visible) return;
 
     if (map.getZoom() >= this.MIN_ZOOM) {
+      ensureKmPostPane(map);
       if (!this.isOnMap) {
         this.layer.addTo(map);
         this.isOnMap = true;
       }
+      if (!this.onZoomEndHandler) {
+        this.onZoomEndHandler = () => this.updateLabels(map);
+      }
+      if (!this.onMoveStartHandler) {
+        this.onMoveStartHandler = () => this.closeLabels();
+      }
+      if (!this.onMoveEndHandler) {
+        this.onMoveEndHandler = () => this.updateLabels(map);
+      }
+      map.on('zoomend', this.onZoomEndHandler);
+      map.on('zoomstart', this.onMoveStartHandler);
+      map.on('movestart', this.onMoveStartHandler);
+      map.on('moveend', this.onMoveEndHandler);
+      this.updateLabels(map);
     } else {
       this.removeFrom(map);
     }
   }
 
   removeFrom(map: L.Map) {
+    if (this.onZoomEndHandler) map.off('zoomend', this.onZoomEndHandler);
+    if (this.onMoveStartHandler) {
+      map.off('zoomstart', this.onMoveStartHandler);
+      map.off('movestart', this.onMoveStartHandler);
+    }
+    if (this.onMoveEndHandler) map.off('moveend', this.onMoveEndHandler);
+    this.onZoomEndHandler = undefined;
+    this.onMoveStartHandler = undefined;
+    this.onMoveEndHandler = undefined;
     if (map.hasLayer(this.layer)) map.removeLayer(this.layer);
     this.isOnMap = false;
+  }
+
+  private closeLabels() {
+    this.layer.eachLayer((l: any) => {
+      if (l.getTooltip?.()) l.closeTooltip();
+    });
+  }
+
+  private updateLabels(map: L.Map) {
+    const show = map.getZoom() >= this.LABEL_ZOOM;
+    this.layer.eachLayer((l: any) => {
+      const tooltip = l.getTooltip?.();
+      if (!tooltip) return;
+      show ? l.openTooltip() : l.closeTooltip();
+    });
   }
 
   loadForMap(map: L.Map) {
@@ -96,9 +178,17 @@ export class KmPostLayer implements MapLayer {
         }
 
         this.addTo(map);
+        const features = Array.isArray(geojson?.features) ? geojson.features : [];
         this.layer.clearLayers();
-        this.layer.addData(geojson);
+        features.forEach((feature: any) => {
+          const coords = feature?.geometry?.coordinates || [];
+          const lng = Number(coords[0]);
+          const lat = Number(coords[1]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          this.layer.addLayer(this.createKmPostMarker(feature, L.latLng(lat, lng)));
+        });
 
+        this.updateLabels(map);
         this.isLoading = false;
       },
       error: (err: any) => {

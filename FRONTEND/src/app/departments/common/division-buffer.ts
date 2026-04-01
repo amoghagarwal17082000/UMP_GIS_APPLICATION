@@ -10,6 +10,7 @@ const DIVISION_BUFFER_LEGEND = defineLegend({
   fillOpacity: 0.1,
   strokeColor: 'black',
   strokeWidth: 2,
+  symbolKind: 'square' as const,
 });
 
 export class DivisionBufferLayer implements MapLayer {
@@ -18,7 +19,6 @@ export class DivisionBufferLayer implements MapLayer {
   visible = true;
   layerGroup = 'common' as const;
   legend = DIVISION_BUFFER_LEGEND;
-
   private layer: L.GeoJSON;
   private lastKey = '';
   private fittedOnce = false;
