@@ -116,7 +116,6 @@ export class StationViewingLayer implements MapLayer {
   protected layer: L.FeatureGroup;
   private lastBbox = '';
   private isOnMap = false;
-  private onZoomEndHandler?: () => void;
   private onMoveStartHandler?: () => void;
   private onMoveEndHandler?: () => void;
   private requestSeq = 0;
@@ -139,16 +138,12 @@ export class StationViewingLayer implements MapLayer {
       this.layer.addTo(map);
       this.isOnMap = true;
 
-      if (!this.onZoomEndHandler) {
-        this.onZoomEndHandler = () => this.updateLabels(map);
-      }
       if (!this.onMoveStartHandler) {
         this.onMoveStartHandler = () => this.closeLabels();
       }
       if (!this.onMoveEndHandler) {
         this.onMoveEndHandler = () => this.updateLabels(map);
       }
-      map.on('zoomend', this.onZoomEndHandler);
       map.on('zoomstart', this.onMoveStartHandler);
       map.on('movestart', this.onMoveStartHandler);
       map.on('moveend', this.onMoveEndHandler);
@@ -158,9 +153,6 @@ export class StationViewingLayer implements MapLayer {
   }
 
   removeFrom(map: L.Map) {
-    if (this.onZoomEndHandler) {
-      map.off('zoomend', this.onZoomEndHandler);
-    }
     if (this.onMoveStartHandler) {
       map.off('zoomstart', this.onMoveStartHandler);
       map.off('movestart', this.onMoveStartHandler);
@@ -280,8 +272,8 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
 
   protected layer: L.GeoJSON;
   private lastKey = '';
-
   private onZoomEndHandler?: () => void;
+
   private requestSeq = 0;
 
   constructor(protected api: Api, protected onData?: (geojson: any) => void) {
@@ -750,6 +742,10 @@ export class DynamicDepartmentLayer implements MapLayer {
     });
   }
 }
+
+
+
+
 
 
 
