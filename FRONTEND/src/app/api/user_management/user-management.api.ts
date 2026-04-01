@@ -24,4 +24,13 @@ export class UserManagementApi {
   assignChecker(data: any) {
     return this.http.post(`${BASE_URL}/api/user-management/view/users/assign-checker`, data);
   }
+
+  getAssignedCheckerUsers() {
+    const params = new HttpParams().set('division', this.getDivision());
+    return this.http.get<any>(`${BASE_URL}/api/user-management/view/users/assigned-checkers`, { params });
+  }
+
+  unassignChecker(data: any) {
+    return this.http.post(`${BASE_URL}/api/user-management/view/users/unassign-checker`, data);
+  }
 }

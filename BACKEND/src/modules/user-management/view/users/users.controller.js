@@ -67,8 +67,37 @@ async function assignChecker(req, res, next) {
 
 }
 
+
+async function getAssignedCheckerUsers(req, res, next) {
+  try {
+    const { division } = req.query;
+    const users = await userModel.getAssignedCheckerUsers(division);
+    res.json(users);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function unassignChecker(req, res, next) {
+  try {
+    const { maker_id } = req.body;
+
+    await userModel.unassignChecker(maker_id);
+
+    res.json({
+      success: true,
+      message: 'Checker unassigned successfully'
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
 module.exports = {
   getUsers,
   getMakerCheckerList,
-  assignChecker
+  assignChecker,
+  getAssignedCheckerUsers,
+  unassignChecker
 };

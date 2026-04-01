@@ -174,4 +174,13 @@ export class Api {
   assignChecker(data: any) {
     return this.userManagementApi.assignChecker(data);
   }
+
+  getAssignedCheckerUsers() {
+    return this.userManagementApi.getAssignedCheckerUsers();
+  }
+
+  unassignChecker(data: any) {
+    return this.userManagementApi.unassignChecker(data);
+  }
 }
+

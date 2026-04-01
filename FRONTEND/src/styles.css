@@ -1,3 +1,8 @@
+@import 'node_modules/@fortawesome/fontawesome-free/css/all.min.css';
+@import 'node_modules/bootstrap-icons/font/bootstrap-icons.css';
+
+
+
 html,
 body {
   height: 100%;

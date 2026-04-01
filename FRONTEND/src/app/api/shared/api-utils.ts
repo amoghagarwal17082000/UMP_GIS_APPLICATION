@@ -2,13 +2,17 @@ import { environment } from '../../../environments/environment';
 import { HttpParams } from '@angular/common/http';
 import { getCurrentUserSnapshot } from '../../services/current-user.store';
 
+
+export const BASE_URL = 'http://127.0.0.1:4000';
+
 function normalizeApiBase(url: string): string {
   const raw = String(url || '').trim().replace(/\/$/, '');
   if (!raw) return '';
   return raw.endsWith('/api') ? raw.slice(0, -4) : raw;
 }
 
-export const BASE_URL = normalizeApiBase((environment as any).apiUrl || '');
+// export const BASE_URL = normalizeApiBase((environment as any).apiUrl || '');
+
 
 export function getDivision(): string {
   return (getCurrentUserSnapshot()?.division || '').trim();

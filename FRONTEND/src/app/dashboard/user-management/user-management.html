@@ -1,6 +1,6 @@
 <div class="container-fluid user-management-page dashboard-page-shell">
-  <div class="row g-4 h-100">
-    <div class="col-12 col-lg-4 col-xl-3 d-flex">
+  <div class="row g-3 h-100">
+    <div class="col-12 col-lg-3 col-xl-3 d-flex">
       <div class="left-panel-box w-100">
         <div class="card welcome-card text-center mb-3">
           <div class="card-body py-2">
@@ -34,271 +34,362 @@
       </div>
     </div>
 
-    <div class="col-12 col-lg-8 col-xl-9 d-flex">
+    <div class="col-12 col-lg-9 col-xl-9 d-flex">
       <div class="card main-card w-100">
         <div class="card-body d-flex flex-column">
           <div class="row g-3 align-items-center mb-3">
-            <div class="col-12 col-xl">
-              <h5 class="mb-0">User List / Layer Assign</h5>
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+              <h5 class="mb-2">User List / Layer Assign</h5>
+
+              <div class="action-buttons">
+                <button class="btn action-btn me-2 mb-2">+ Assign Layer</button>
+                <button
+                  class="btn action-btn me-2 mb-2"
+                  (click)="openAssignCheckerModal()"
+                >
+                  + Assign Checker
+                </button>
+              </div>
             </div>
 
+            <ul class="nav nav-tabs  flex-wrap user-tabs">
+              <li class="nav-item">
+                <a
+                  class="nav-link"
+                  [class.active]="activeTab === 'user-list'"
+                  (click)="setActiveTab('user-list')"
+                  style="cursor: pointer;"
+                >
+                  User List
+                </a>
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link"
+                  [class.active]="activeTab === 'assigned-layers'"
+                  (click)="setActiveTab('assigned-layers')"
+                  style="cursor: pointer;"
+                >
+                  Assigned Layers
+                </a>
+              </li>
+              <li class="nav-item">
+                <a
+                  class="nav-link"
+                  [class.active]="activeTab === 'assigned-checker'"
+                  (click)="setActiveTab('assigned-checker')"
+                  style="cursor: pointer;"
+                >
+                  Assigned Checker
+                </a>
+              </li>
+            </ul>
 
-          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-            <h5 class="mb-2">User List / Layer Assign</h5>
+              <div class="col-12 col-md-6 col-xl-4 ms-xl-auto">
+                <input
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Search"
+                  [(ngModel)]="searchText"
+                  (input)="searchUsers()"
+                />
+              </div>
+            
 
-           <div class="action-buttons">
-  <button class="btn action-btn me-2 mb-2">+ Assign Layer</button>
-<button
-  class="btn action-btn me-2 mb-2"
-  (click)="openAssignCheckerModal()"
+  
+
+            <div class="table-responsive flex-grow-1">
+              <table class="table user-table align-middle">
+                <thead>
+                  <tr>
+                    <th>#</th>
+
+                    <th>
+                      User Name
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th>
+                      User Type
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th>
+                      Unit Type
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th>
+                      Zone
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th>
+                      Division
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th>
+                      Department
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th *ngIf="activeTab !== 'assigned-checker'">
+                      HRMS ID
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th *ngIf="activeTab !== 'assigned-checker'">
+                      Designation
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th *ngIf="activeTab === 'assigned-checker'">
+                      Assigned Checker
+                      <span class="sort-icons">▲▼</span>
+                    </th>
+
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr *ngFor="let user of paginatedUsers; index as i; trackBy: trackById">
+                    <td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
+
+                    <td>{{ user.user_name }}</td>
+                    <td>{{ user.user_type }}</td>
+                    <td>{{ user.unit_type }}</td>
+                    <td>{{ user.zone }}</td>
+                    <td>{{ user.division }}</td>
+                    <td>{{ user.department_id }}</td>
+
+                    <td *ngIf="activeTab !== 'assigned-checker'">{{ user.hrmsid }}</td>
+                    <td *ngIf="activeTab !== 'assigned-checker'">{{ user.designation }}</td>
+                    <td *ngIf="activeTab === 'assigned-checker'">{{ user.assigned_checker_name }}</td>
+
+                    <td class="action-buttons">
+                      <button
+  *ngIf="activeTab === 'assigned-checker'"
+  class="btn-action btn-info-user"
+  (click)="openUserInfoModal(user)"
+  title="User Information"
 >
-  + Assign Checker
+  <i class="bi bi-person-vcard-fill"></i>
 </button>
-</div>
 
-          </div>
+  <button class="btn-action btn-edit">
+    <i class="bi bi-pencil-fill"></i>
+  </button>
 
-          <ul class="nav nav-tabs mb-3 flex-nowrap overflow-auto user-tabs">
-            <li class="nav-item">
-              <a class="nav-link active">User List</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link">Assigned Layers</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link">Assigned Checker</a>
-            </li>
-          </ul>
+      <button
+        *ngIf="activeTab === 'assigned-checker'"
+        class="btn-action btn-delete"
+        (click)="openDeleteConfirmModal(user)"
+        title="Unassign Checker"
+      >
+        <i class="bi bi-trash-fill"></i>
+      </button>
 
-          <div class="row g-3 align-items-center mb-3">
-            <div class="col-12 col-md-6 col-xl-4 ms-xl-auto">
-              <input
-                type="text"
-                class="form-control form-control-sm"
-                placeholder="Search"
-                [(ngModel)]="searchText"
-                (input)="searchUsers()"
-              />
+      </td>
+                  </tr>
+
+                  <tr *ngIf="paginatedUsers.length === 0">
+                    <td [attr.colspan]="activeTab === 'assigned-checker' ? 9 : 10" class="text-center text-muted">
+                      No users found
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <small>
+                Showing
+                {{ currentDataLength === 0 ? 0 : ((currentPage - 1) * pageSize + 1) }}
+                -
+                {{ (currentPage - 1) * pageSize + paginatedUsers.length }}
+                of {{ currentDataLength }} entries
+              </small>
+
+              <div>
+                <button class="btn btn-light btn-sm me-1" (click)="goToPage(1)">«</button>
+                <button class="btn btn-light btn-sm me-1" (click)="prevPage()">‹</button>
+
+                <span class="mx-2">
+                  Page {{ currentPage }} / {{ totalPages }}
+                </span>
+
+                <button class="btn btn-light btn-sm me-1" (click)="nextPage()">›</button>
+                <button class="btn btn-light btn-sm" (click)="goToPage(totalPages)">»</button>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
 
+    <div
+      class="modal-backdrop-custom"
+      *ngIf="showAssignCheckerModal"
+    >
+      <div class="assign-checker-modal">
+        <div class="modal-header">
+          <h5>Assign Checker</h5>
+          <button class="close-btn" (click)="closeAssignCheckerModal()">✕</button>
+        </div>
 
-          <!-- TABLE -->
-<div class="table-responsive flex-grow-1">
+        <hr>
 
-<table class="table user-table align-middle">
+        <div class="row">
+          <div class="col-md-6">
+            <label>Maker</label>
 
-<thead>
-<tr>
-<th>#</th>
+            <select
+              class="form-control"
+              [(ngModel)]="selectedMaker"
+            >
+              <option [ngValue]="null">Select Maker</option>
 
-<th>
-User Name
-<span class="sort-icons">▲▼</span>
-</th>
+              <option
+                *ngFor="let maker of makers"
+                [ngValue]="maker.objectid"
+              >
+                {{ maker.user_name }}
+              </option>
+            </select>
+          </div>
 
-<th>
-User Type
-<span class="sort-icons">▲▼</span>
-</th>
+          <div class="col-md-6">
+            <label>Checker</label>
 
-<th>
-Unit Type
-<span class="sort-icons">▲▼</span>
-</th>
+            <select
+              class="form-control"
+              [(ngModel)]="selectedChecker"
+              [disabled]="!selectedMaker"
+            >
+              <option [ngValue]="null">
+                Please select a maker first
+              </option>
 
-<th>
-Zone
-<span class="sort-icons">▲▼</span>
-</th>
+              <option
+                *ngFor="let checker of checkers"
+                [ngValue]="checker.objectid"
+              >
+                {{ checker.user_name }}
+              </option>
+            </select>
+          </div>
+        </div>
 
-<th>
-Division
-<span class="sort-icons">▲▼</span>
-</th>
+        <div class="modal-actions">
+          <button class="btn btn-orange" (click)="assignChecker()">
+            Add
+          </button>
 
-<th>
-Department
-<span class="sort-icons">▲▼</span>
-</th>
+          <button
+            class="btn btn-outline-secondary"
+            (click)="closeAssignCheckerModal()"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
 
-<th>
-HRMS ID
-<span class="sort-icons">▲▼</span>
-</th>
+    
+      <div
+  class="modal-backdrop-custom"
+  *ngIf="showDeleteConfirmModal"
+>
+  <div class="delete-confirm-modal">
+    <div class="delete-icon-wrap">
+      <i class="bi bi-trash-fill"></i>
+    </div>
 
-<th>
-Designation
-<span class="sort-icons">▲▼</span>
-</th>
+    <div class="delete-confirm-text">
+      Please Confirm to Delete<br />
+      Assigned Checker
+    </div>
 
-<th>Actions</th>
+    <hr />
 
-</tr>
-</thead>
+    <div class="delete-confirm-actions">
+      <button class="btn delete-confirm-btn" (click)="unassignChecker()">
+        Delete
+      </button>
 
-<tbody>
-
-<tr *ngFor="let user of paginatedUsers; index as i; trackBy: trackById">
-
-<td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
-
-<td>{{ user.user_name }}</td>
-<td>{{ user.user_type }}</td>
-<td>{{ user.unit_type }}</td>
-<td>{{ user.zone }}</td>
-<td>{{ user.division }}</td>
-<td>{{ user.department_id }}</td>
-<td>{{ user.hrmsid }}</td>
-<td>{{ user.designation }}</td>
-
-<td class="action-buttons">
-
-<button class="btn-action btn-edit">
-<i class="bi bi-pencil-fill"></i>
-</button>
-
-<button class="btn-action btn-delete">
-<i class="bi bi-trash-fill"></i>
-</button>
-
-</td>
-
-</tr>
-
-<tr *ngIf="paginatedUsers.length === 0">
-<td colspan="10" class="text-center text-muted">
-No users found
-</td>
-</tr>
-
-</tbody>
-
-</table>
-
-</div>
-
-
-<div class="d-flex justify-content-between align-items-center mt-3">
-
-  <small>
-    Showing
-    {{ (currentPage - 1) * pageSize + 1 }}
-    -
-    {{ (currentPage - 1) * pageSize + paginatedUsers.length }}
-    of {{ filteredUsers.length }} entries
-  </small>
-
-  <div>
-
-    <button class="btn btn-light btn-sm me-1" (click)="goToPage(1)">«</button>
-
-    <button class="btn btn-light btn-sm me-1" (click)="prevPage()">‹</button>
-
-    <span class="mx-2">
-      Page {{ currentPage }} / {{ totalPages }}
-    </span>
-
-    <button class="btn btn-light btn-sm me-1" (click)="nextPage()">›</button>
-
-    <button class="btn btn-light btn-sm" (click)="goToPage(totalPages)">»</button>
-
-  </div>
-
-</div>
-
+      <button class="btn delete-cancel-btn" (click)="closeDeleteConfirmModal()">
+        Cancel
+      </button>
     </div>
   </div>
 </div>
 
-
-</div>
-
-
 <div
   class="modal-backdrop-custom"
-  *ngIf="showAssignCheckerModal"
+  *ngIf="showUserInfoModal"
 >
+  <div class="user-info-modal">
+    <div class="user-info-header">
+      <h3>User Details</h3>
+      <button class="user-info-close" (click)="closeUserInfoModal()">×</button>
+    </div>
 
-<div class="assign-checker-modal">
+    <div class="user-info-body">
+      <div class="user-info-left">
+        <div class="user-avatar-card">
+          <img src="assets/user-avatar.png" alt="User Avatar" />
+        </div>
+      </div>
 
-<div class="modal-header">
+      <div class="user-info-right">
+        <div class="user-info-grid">
+          <div class="info-item">
+            <label>User Name :</label>
+            <div>{{ selectedUserInfo?.user_name }}</div>
+          </div>
 
-<h5>Assign Checker</h5>
+          <div class="info-item">
+            <label>User Type :</label>
+            <div>{{ selectedUserInfo?.user_type }}</div>
+          </div>
 
-<button class="close-btn" (click)="closeAssignCheckerModal()">✕</button>
+          <div class="info-item">
+            <label>Unit Type:</label>
+            <div>{{ selectedUserInfo?.unit_type }}</div>
+          </div>
 
+          <div class="info-item">
+            <label>Department :</label>
+            <div>{{ selectedUserInfo?.department_id }}</div>
+          </div>
+
+          <div class="info-item">
+            <label>Division :</label>
+            <div>{{ selectedUserInfo?.division }}</div>
+          </div>
+
+          <div class="info-item">
+            <label>Zone :</label>
+            <div>{{ selectedUserInfo?.zone }}</div>
+          </div>
+
+          <div class="info-item full-width">
+            <label>Assigned Checker :</label>
+            <div>{{ selectedUserInfo?.assigned_checker_name }}</div>
+          </div>
+        </div>
+
+        <div class="user-info-actions">
+          <button class="btn user-info-cancel-btn" (click)="closeUserInfoModal()">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<hr>
-
-<div class="row">
-
-<div class="col-md-6">
-
-<label>Maker</label>
-
-<select
-  class="form-control"
-  [(ngModel)]="selectedMaker"
->
-
-<option [ngValue]="null">Select Maker</option>
-
-<option
-  *ngFor="let maker of makers"
-  [ngValue]="maker.objectid"
->
-{{ maker.user_name }}
-</option>
-
-</select>
-
+  </div>
 </div>
-
-<div class="col-md-6">
-
-<label>Checker</label>
-
-<select
-  class="form-control"
-  [(ngModel)]="selectedChecker"
-  [disabled]="!selectedMaker"
->
-
-<option [ngValue]="null">
-Please select a maker first
-</option>
-
-<option
-  *ngFor="let checker of checkers"
-  [ngValue]="checker.objectid"
->
-{{ checker.user_name }}
-</option>
-
-</select>
-
-</div>
-
-</div>
-
-<div class="modal-actions">
-
-<button class="btn btn-orange" (click)="assignChecker()">
-  Add
-</button>
-
-<button
-  class="btn btn-outline-secondary"
-  (click)="closeAssignCheckerModal()"
->
-Cancel
-</button>
-
-</div>
-
-</div>
-
-</div>
-
