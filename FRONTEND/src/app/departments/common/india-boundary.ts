@@ -19,6 +19,7 @@ export class IndiaBoundaryLayer implements MapLayer {
   visible = true;
   layerGroup = 'common' as const;
   legend = INDIA_BOUNDARY_LEGEND;
+  private readonly MIN_ZOOM = 10;
   private layer: L.GeoJSON;
   private lastKey = '';
 
@@ -31,6 +32,10 @@ export class IndiaBoundaryLayer implements MapLayer {
 
   addTo(map: L.Map) {
     if (!this.visible) return;
+    if (map.getZoom() < this.MIN_ZOOM) {
+      this.removeFrom(map);
+      return;
+    }
     if (!map.hasLayer(this.layer)) this.layer.addTo(map);
     this.layer.bringToFront();
   }
@@ -41,6 +46,13 @@ export class IndiaBoundaryLayer implements MapLayer {
 
   loadForMap(map: L.Map) {
     if (!this.visible) return;
+
+    if (map.getZoom() < this.MIN_ZOOM) {
+      this.lastKey = '';
+      this.layer.clearLayers();
+      this.removeFrom(map);
+      return;
+    }
 
     this.addTo(map);
 

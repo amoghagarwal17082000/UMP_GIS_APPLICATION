@@ -3,7 +3,20 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
 }
+
+app-root {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: calc(100vw / var(--app-scale));
+  height: calc(100dvh / var(--app-scale));
+  transform: scale(var(--app-scale));
+  transform-origin: top left;
+  overflow: hidden;
+}
+
 
 *,
 *::before,
@@ -30,6 +43,7 @@ canvas {
 }
 
 :root {
+  --app-scale: 0.833;
   --topbar-h: 78px;
   --topbar-height: 56px;
   --panel-gap: 10px;
@@ -248,3 +262,6 @@ canvas {
   height: auto !important;
   overflow: auto !important;
 }
+
+
+

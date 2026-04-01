@@ -49,6 +49,7 @@ type DepartmentLayerMeta = {
   styleUrl: './map.css',
 })
 export class MapComponent implements AfterViewInit, OnDestroy {
+  private readonly performanceBodyClass = 'map-performance-mode';
   private map?: L.Map;
   private zoomSub?: Subscription;
   private clearSelectionSub?: Subscription;
@@ -105,6 +106,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   ) {}
 
   ngAfterViewInit(): void {
+    document.body.classList.add(this.performanceBodyClass);
     void this.currentUser.loadMe(true).then((user) => {
       if (!user?.user_id) {
         this.zone.run(() => {
@@ -288,10 +290,13 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    document.body.classList.remove(this.performanceBodyClass);
     this.zoomSub?.unsubscribe(); this.clearSelectionSub?.unsubscribe(); this.sidebarSub?.unsubscribe(); this.mapZoomSub?.unsubscribe(); this.lockDragSub?.unsubscribe(); this.editSuppressionSub?.unsubscribe(); this.routeSub?.unsubscribe(); this.zoomSub = undefined; this.clearSelectionSub = undefined; this.sidebarSub = undefined; this.mapZoomSub = undefined; this.lockDragSub = undefined; this.editSuppressionSub = undefined; this.routeSub = undefined; if (this.reloadTimer) clearTimeout(this.reloadTimer); this.reloadTimer = null; if (this.map) this.clearZoomArtifacts(); if (!this.map) return;
     try { if (this.createStationDblClickHandler) this.map.off('dblclick', this.createStationDblClickHandler); if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); this.createStationDblClickHandler = undefined; }
   }
 }
+
+
 
 
 

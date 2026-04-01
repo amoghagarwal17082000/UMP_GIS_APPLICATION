@@ -8,6 +8,11 @@ export type LegendSymbolKind =
   | 'square'
   | 'ring'
   | 'ring-slash'
+  | 'point-crossing'
+  | 'level-crossing'
+  | 'rob'
+  | 'rub'
+  | 'fob'
   | 'track'
   | 'line';
 
@@ -84,6 +89,22 @@ function escapeHtml(value: string): string {
 }
 
 export function pointLayerFromLegend(legend: LayerLegend, latlng: L.LatLng, paneName?: string): L.CircleMarker | L.Marker {
+  if (legend.imageUrl) {
+    const iconWidth = legend.imageWidth ?? 18;
+    const iconHeight = legend.imageHeight ?? 18;
+    return L.marker(latlng, {
+      icon: L.divIcon({
+        className: 'map-symbol-icon',
+        html: '<img src="' + legend.imageUrl + '" style="display:block;width:' + iconWidth + 'px;height:' + iconHeight + 'px;object-fit:contain;" alt="' + escapeHtml(legend.label || 'symbol') + '">',
+        iconSize: [iconWidth, iconHeight],
+        iconAnchor: [iconWidth / 2, iconHeight / 2],
+      }),
+      keyboard: false,
+      interactive: true,
+      pane: paneName,
+    });
+  }
+
   const kind = resolveLegendSymbolKind(legend);
   const hasCustomShape = kind !== 'circle' || !!legend.symbolText;
   if (!hasCustomShape) {
@@ -117,10 +138,20 @@ export function pointLayerFromLegend(legend: LayerLegend, latlng: L.LatLng, pane
     html = `<div style="position:relative;width:${size}px;height:${size}px;transform:rotate(45deg);background:${fill};border:${weight}px solid ${stroke};border-radius:3px;box-sizing:border-box;">${text ? `<span style="${commonTextStyle};transform:translate(-50%,-50%) rotate(-45deg);">${text}</span>` : ''}</div>`;
   } else if (kind === 'triangle') {
     html = `<div style="position:relative;width:${size}px;height:${size}px;clip-path:polygon(50% 0,0 100%,100% 100%);background:${fill};border:${weight}px solid ${stroke};box-sizing:border-box;">${text ? `<span style="${commonTextStyle};top:62%;">${text}</span>` : ''}</div>`;
+  } else if (kind === 'point-crossing') {
+    html = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="${fill}" stroke="${stroke}" stroke-width="2"/><rect x="7.8" y="7.8" width="4.4" height="4.4" fill="#ffffff" transform="rotate(45 10 10)"/><line x1="5.4" y1="14.6" x2="14.6" y2="5.4" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/></svg>`;
+  } else if (kind === 'level-crossing') {
+    html = `<div style="position:relative;width:${size}px;height:${size}px;clip-path:polygon(50% 0,0 100%,100% 100%);background:${fill};border:${weight}px solid ${stroke};box-sizing:border-box;"><span style="position:absolute;left:50%;top:66%;width:${Math.round(size * 0.44)}px;height:${Math.round(size * 0.18)}px;background:${textColor};transform:translate(-50%,-50%);border-radius:1px;"></span><span style="position:absolute;left:50%;top:42%;width:${Math.max(2, weight)}px;height:${Math.round(size * 0.24)}px;background:${textColor};transform:translate(-50%,-50%);border-radius:1px;"></span></div>`;
   } else if (kind === 'ring') {
     html = `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:#ffffff;border:${weight}px solid ${stroke};box-sizing:border-box;">${text ? `<span style="${commonTextStyle}">${text}</span>` : ''}</div>`;
   } else if (kind === 'ring-slash') {
     html = `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:#ffffff;border:${weight}px solid ${stroke};box-sizing:border-box;"><span style="position:absolute;left:50%;top:50%;width:${Math.round(size * 0.8)}px;height:${Math.max(2, weight)}px;background:${stroke};transform:translate(-50%,-50%) rotate(-45deg);border-radius:999px;z-index:1;"></span>${text ? `<span style="${commonTextStyle}">${text}</span>` : ''}</div>`;
+  } else if (kind === 'rob') {
+    html = `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${fill};border:${weight}px solid ${stroke};box-sizing:border-box;"><span style="position:absolute;left:50%;top:42%;width:${Math.round(size * 0.52)}px;height:${Math.max(2, weight)}px;background:${textColor};transform:translate(-50%,-50%);border-radius:999px;"></span><span style="position:absolute;left:38%;top:60%;width:${Math.max(2, weight)}px;height:${Math.round(size * 0.22)}px;background:${textColor};transform:translate(-50%,-50%);border-radius:999px;"></span><span style="position:absolute;left:62%;top:60%;width:${Math.max(2, weight)}px;height:${Math.round(size * 0.22)}px;background:${textColor};transform:translate(-50%,-50%);border-radius:999px;"></span></div>`;
+  } else if (kind === 'rub') {
+    html = `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${fill};border:${weight}px solid ${stroke};box-sizing:border-box;"><span style="position:absolute;left:50%;top:50%;width:${Math.round(size * 0.64)}px;height:${Math.max(2, weight)}px;background:${textColor};transform:translate(-50%,-50%) rotate(45deg);border-radius:999px;"></span><span style="position:absolute;left:50%;top:50%;width:${Math.round(size * 0.64)}px;height:${Math.max(2, weight)}px;background:${textColor};transform:translate(-50%,-50%) rotate(-45deg);border-radius:999px;"></span></div>`;
+  } else if (kind === 'fob') {
+    html = `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${fill};border:${weight}px solid ${stroke};box-sizing:border-box;">${text ? `<span style="${commonTextStyle}">${text}</span>` : `<span style="${commonTextStyle}">F</span>`}</div>`;
   } else {
     html = `<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${fill};border:${weight}px solid ${stroke};box-sizing:border-box;">${text ? `<span style="${commonTextStyle}">${text}</span>` : ''}</div>`;
   }
@@ -251,3 +282,4 @@ export function buildClusteredPointLayers(options: ClusteredPointLayerOptions): 
 
   return layers;
 }
+

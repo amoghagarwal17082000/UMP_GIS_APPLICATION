@@ -12,6 +12,8 @@ const TABLE_NAME_ALIASES = {
   road_over_bridge: 'road_over_bridge',
   foot_over_bridge: 'foot_over_bridge',
   point_xing: 'point_xing',
+  switch_expansion_joint: 'switch_expansion_joint_1',
+  sej: 'switch_expansion_joint_1',
   levelxing: 'levelxing',
   rub_lhs: 'rub_lhs',
   yard_line: 'yard_line',
@@ -164,3 +166,4 @@ module.exports = {
   getDepartmentLayerGeoJSON,
   normalizeLayerKey,
 };
+

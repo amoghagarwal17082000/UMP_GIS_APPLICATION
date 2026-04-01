@@ -4,6 +4,7 @@ import 'leaflet-polylinedecorator';
 import { NgZone } from '@angular/core';
 import { Api } from '../../../api/api';
 import { LayerLegend, defineLegend, MapLayer, pathStyleFromLegend, pointLayerFromLegend } from '../../../services/interface';
+import { inferCivilLegendFromFeatureCollection } from '../../../components/legend-panel/legend-panel';
 
 const STATION_LEGEND: LayerLegend = defineLegend({
   type: 'point' as const,
@@ -65,6 +66,7 @@ const DEPARTMENT_POLYGON_PANE = 'DepartmentPolygonPane';
 const DEPARTMENT_LINE_PANE = 'DepartmentLinePane';
 const DEPARTMENT_DECORATOR_PANE = 'DepartmentDecoratorPane';
 const DEPARTMENT_POINT_PANE = 'DepartmentPointPane';
+const TOWN_LEVEL_MIN_ZOOM = 10;
 
 function paneZIndex(paneName: string): number {
   if (paneName === DEPARTMENT_POLYGON_PANE) return 390;
@@ -93,62 +95,12 @@ function orderLayerInPane(layer: L.GeoJSON, legend: LayerLegend): void {
   else layer.bringToFront();
 }
 
-function inferLegendFromTitle(title: string, type: 'point' | 'line' | 'polygon'): LayerLegend {
-  const normalized = String(title || '').toLowerCase().replace(/\s+/g, ' ').trim();
-
-  const entries: Array<{ match: string[]; legend: LayerLegend }> = [
-    { match: ['railway track', 'track'], legend: defineLegend({ type: 'line' as const, color: '#111827', label: title, strokeColor: '#111827', strokeWidth: 2, symbolKind: 'track' as const }) },
-    { match: ['km post'], legend: defineLegend({ type: 'point' as const, color: '#2563eb', label: title, fillColor: '#2563eb', fillOpacity: 0.95, strokeColor: '#ffffff', strokeWidth: 1, radius: 6, symbolKind: 'diamond' as const }) },
-    { match: ['point & crossing', 'point and crossing'], legend: defineLegend({ type: 'point' as const, color: '#d97706', label: title, strokeColor: '#d97706', strokeWidth: 2, radius: 7, symbolKind: 'ring-slash' as const }) },
-    { match: ['level crossing'], legend: defineLegend({ type: 'point' as const, color: '#f59e0b', label: title, fillColor: '#fbbf24', strokeColor: '#d97706', strokeWidth: 2, symbolText: '!', textColor: '#1f2937', symbolKind: 'triangle' as const }) },
-    { match: ['switch expansion joint', '(sej)', 'sej'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'S', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['buffer rail', 'buffer rails'], legend: defineLegend({ type: 'point' as const, color: '#65a30d', label: title, fillColor: '#84cc16', strokeColor: '#65a30d', strokeWidth: 1, radius: 5, symbolKind: 'diamond' as const }) },
-    { match: ['gradient start'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: '+', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['gradient end'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'G', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['curve start'], legend: defineLegend({ type: 'point' as const, color: '#d97706', label: title, fillColor: '#f59e0b', strokeColor: '#d97706', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['curve end'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['cutting start'], legend: defineLegend({ type: 'point' as const, color: '#84a65b', label: title, fillColor: '#eef7d0', strokeColor: '#84a65b', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#84a65b', symbolKind: 'ring' as const }) },
-    { match: ['cutting end'], legend: defineLegend({ type: 'point' as const, color: '#e57373', label: title, fillColor: '#fff1f1', strokeColor: '#e57373', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#e57373', symbolKind: 'ring' as const }) },
-    { match: ['bridge'], legend: defineLegend({ type: 'point' as const, color: '#66bb6a', label: title, fillColor: '#9be59d', strokeColor: '#66bb6a', strokeWidth: 2, radius: 7, symbolText: 'B', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['tunnel start'], legend: defineLegend({ type: 'point' as const, color: '#ff8a65', label: title, fillColor: '#ffab91', strokeColor: '#ff8a65', strokeWidth: 2, radius: 7, symbolText: 'T', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['tunnel end'], legend: defineLegend({ type: 'point' as const, color: '#0f172a', label: title, fillColor: '#0f172a', strokeColor: '#0f172a', strokeWidth: 2, radius: 7, symbolText: 'T', textColor: '#38bdf8', symbolKind: 'circle' as const }) },
-    { match: ['rob'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'R', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['rub_lhs', 'rub lhs', 'rub'], legend: defineLegend({ type: 'point' as const, color: '#f59e0b', label: title, fillColor: '#fbbf24', strokeColor: '#d97706', strokeWidth: 2, radius: 7, symbolText: 'X', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['fob'], legend: defineLegend({ type: 'point' as const, color: '#eab308', label: title, fillColor: '#fde047', strokeColor: '#eab308', strokeWidth: 2, radius: 7, symbolText: 'F', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['land boundary'], legend: defineLegend({ type: 'line' as const, color: '#f59e0b', label: title, strokeColor: '#f59e0b', strokeWidth: 3, symbolKind: 'line' as const }) },
-    { match: ['land offset'], legend: defineLegend({ type: 'line' as const, color: '#111827', label: title, strokeColor: '#111827', strokeWidth: 2, symbolKind: 'line' as const }) },
-    { match: ['landplan ontrack', 'land plan ontrack', 'land plans (on-track)', 'land plans on-track'], legend: defineLegend({ type: 'polygon' as const, color: '#FFA500', label: title, fillColor: '#FFA500', fillOpacity: 0.15, strokeColor: '#FFA500', strokeWidth: 3, symbolKind: 'square' as const }) },
-    { match: ['land plans (off-track)', 'land plans off-track', 'land plan offtrack', 'landplan offtrack'], legend: defineLegend({ type: 'polygon' as const, color: '#f59e0b', label: title, fillColor: '#f59e0b', fillOpacity: 0.15, strokeColor: '#f59e0b', strokeWidth: 2, symbolKind: 'square' as const }) },
-    { match: ['land parcels', 'land parcel'], legend: defineLegend({ type: 'polygon' as const, color: '#818cf8', label: title, fillColor: '#818cf8', fillOpacity: 0.15, strokeColor: '#818cf8', strokeWidth: 2, symbolKind: 'square' as const }) },
-  ];
-
-  const matched = entries.find((entry) => entry.match.some((token) => normalized.includes(token)));
-  if (matched) return matched.legend;
-
-  if (type === 'point') {
-    return defineLegend({ type: 'point' as const, color: '#f97316', label: title, fillColor: '#f97316', fillOpacity: 0.9, strokeColor: '#ffffff', strokeWidth: 1, radius: 7, symbolKind: 'circle' as const });
-  }
-
-  if (type === 'line') {
-    return defineLegend({ type: 'line' as const, color: '#facc15', label: title, strokeColor: '#facc15', strokeWidth: 3, symbolKind: 'line' as const });
-  }
-
-  return defineLegend({ type: 'polygon' as const, color: '#4dd0e1', label: title, fillColor: '#4dd0e1', fillOpacity: 0.15, strokeColor: '#4dd0e1', strokeWidth: 2, symbolKind: 'square' as const });
-}
-
 function inferMinZoomFromTitle(title: string): number {
   const normalized = String(title || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (normalized.includes('station')) return 0;
   if (normalized.includes('track')) return 0;
   if (normalized.includes('km post')) return 0;
-  return 13;
-}
-
-function inferLegendFromFeatureCollection(title: string, geojson: any): LayerLegend {
-  const feature = geojson?.features?.find((f: any) => !!f?.geometry?.type);
-  const type = String(feature?.geometry?.type || '').toLowerCase();
-  const resolvedType: 'point' | 'line' | 'polygon' = type.includes('point') ? 'point' : type.includes('line') ? 'line' : 'polygon';
-  return inferLegendFromTitle(title, resolvedType);
+  return TOWN_LEVEL_MIN_ZOOM;
 }
 
 export class StationViewingLayer implements MapLayer {
@@ -322,7 +274,7 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
   visible = true;
   layerGroup = 'department' as const;
 
-  minZoom = 13;
+  minZoom = TOWN_LEVEL_MIN_ZOOM;
 
   legend = LANDPLAN_ONTRACK_LEGEND;
 
@@ -370,7 +322,6 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
         this.layer.addTo(map);
         this.layer.bringToBack();
       }
-      this.loadForMap(map);
     } else {
       if (map.hasLayer(this.layer)) map.removeLayer(this.layer);
       this.lastKey = '';
@@ -440,7 +391,7 @@ export class LandOffsetLayer implements MapLayer {
   visible = true;
   layerGroup = 'department' as const;
 
-  minZoom = 13;
+  minZoom = TOWN_LEVEL_MIN_ZOOM;
 
   legend = LAND_OFFSET_LEGEND;
 
@@ -610,7 +561,7 @@ export class LandBoundaryLayer implements MapLayer {
   visible = true;
   layerGroup = 'department' as const;
 
-  minZoom = 13;
+  minZoom = TOWN_LEVEL_MIN_ZOOM;
 
   legend = LAND_BOUNDARY_LEGEND;
 
@@ -747,6 +698,8 @@ export class DynamicDepartmentLayer implements MapLayer {
         } else if (map.hasLayer(this.layer)) {
           map.removeLayer(this.layer);
           this.added = false;
+          this.lastBbox = '';
+          this.layer.clearLayers();
         }
       };
       map.on('zoomend', this.onZoomEndHandler);
@@ -785,7 +738,7 @@ export class DynamicDepartmentLayer implements MapLayer {
     this.api.getDepartmentLayerData(this.departmentRef, this.layerKey, bbox).subscribe({
       next: (geojson: any) => {
         if (requestId !== this.requestSeq) return;
-        this.legend = inferLegendFromFeatureCollection(this.title, geojson);
+        this.legend = inferCivilLegendFromFeatureCollection(this.title, this.layerKey, geojson);
         this.layer.clearLayers();
         this.layer.addData(geojson);
         if (this.legend.type !== 'polygon') {
@@ -797,3 +750,18 @@ export class DynamicDepartmentLayer implements MapLayer {
     });
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

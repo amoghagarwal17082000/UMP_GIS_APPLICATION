@@ -11,16 +11,21 @@
           <img class="symbol-image" [src]="layer.legend.imageUrl" [alt]="layer.legend.label" />
         </ng-container>
         <ng-template #defaultLegendSymbol>
-          <ng-container [ngSwitch]="resolveSymbolKind(layer.legend)">
-            <ng-container *ngSwitchCase="'track'">
-              <span class="track-rail track-rail-left"></span>
-              <span class="track-rail track-rail-right"></span>
-              <span class="track-sleeper" *ngFor="let sleeper of [1,2,3,4]"></span>
-            </ng-container>
-            <span *ngSwitchDefault class="symbol-text" [style.color]="layer.legend.textColor || layer.legend.strokeColor || layer.legend.color">
-              {{ layer.legend.symbolText || '' }}
-            </span>
+          <ng-container *ngIf="getCustomSymbolHtml(layer.legend) as customHtml; else defaultLegendSwitch">
+            <span [innerHTML]="customHtml"></span>
           </ng-container>
+          <ng-template #defaultLegendSwitch>
+            <ng-container [ngSwitch]="resolveSymbolKind(layer.legend)">
+              <ng-container *ngSwitchCase="'track'">
+                <span class="track-rail track-rail-left"></span>
+                <span class="track-rail track-rail-right"></span>
+                <span class="track-sleeper" *ngFor="let sleeper of [1,2,3,4]"></span>
+              </ng-container>
+              <span *ngSwitchDefault class="symbol-text" [style.color]="layer.legend.textColor || layer.legend.strokeColor || layer.legend.color">
+                {{ layer.legend.symbolText || '' }}
+              </span>
+            </ng-container>
+          </ng-template>
         </ng-template>
       </div>
 
@@ -28,3 +33,4 @@
     </div>
   </div>
 </div>
+

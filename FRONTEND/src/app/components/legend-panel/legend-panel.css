@@ -36,7 +36,11 @@
 .symbol-circle,
 .symbol-diamond,
 .symbol-ring,
-.symbol-ring-slash {
+.symbol-ring-slash,
+.symbol-point-crossing,
+.symbol-rob,
+.symbol-rub,
+.symbol-fob {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -96,6 +100,106 @@
   border-radius: 999px;
 }
 
+
+.symbol-point-crossing {
+}
+
+.symbol-point-crossing::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 1px;
+}
+
+.symbol-point-crossing::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background: #ffffff;
+  transform: translate(-50%, -50%) rotate(-52deg);
+  border-radius: 999px;
+}
+
+.symbol-level-crossing {
+  width: 20px;
+  height: 18px;
+  clip-path: polygon(50% 0,0 100%,100% 100%);
+  position: relative;
+}
+
+.symbol-level-crossing::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 2px;
+  height: 5px;
+  background: #1f2937;
+  transform: translate(-50%, -50%);
+}
+
+.symbol-level-crossing::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 66%;
+  width: 8px;
+  height: 3px;
+  background: #1f2937;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+}
+
+.symbol-rob::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 9px;
+  height: 2px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+}
+
+.symbol-rob::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 61%;
+  width: 10px;
+  height: 6px;
+  background: linear-gradient(to right, currentColor 0 2px, transparent 2px 8px, currentColor 8px 10px);
+  transform: translate(-50%, -50%);
+}
+
+.symbol-rub::before,
+.symbol-rub::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.symbol-rub::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.symbol-rub::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
 .symbol-line {
   width: 30px;
   height: 0;
@@ -189,4 +293,7 @@
   background: transparent !important;
   border: none !important;
 }
+
+
+
 

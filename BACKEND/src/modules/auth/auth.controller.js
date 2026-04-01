@@ -1,6 +1,7 @@
 const authModel = require('./auth.model');
 const otpService = require('../../services/otp/otp-service');
 const jwt = require('jsonwebtoken');
+const activeRequestOtp = new Map();
 const activeResend = new Map();
 
 function genOtp() {

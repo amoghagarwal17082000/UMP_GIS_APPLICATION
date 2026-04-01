@@ -1,7 +1,7 @@
 .dashboard-layout {
   width: 100%;
-  min-height: 100dvh;
-  height: 100dvh;
+  min-height: calc(100dvh / var(--app-scale));
+  height: calc(100dvh / var(--app-scale));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -61,8 +61,8 @@ app-sidebar {
 
 @media (max-width: 991.98px) {
   .dashboard-layout {
-    min-height: 100dvh;
-    height: 100dvh;
+    min-height: calc(100dvh / var(--app-scale));
+    height: calc(100dvh / var(--app-scale));
   }
 
   .dashboard-body {

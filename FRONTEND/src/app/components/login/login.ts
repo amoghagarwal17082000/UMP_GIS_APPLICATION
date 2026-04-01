@@ -46,6 +46,7 @@ export class Login implements OnInit, AfterViewInit, OnDestroy {
   showPassword = false;
 
   private captchaLoading = false;
+  private loginFlowInProgress = false;
 
   private errorTimer: any = null;
   private redirectTimer: any = null;
@@ -204,14 +205,17 @@ this.api
         this.auth.requestOtp(this.username, this.password).subscribe({
           next: (res: any) => {
             this.otpSending = false;
+            this.loginFlowInProgress = false;
 
             if (res?.success) {
+              this.loginFlowInProgress = false;
               this.zone.run(() => {
                 this.loginStep = 'OTP';
                 this.infoMsg = res?.message || 'OTP sent to registered email.';
                 this.cdr.detectChanges();
               });
             } else {
+              this.loginFlowInProgress = false;
               this.showError(res?.message || res?.error || 'Invalid user ID or password');
               this.zone.run(() => (this.loginStep = 'LOGIN'));
               setTimeout(() => this.loadCaptcha('back-to-login-after-requestOtp-fail'), 0);
