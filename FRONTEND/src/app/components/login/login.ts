@@ -189,18 +189,10 @@ this.api
           return;
         }
 
-        // ✅ IMPORTANT: Stop blocking UI immediately
         this.loading = false;
+        this.infoMsg = 'Connecting…';
+        this.cdr.detectChanges();
 
-        // ✅ Step B: INSTANT switch to OTP screen inside Angular zone
-        this.zone.run(() => {
-          this.loginStep = 'OTP';
-          this.otp = '';
-          this.infoMsg = 'Connecting… Sending OTP to registered email.';
-          this.cdr.detectChanges(); 
-        });
-
-        // ✅ Step C: Request OTP in background (separate flag)
         this.otpSending = true;
 
         this.auth.requestOtp(this.username, this.password).subscribe({
@@ -209,9 +201,18 @@ this.api
             this.loginFlowInProgress = false;
 
             if (res?.success) {
+              if (res?.accessToken || res?.bypassOtp) {
+                this.zone.run(() => {
+                  this.infoMsg = res?.message || 'Logging in...';
+                  this.cdr.detectChanges();
+                  this.startPostLoginAnimation();
+                });
+                return;
+              }
               this.loginFlowInProgress = false;
               this.zone.run(() => {
                 this.loginStep = 'OTP';
+                this.otp = '';
                 this.infoMsg = res?.message || 'OTP sent to registered email.';
                 this.cdr.detectChanges();
               });
@@ -379,3 +380,5 @@ verifyOtp() {
     }
   }
 }
+
+

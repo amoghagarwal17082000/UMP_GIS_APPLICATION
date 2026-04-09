@@ -11,9 +11,17 @@ function normalizeApiBase(url: string): string {
   return raw.endsWith('/api') ? raw.slice(0, -4) : raw;
 }
 
+function normalizeDivision(value: string): string {
+  const raw = String(value || '').trim();
+  if (raw.toLowerCase() === 'centre for railway information systems') {
+    return 'DLI';
+  }
+  return raw;
+}
+
 
 export function getDivision(): string {
-  return (getCurrentUserSnapshot()?.division || '').trim();
+  return normalizeDivision(getCurrentUserSnapshot()?.division || localStorage.getItem('asset_division') || '');
 }
 
 export function hasDivision(): boolean {

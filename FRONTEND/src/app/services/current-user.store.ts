@@ -3,6 +3,7 @@ export type CurrentUser = {
   user_name: string;
   railway: string;
   division: string;
+  actualDivision?: string;
   department: string;
   user_type: string;
   unit_type: string;
@@ -12,6 +13,8 @@ export type CurrentUser = {
 
 const USER_KEY = 'ump_current_user';
 const TOKEN_KEY = 'ump_access_token';
+const DIVISION_KEY = 'division';
+const ASSET_DIVISION_KEY = 'asset_division';
 
 function readUserFromSession(): CurrentUser | null {
   try {
@@ -29,8 +32,12 @@ export function setCurrentUserSnapshot(user: CurrentUser | null): void {
   snapshot = user;
   if (user) {
     sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+    localStorage.setItem(DIVISION_KEY, String(user.actualDivision || user.division || '').trim());
+    localStorage.setItem(ASSET_DIVISION_KEY, String(user.division || '').trim());
   } else {
     sessionStorage.removeItem(USER_KEY);
+    localStorage.removeItem(DIVISION_KEY);
+    localStorage.removeItem(ASSET_DIVISION_KEY);
   }
 }
 
@@ -41,6 +48,8 @@ export function getCurrentUserSnapshot(): CurrentUser | null {
 export function clearCurrentUserSnapshot(): void {
   snapshot = null;
   sessionStorage.removeItem(USER_KEY);
+  localStorage.removeItem(DIVISION_KEY);
+  localStorage.removeItem(ASSET_DIVISION_KEY);
 }
 
 export function setAccessToken(token: string | null): void {

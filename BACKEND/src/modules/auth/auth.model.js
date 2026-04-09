@@ -14,6 +14,7 @@ async function findUserById(userId) {
       u.password,
       u.user_name,
       u.zone,
+      u.division,
       u.otp,
       u.otp_created_at,
       u.email,
@@ -192,4 +193,5 @@ module.exports = {
   touchSession,
   hashToken,
 };
+
 

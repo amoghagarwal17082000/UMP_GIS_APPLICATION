@@ -8,6 +8,25 @@ function genOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getEffectiveDivision(user) {
+  if (shouldBypassOtp(user)) {
+    return 'DLI';
+  }
+  return String(user?.division_code || user?.division || '').trim();
+}
+
+function getActualDivision(user) {
+  return String(user?.division || user?.division_code || '').trim();
+}
+
+function shouldBypassOtp(user) {
+  return normalizeText(user?.division) === 'centre for railway information systems';
+}
+
 function getJwtSecret() {
   return String(process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || '').trim();
 }
@@ -25,7 +44,7 @@ async function issueAccessToken(user) {
     sub: user.user_id,
     user_id: user.user_id,
     user_type: user.user_type,
-    division: user.division_code,
+    division: getEffectiveDivision(user),
     department: user.department,
   };
 
@@ -45,7 +64,8 @@ function toUserPayload(user) {
     user_id: user.user_id,
     user_name: user.user_name,
     railway: user.zone,
-    division: user.division_code,
+    division: getEffectiveDivision(user),
+    actual_division: getActualDivision(user),
     department: user.department,
     user_type: user.user_type,
     unit_type: user.unit_type,
@@ -97,6 +117,18 @@ async function requestOtp(req, res, next) {
       return res.status(401).json({ success: false, message: 'Invalid user_id or password' });
     }
 
+
+    if (shouldBypassOtp(user)) {
+      const accessToken = await issueAccessToken(user);
+      return res.json({
+        success: true,
+        bypassOtp: true,
+        message: 'OTP bypassed for this user. Logging in directly.',
+        accessToken,
+        tokenType: 'Bearer',
+        user: toUserPayload(user),
+      });
+    }
     const email = await authModel.getUserEmailById(user_id);
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email not available for this user' });
@@ -333,3 +365,4 @@ module.exports = {
   getCurrentUser,
   logout,
 };
+

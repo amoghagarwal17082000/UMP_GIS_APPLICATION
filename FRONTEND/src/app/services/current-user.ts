@@ -23,6 +23,14 @@ export class CurrentUserService {
 
   constructor(private http: HttpClient) {}
 
+  private normalizeDivision(value: any): string {
+    const raw = String(value || '').trim();
+    if (raw.toLowerCase() === 'centre for railway information systems') {
+      return 'DLI';
+    }
+    return raw;
+  }
+
   getSnapshot(): CurrentUser | null {
     return this.userSubject.getValue();
   }
@@ -32,8 +40,9 @@ export class CurrentUserService {
   }
 
   setUser(user: CurrentUser | null): void {
-    setCurrentUserSnapshot(user);
-    this.userSubject.next(user);
+    const normalized = this.normalizeUser(user as any);
+    setCurrentUserSnapshot(normalized);
+    this.userSubject.next(normalized);
   }
 
   setAuth(user: CurrentUser | null, token: string | null): void {
@@ -84,7 +93,8 @@ export class CurrentUserService {
       user_id: String(user.user_id || '').trim(),
       user_name: String(user.user_name || '').trim(),
       railway: String(user.railway || '').trim(),
-      division: String(user.division || '').trim(),
+      division: this.normalizeDivision(user.division),
+      actualDivision: String(user.actualDivision || user.actual_division || user.division || '').trim(),
       department: String(user.department || '').trim(),
       user_type: String(user.user_type || '').trim(),
       unit_type: String(user.unit_type || '').trim(),

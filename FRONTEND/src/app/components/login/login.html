@@ -80,9 +80,9 @@
             type="button"
             class="eye-btn"
             (click)="showPassword = !showPassword"
-            aria-label="Toggle password visibility"
+            [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
           >
-            {{ showPassword ? 'Hide' : 'Show' }}
+            <i [class]="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'" aria-hidden="true"></i>
           </button>
         </div>
 

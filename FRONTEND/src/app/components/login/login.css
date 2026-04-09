@@ -297,7 +297,7 @@ body::before {
 }
 
 .pw-field .line-input {
-  padding-right: 78px;
+  padding-right: 56px;
 }
 
 .eye-btn {
@@ -305,17 +305,19 @@ body::before {
   top: 50%;
   right: 10px;
   transform: translateY(-50%);
-  min-width: 54px;
-  height: 34px;
-  padding: 0 14px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 0;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.92);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
+  font-size: 17px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 180ms ease, transform 180ms ease;
 }
 
 .eye-btn:hover {
@@ -581,15 +583,14 @@ body::before {
   }
 
   .pw-field .line-input {
-    padding-right: 72px;
+    padding-right: 52px;
   }
 
   .eye-btn {
     right: 8px;
-    min-width: 50px;
-    height: 30px;
-    padding: 0 12px;
-    font-size: 11px;
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
   }
 
   .check-row {

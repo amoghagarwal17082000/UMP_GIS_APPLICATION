@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { BASE_URL } from '../shared/api-utils';
+import { BASE_URL, getDivision } from '../shared/api-utils';
 import { getCurrentUserSnapshot } from '../../services/current-user.store';
 
 @Injectable({ providedIn: 'root' })
@@ -8,7 +8,7 @@ export class UserManagementApi {
   constructor(private http: HttpClient) {}
 
   private getDivision(): string {
-    return (getCurrentUserSnapshot()?.division || localStorage.getItem('division') || '').trim();
+    return (getDivision() || getCurrentUserSnapshot()?.division || '').trim();
   }
 
   getUsers() {

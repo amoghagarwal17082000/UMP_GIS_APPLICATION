@@ -21,6 +21,9 @@ export class Auth {
   requestOtp(username: string, password: string): Observable<any> {
     return this.authApi.requestOtp(username, password).pipe(
       tap((res: any) => {
+        if (res?.success && res?.accessToken) {
+          this.currentUser.setAuth(res.user || null, res.accessToken || null);
+        }
         console.log('REQUEST OTP RESPONSE FROM SERVER:', res);
       })
     );
@@ -64,3 +67,4 @@ export class Auth {
     return this.getUserType() === 'Admin';
   }
 }
+
