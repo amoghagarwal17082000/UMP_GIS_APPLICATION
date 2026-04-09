@@ -108,7 +108,7 @@
 
 :host ::ng-deep .leaflet-top.leaflet-left {
   top: 12px;
-  left: 2gitpx;
+  left: 2px;
 }
 
 @media (max-width: 767.98px) {
@@ -117,6 +117,7 @@
     width: min(250px, calc(100% - 126px));
   }
 }
+
 
 
 
