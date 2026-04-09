@@ -146,7 +146,12 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   get formFields(): EditFieldConfig[] {
-    const fields = this.currentLayerSchema?.formFields ?? [];
+    const fields = this.currentLayerSchema?.formFields
+      ? [...this.currentLayerSchema.formFields]
+      : [];
+    if (this.isMakerRejectedDraftView()) {
+      fields.push({ key: 'comments', label: 'Comments', full: true });
+    }
     if (this.currentTableLayer === 'stations' && this.isMakerSentForDeletionView()) {
       return fields;
     }
@@ -154,13 +159,9 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   get activeTableColumns(): TableColumnConfig[] {
-    const columns = this.currentLayerSchema?.tableColumns
+    return this.currentLayerSchema?.tableColumns
       ? [...this.currentLayerSchema.tableColumns]
       : [];
-    if (this.isMakerRejectedView()) {
-      columns.push({ key: 'comments', label: 'Comments' });
-    }
-    return columns;
   }
 
   get tableColSpan(): number {
@@ -270,6 +271,7 @@ export class EditPanel implements OnInit, OnDestroy {
   isCheckerSentToApproverView(): boolean { return this.isReviewer() && this.mode === 'table' && this.checkerTab === 'approved'; }
   isCheckerDeletionProposedView(): boolean { return this.isReviewer() && this.checkerTab === 'deletion_proposed'; }
   isMakerRejectedView(): boolean { return this.isMaker() && this.mode === 'table' && this.makerTab === 'rejected'; }
+  isMakerRejectedDraftView(): boolean { return this.isMaker() && this.mode === 'edit' && this.makerTab === 'rejected'; }
   isMakerSentForDeletionView(): boolean { return this.isMaker() && this.makerTab === 'sent_for_deletion'; }
   isStationFieldsLocked(): boolean { return this.stationValidated || this.isReviewer() || this.isMakerSentForDeletionView(); }
   private getReviewerDraftStatus(): string {
@@ -677,6 +679,7 @@ export class EditPanel implements OnInit, OnDestroy {
 
   isFieldReadonly(field: EditFieldConfig): boolean {
     if (this.currentTableLayer === 'stations') {
+      if (field.key === 'comments') return true;
       if (field.key === 'status') return true;
       if (field.key === 'sttncode' || field.key === 'category' || field.key === 'sttnname') {
         return this.isStationFieldsLocked();

@@ -32,6 +32,7 @@ export const EDIT_LAYER_CONFIG: Record<EditLayerKey, LayerFormConfig> = {
     note: '* For Station: All starred fields are mandatory | For Landplan: Polygon geometry required',
     tableColumns: [
       { key: 'sttncode', label: 'Station Code', stationLink: true },
+      { key: 'sttnname', label: 'Station Name' },
       { key: 'distkm', label: 'Dist (km)' },
       { key: 'distm', label: 'Dist (m)' },
       { key: 'state', label: 'State' },

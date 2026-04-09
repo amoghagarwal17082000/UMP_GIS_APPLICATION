@@ -460,8 +460,7 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
       mainRecord = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Sent to Approver for Deletion');
     } else if (
       (normalizedUserType === 'checker' || normalizedUserType === 'approver') &&
-      normalizedStatus === 'Sent Back to Maker' &&
-      (currentStatus === 'sent to checker for deletion' || currentStatus === 'sent to approver for deletion')
+      normalizedStatus === 'Sent Back to Maker'
     ) {
       mainRecord = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Sent Back to Maker');
     }

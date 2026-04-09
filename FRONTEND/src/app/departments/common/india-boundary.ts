@@ -58,9 +58,10 @@ export class IndiaBoundaryLayer implements MapLayer {
 
     const b = map.getBounds();
     const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+    const bboxKey = `${b.getWest().toFixed(2)},${b.getSouth().toFixed(2)},${b.getEast().toFixed(2)},${b.getNorth().toFixed(2)}`;
     const z = map.getZoom();
 
-    const key = `${bbox}|${z}`;
+    const key = `${bboxKey}|${z}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
 
@@ -74,3 +75,4 @@ export class IndiaBoundaryLayer implements MapLayer {
     });
   }
 }
+

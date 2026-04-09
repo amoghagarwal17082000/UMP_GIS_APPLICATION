@@ -22,7 +22,7 @@ type Step = 'LOGIN' | 'OTP';
 export class Login implements OnInit, AfterViewInit, OnDestroy {
   loginStep: Step = 'LOGIN';
   showTrainAnimation = false;
-  trainAnimationSrc = '/assets/images/Train.gif';
+  trainAnimationSrc = 'assets/images/train.gif';
   trainAnimationReady = false;
   loginFadingOut = false;
   loaderFadingOut = false;

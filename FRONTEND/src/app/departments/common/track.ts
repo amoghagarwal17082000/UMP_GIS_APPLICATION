@@ -47,9 +47,10 @@ export class TrackLayer implements MapLayer {
 
     const b = map.getBounds();
     const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+    const bboxKey = `${b.getWest().toFixed(2)},${b.getSouth().toFixed(2)},${b.getEast().toFixed(2)},${b.getNorth().toFixed(2)}`;
 
-    if (bbox === this.lastBbox) return;
-    this.lastBbox = bbox;
+    if (bboxKey === this.lastBbox) return;
+    this.lastBbox = bboxKey;
     const requestId = ++this.requestSeq;
 
     this.api.getTracks(bbox).subscribe({
@@ -64,3 +65,4 @@ export class TrackLayer implements MapLayer {
     });
   }
 }
+

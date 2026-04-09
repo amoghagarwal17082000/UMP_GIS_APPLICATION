@@ -234,6 +234,11 @@
   font-weight: 800;
 }
 
+#panelEdit .tbl thead th:last-child{
+  min-width: 128px;
+  width: 128px;
+}
+
 #panelEdit .tbl tbody td{
   padding: 10px 10px;
   color: #111827;
@@ -681,8 +686,8 @@
 #panelEdit .tbl td.actions-cell button.preview-btn,
 #panelEdit .tbl td.actions-cell button.accept-btn,
 #panelEdit .tbl td.actions-cell button.reject-btn{
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: none;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
@@ -735,7 +740,7 @@
 #panelEdit .tbl td.actions-cell button.preview-btn i,
 #panelEdit .tbl td.actions-cell button.accept-btn i,
 #panelEdit .tbl td.actions-cell button.reject-btn i{
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
   line-height: 1;
 }
@@ -785,15 +790,19 @@
   display: table-cell !important;
   vertical-align: middle !important;
   text-align: center;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+  min-width: 128px;
+  width: 128px;
+  overflow: visible;
 }
 
 #panelEdit .tbl td.actions-cell .actions-wrap {
   display: flex;
-  width: 100%;
+  width: auto;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  transform: translateX(-8px);
+  gap: 6px;
+  white-space: nowrap;
+  transform: none;
 }

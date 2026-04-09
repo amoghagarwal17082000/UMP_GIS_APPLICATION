@@ -49,19 +49,43 @@ canvas {
 
 :root {
   --app-scale: 0.833;
-  --topbar-h: 78px;
+  --topbar-h: 70px;
   --topbar-height: 56px;
   --panel-gap: 10px;
   --panel-radius: 14px;
-  --panel-header-h: 46px;
+  --panel-header-h: 42px;
   --panel-header-bg: #0b2d6b;
   --panel-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
   --panel-body-pad: 12px 14px;
-  --dashboard-page-pad: 20px;
+  --dashboard-page-pad: 16px;
   --dashboard-page-pad-sm: 14px;
   --dashboard-surface-radius: 20px;
   --dashboard-surface-shadow: 0 16px 36px rgba(31, 57, 90, 0.1);
-  --dashboard-surface-pad: 24px;
+  --dashboard-surface-pad: 20px;
+}
+
+@media (min-width: 992px) and (max-width: 1440px) {
+  :root {
+    --app-scale: 0.78;
+    --dashboard-page-pad: 14px;
+    --dashboard-surface-pad: 18px;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1366px) {
+  :root {
+    --app-scale: 0.74;
+    --dashboard-page-pad: 12px;
+    --dashboard-surface-pad: 16px;
+  }
+}
+
+@media (min-width: 992px) and (max-height: 800px) {
+  :root {
+    --app-scale: 0.72;
+    --dashboard-page-pad: 12px;
+    --dashboard-surface-pad: 16px;
+  }
 }
 
 .dashboard-page-shell {

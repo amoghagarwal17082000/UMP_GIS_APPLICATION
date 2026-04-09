@@ -17,8 +17,8 @@ const STATION_LEGEND: LayerLegend = defineLegend({
   radius: 5,
   symbolKind: 'circle' as const,
   imageUrl: 'assets/images/download.png',
-  imageWidth: 26,
-  imageHeight: 26,
+  imageWidth: 22,
+  imageHeight: 22,
 });
 
 const LANDPLAN_ONTRACK_LEGEND = defineLegend({
@@ -118,7 +118,30 @@ export class StationViewingLayer implements MapLayer {
   private isOnMap = false;
   private onMoveStartHandler?: () => void;
   private onMoveEndHandler?: () => void;
+  private labelUpdateTimer: any = null;
   private requestSeq = 0;
+
+  protected getStationLabel(feature: any): string {
+    const p = feature?.properties || {};
+    const name = (p.sttnname || '').toString().trim();
+    const code = (p.sttncode || '').toString().trim();
+    return code && name ? code + ' : ' + name : (code || name);
+  }
+
+  protected bindStationTooltip(marker: L.Marker, label: string, permanent: boolean): void {
+    if (!label || !marker.bindTooltip) return;
+    const current = (marker as any).__stationTooltipState;
+    if (current?.label === label && current?.permanent === permanent) return;
+    if (marker.getTooltip?.()) marker.unbindTooltip();
+    marker.bindTooltip(label, {
+      permanent,
+      direction: 'top',
+      offset: L.point(0, -8),
+      opacity: 0.95,
+      className: 'station-label',
+    });
+    (marker as any).__stationTooltipState = { label, permanent };
+  }
 
   constructor(
     protected api: Api,
@@ -142,7 +165,7 @@ export class StationViewingLayer implements MapLayer {
         this.onMoveStartHandler = () => this.closeLabels();
       }
       if (!this.onMoveEndHandler) {
-        this.onMoveEndHandler = () => this.updateLabels(map);
+        this.onMoveEndHandler = () => this.scheduleLabelUpdate(map);
       }
       map.on('zoomstart', this.onMoveStartHandler);
       map.on('movestart', this.onMoveStartHandler);
@@ -166,16 +189,55 @@ export class StationViewingLayer implements MapLayer {
 
   protected closeLabels() {
     this.layer.eachLayer((l: any) => {
+      const label = (l as any).__stationTooltipState?.label || '';
+      if (!label) return;
+      this.bindStationTooltip(l, label, false);
       if (l.getTooltip?.()) l.closeTooltip();
     });
   }
 
+  protected scheduleLabelUpdate(map: L.Map) {
+    if (this.labelUpdateTimer) clearTimeout(this.labelUpdateTimer);
+    this.labelUpdateTimer = setTimeout(() => this.updateLabels(map), 180);
+  }
+
   protected updateLabels(map: L.Map) {
     const show = map.getZoom() >= this.LABEL_ZOOM;
+    const bounds = map.getBounds();
+    const occupied: Array<{ x: number; y: number }> = [];
+    const minDistancePx = 80;
+    let shownCount = 0;
+    const maxLabels = 120;
+
     this.layer.eachLayer((l: any) => {
-      const tooltip = l.getTooltip?.();
-      if (!tooltip) return;
-      show ? l.openTooltip() : l.closeTooltip();
+      const label = (l as any).__stationTooltipState?.label || '';
+      if (!label || !l.getLatLng) return;
+      if (!show) {
+        this.bindStationTooltip(l, label, false);
+        l.closeTooltip();
+        return;
+      }
+      const latlng = l.getLatLng();
+      if (!bounds.contains(latlng)) {
+        this.bindStationTooltip(l, label, false);
+        l.closeTooltip();
+        return;
+      }
+      const p = map.latLngToContainerPoint(latlng);
+      const tooClose = occupied.some((q) => {
+        const dx = q.x - p.x;
+        const dy = q.y - p.y;
+        return (dx * dx + dy * dy) < (minDistancePx * minDistancePx);
+      });
+      if (tooClose || shownCount >= maxLabels) {
+        this.bindStationTooltip(l, label, false);
+        l.closeTooltip();
+        return;
+      }
+      occupied.push({ x: p.x, y: p.y });
+      shownCount++;
+      this.bindStationTooltip(l, label, true);
+      l.openTooltip();
     });
   }
 
@@ -184,9 +246,7 @@ export class StationViewingLayer implements MapLayer {
 
   protected createStationMarker(feature: any, latlng: L.LatLng): L.Layer {
     const p = feature?.properties || {};
-    const name = (p.sttnname || '').toString().trim();
-    const code = (p.sttncode || '').toString().trim();
-    const stationLabel = code && name ? code + ' : ' + name : (code || name);
+    const stationLabel = this.getStationLabel(feature);
     const iconWidth = this.legend.imageWidth ?? 20;
     const iconHeight = this.legend.imageHeight ?? 20;
     const marker = L.marker(latlng, {
@@ -203,15 +263,7 @@ export class StationViewingLayer implements MapLayer {
     }) as any;
     this.onMarkerCreated(feature, marker as any);
 
-    if (stationLabel && marker.bindTooltip) {
-      marker.bindTooltip(stationLabel, {
-        permanent: false,
-        direction: 'top',
-        offset: L.point(0, -8),
-        opacity: 0.95,
-        className: 'station-label',
-      });
-    }
+    this.bindStationTooltip(marker as any, stationLabel, false);
 
     if (marker.bindPopup) {
       marker.bindPopup('<b>' + (p.sttnname || 'Station') + '</b><br>Code: ' + (p.sttncode || '-'));
@@ -240,7 +292,7 @@ export class StationViewingLayer implements MapLayer {
     this.addTo(map);
 
     const b = map.getBounds();
-    const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
+    const bbox = `${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}`;
 
     if (bbox === this.lastBbox) return;
     this.lastBbox = bbox;
@@ -253,7 +305,7 @@ export class StationViewingLayer implements MapLayer {
           this.beforeRender(geojson);
           this.renderStationFeatures(map, geojson);
           this.onData?.(geojson);
-          this.updateLabels(map);
+          this.scheduleLabelUpdate(map);
         });
       },
       error: (err: any) => console.error('Station layer error', err),
@@ -333,10 +385,7 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
 
     const zActual = map.getZoom();
     const zForQuery = Math.max(zActual, this.minZoom);
-
-    const b = map.getBounds();
-    const bboxKey = `${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}`;
-    const key = `${zForQuery}|${bboxKey}`;
+    const key = `${zForQuery}`;
 
     if (key === this.lastKey) return;
     this.lastKey = key;
@@ -380,7 +429,7 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
 export class LandOffsetLayer implements MapLayer {
   id = 'land_offset';
   title = 'Land Offset';
-  visible = true;
+  visible = false;
   layerGroup = 'department' as const;
 
   minZoom = TOWN_LEVEL_MIN_ZOOM;
@@ -475,9 +524,10 @@ export class LandOffsetLayer implements MapLayer {
 
     const b = map.getBounds();
     const z = map.getZoom();
-    const bbox = `${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}`;
+    const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+    const bboxKey = `${b.getWest().toFixed(2)},${b.getSouth().toFixed(2)},${b.getEast().toFixed(2)},${b.getNorth().toFixed(2)}`;
 
-    const key = `${bbox}`;
+    const key = `${bboxKey}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
     const requestId = ++this.requestSeq;
@@ -608,8 +658,9 @@ export class LandBoundaryLayer implements MapLayer {
     const z = map.getZoom();
     const b = map.getBounds();
     const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+    const bboxKey = `${b.getWest().toFixed(2)},${b.getSouth().toFixed(2)},${b.getEast().toFixed(2)},${b.getNorth().toFixed(2)}`;
 
-    if (bbox === this.lastBbox) {
+    if (bboxKey === this.lastBbox) {
       if (z < this.minZoom) {
         this.layer.clearLayers();
       } else {
@@ -617,7 +668,7 @@ export class LandBoundaryLayer implements MapLayer {
       }
       return;
     }
-    this.lastBbox = bbox;
+    this.lastBbox = bboxKey;
     const requestId = ++this.requestSeq;
 
     this.api.getlandboundary(bbox).subscribe({
@@ -663,7 +714,7 @@ export class DynamicDepartmentLayer implements MapLayer {
     this.layer = L.geoJSON(null, {
       style: () => pathStyleFromLegend(this.legend),
       pointToLayer: (_feature: any, latlng: L.LatLng) =>
-        pointLayerFromLegend(this.legend, latlng),
+        pointLayerFromLegend(this.legend, latlng, paneNameForLegend(this.legend)),
       onEachFeature: (feature: any, layer: any) => {
         const props = feature?.properties || {};
         const firstKeys = Object.keys(props).slice(0, 5);
@@ -698,6 +749,7 @@ export class DynamicDepartmentLayer implements MapLayer {
     }
 
     if (!this.canShow(map)) return;
+    ensurePane(map, paneNameForLegend(this.legend));
     this.layer.addTo(map);
     this.added = true;
   }
@@ -723,14 +775,16 @@ export class DynamicDepartmentLayer implements MapLayer {
 
     const b = map.getBounds();
     const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
-    if (bbox === this.lastBbox) return;
-    this.lastBbox = bbox;
+    const bboxKey = `${b.getWest().toFixed(2)},${b.getSouth().toFixed(2)},${b.getEast().toFixed(2)},${b.getNorth().toFixed(2)}`;
+    if (bboxKey === this.lastBbox) return;
+    this.lastBbox = bboxKey;
     const requestId = ++this.requestSeq;
 
     this.api.getDepartmentLayerData(this.departmentRef, this.layerKey, bbox).subscribe({
       next: (geojson: any) => {
         if (requestId !== this.requestSeq) return;
         this.legend = inferCivilLegendFromFeatureCollection(this.title, this.layerKey, geojson);
+        ensurePane(map, paneNameForLegend(this.legend));
         this.layer.clearLayers();
         this.layer.addData(geojson);
         if (this.legend.type !== 'polygon') {
@@ -742,6 +796,13 @@ export class DynamicDepartmentLayer implements MapLayer {
     });
   }
 }
+
+
+
+
+
+
+
 
 
 

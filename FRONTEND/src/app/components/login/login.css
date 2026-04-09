@@ -110,10 +110,10 @@ body::before {
 
 .portal-card {
   position: relative;
-  width: 620px;
+  width: 580px;
   max-width: 94vw;
-  min-height: 770px;
-  height: 84vh;
+  min-height: 790px;
+  height: 86vh;
   max-height: 860px;
   border-radius: 22px;
   overflow: hidden;
@@ -200,7 +200,7 @@ body::before {
   margin: 0;
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 6px;
   text-align: center;
   font-size: 29px;
   line-height: 1.25;
@@ -453,6 +453,179 @@ body::before {
   color: rgba(255, 255, 255, 0.92);
 }
 
+@media (max-width: 1440px), (max-height: 900px) {
+  .login-wrapper {
+    padding: 24px 18px;
+  }
+
+  .portal-card {
+    width: 540px;
+    min-height: 740px;
+    height: 82vh;
+    max-height: 820px;
+  }
+
+  .portal-header {
+    gap: 18px;
+    padding: 30px 28px 24px;
+  }
+
+  .header-seg img {
+    max-width: 128px;
+    height: 94px;
+    padding: 14px 18px;
+  }
+
+  .portal-body {
+    padding: 32px 36px 24px;
+  }
+
+  .brand-title {
+    font-size: 26px;
+  }
+
+  .hint {
+    font-size: 16px;
+  }
+
+  .form-area {
+    margin-top: 28px;
+    gap: 18px;
+  }
+
+  .line-input,
+  .captcha-input {
+    height: 50px;
+    font-size: 15px;
+  }
+
+  .captcha-row {
+    grid-template-columns: 138px 44px minmax(0, 1fr);
+  }
+
+  .captcha-img,
+  .captcha-refresh {
+    height: 44px;
+  }
+
+  .captcha-refresh {
+    width: 44px;
+    font-size: 20px;
+  }
+
+  .next-btn {
+    height: 48px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 1366px), (max-height: 800px) {
+  .login-wrapper {
+    padding: 18px 16px;
+  }
+
+  .portal-card {
+    width: 500px;
+    min-height: 680px;
+    height: 78vh;
+    max-height: 760px;
+    border-radius: 20px;
+  }
+
+  .portal-header {
+    gap: 14px;
+    padding: 24px 22px 18px;
+  }
+
+  .header-seg:not(:last-child)::after {
+    right: -9px;
+  }
+
+  .header-seg img {
+    max-width: 112px;
+    height: 82px;
+    padding: 10px 14px;
+    border-radius: 12px;
+  }
+
+  .portal-body {
+    padding: 26px 28px 20px;
+  }
+
+  .brand-title {
+    font-size: 23px;
+    line-height: 1.2;
+  }
+
+  .rail-track-mark {
+    width: 16px;
+    height: 36px;
+  }
+
+  .hint {
+    margin-top: 10px;
+    font-size: 15px;
+  }
+
+  .form-area {
+    margin-top: 22px;
+    gap: 16px;
+  }
+
+  .line-input,
+  .captcha-input {
+    height: 46px;
+    padding: 0 15px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  .pw-field .line-input {
+    padding-right: 72px;
+  }
+
+  .eye-btn {
+    right: 8px;
+    min-width: 50px;
+    height: 30px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
+
+  .check-row {
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .captcha-row {
+    grid-template-columns: 126px 42px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .captcha-img,
+  .captcha-refresh {
+    height: 42px;
+    border-radius: 9px;
+  }
+
+  .captcha-refresh {
+    width: 42px;
+    font-size: 18px;
+  }
+
+  .next-btn {
+    height: 44px;
+    border-radius: 10px;
+    padding: 0 18px;
+    font-size: 15px;
+  }
+
+  .portal-footer {
+    padding-top: 14px;
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 640px) {
   .lang-pill {
     top: 14px;
@@ -484,7 +657,7 @@ body::before {
 
   .brand-title {
     font-size: 20px;
-    gap: 10px;
+    gap: 4px;
   }
 
   .rail-track-mark {
