@@ -2,6 +2,7 @@
   <div class="card-body map-card-body">
     <div class="map-search-overlay">
       <app-station-search
+        class="map-search-box"
         (stationSelected)="onStationSelected($event)"
         (searchCleared)="onSearchCleared()"
       ></app-station-search>

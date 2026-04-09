@@ -1,6 +1,6 @@
 import { Component, AfterViewInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
-// import { StationSearchComponent } from '../station-search/station-search.component';
+import { StationSearchComponent } from '../station-search/station-search.component';
 import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -46,7 +46,10 @@ type DepartmentLayerMeta = {
 @Component({
   selector: 'app-map',
   standalone: true,
-  imports: [CommonModule],
+  imports: [
+    CommonModule,
+    StationSearchComponent,
+  ],
   templateUrl: './map.html',
   styleUrl: './map.css',
 })
@@ -359,6 +362,8 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     try { if (this.createStationDblClickHandler) this.map.off('dblclick', this.createStationDblClickHandler); if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { if (this.selectedStationMarker && this.map?.hasLayer(this.selectedStationMarker)) { this.map.removeLayer(this.selectedStationMarker); } this.selectedStationMarker = undefined; this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); this.createStationDblClickHandler = undefined; }
   }
 }
+
+
 
 
 
