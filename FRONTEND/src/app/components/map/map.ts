@@ -132,8 +132,8 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   private captureHomeAfterFirstSettle(): void {
     if (!this.map || this.homeCaptured) return;
-    const initialCenter = L.latLng(22.5, 79); const initialZoom = 5;
-    const isInitialView = () => { if (!this.map) return true; const z = this.map.getZoom(); const c = this.map.getCenter(); return z === initialZoom && c.distanceTo(initialCenter) < 50000; };
+    const initialCenter = L.latLng(22.5, 79); const initialZoom = 8.5;
+    const isInitialView = () => { if (!this.map) return true; const z = this.map.getZoom(); const c = this.map.getCenter(); return Math.abs(z - initialZoom) < 0.05 && c.distanceTo(initialCenter) < 50000; };
     const trySave = () => { if (!this.map || this.homeCaptured || isInitialView()) return; this.homeCenter = this.map.getCenter(); this.homeZoom = this.map.getZoom(); this.homeCaptured = true; this.map.off('moveend', trySave); this.map.off('zoomend', trySave); };
     this.map.on('moveend', trySave); this.map.on('zoomend', trySave);
     let tries = 0;
@@ -141,7 +141,27 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   }
 
   private zoomToHome(): void { if (!this.map) return; if (!this.homeCaptured || !this.homeCenter || typeof this.homeZoom !== 'number') return; this.map.invalidateSize(); this.map.setView(this.homeCenter, this.homeZoom, { animate: false }); }
-  private clearZoomArtifacts(): void { if (!this.map) return; if (this.zoomHighlight && this.map.hasLayer(this.zoomHighlight as any)) this.map.removeLayer(this.zoomHighlight as any); this.zoomHighlight = undefined; if (this.dragMarker && this.map.hasLayer(this.dragMarker as any)) { this.dragMarker.off(); this.map.removeLayer(this.dragMarker as any); } this.dragMarker = undefined; }
+  private clearZoomArtifacts(): void { if (!this.map) return; if (this.zoomHighlight && this.map.hasLayer(this.zoomHighlight as any)) this.map.removeLayer(this.zoomHighlight as any); this.zoomHighlight = undefined; if (this.highlightLayer && this.map.hasLayer(this.highlightLayer)) this.map.removeLayer(this.highlightLayer); this.highlightLayer = undefined; if (this.dragMarker && this.map.hasLayer(this.dragMarker as any)) { this.dragMarker.off(); this.map.removeLayer(this.dragMarker as any); } this.dragMarker = undefined; }
+
+  private createAttributeHighlightLayer(feature: any): L.GeoJSON {
+    return L.geoJSON(feature, {
+      pointToLayer: (_feature: any, latlng: L.LatLng) =>
+        L.circleMarker(latlng, {
+          radius: 12,
+          weight: 4,
+          color: '#7c3aed',
+          fillColor: '#a78bfa',
+          fillOpacity: 0.45,
+        }),
+      style: () => ({
+        color: '#7c3aed',
+        weight: 5,
+        opacity: 1,
+        fillColor: '#a78bfa',
+        fillOpacity: 0.2,
+      }),
+    });
+  }
 
   private createDraggableCircleMarker(ll: L.LatLng): L.Marker {
     const size = 34; const border = 5;
@@ -269,7 +289,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     if (this.map) return;
     const anyEl = el as any; if (anyEl._leaflet_id) { try { anyEl._leaflet_id = undefined; } catch {} }
     this.ui.activePanel = null; this.edit.disable();
-    this.map = L.map(el, { preferCanvas: false, zoomControl: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 8, wheelDebounceTime: 60, wheelPxPerZoomLevel: 140 }).setView([22.5, 79], 5);
+    this.map = L.map(el, { preferCanvas: false, zoomControl: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 8, wheelDebounceTime: 60, wheelPxPerZoomLevel: 140, zoomSnap: 0.1, zoomDelta: 0.1 }).setView([22.5, 79], 8.5);
     L.control.zoom({ position: 'topleft' }).addTo(this.map);
     this.mapRegistry.setMap(this.map);
     this.createStationDblClickHandler = (e: L.LeafletMouseEvent) => this.handleStationCreateDoubleClick(e);
@@ -281,7 +301,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     base.once('load', () => { this.forceMapResize(); });
     this.registerDepartmentLayers();
     this.map.whenReady(() => {
-      this.forceMapResize(); this.ui.activePanel = null; this.edit.disable(); this.clearZoomArtifacts(); this.mapZoom.clearHighlight(); this.layerManager.addAll(this.map!); this.layerManager.reloadAll(this.map!); this.map!.once('moveend', () => { if (this.map) this.layerManager.reloadVisible(this.map); }); this.captureHomeAfterFirstSettle(); this.initDeepLinking(); this.onMoveOrZoom = () => this.scheduleReload(); this.map!.on('moveend', this.onMoveOrZoom); this.editSuppressionSub?.unsubscribe(); this.editSuppressionSub = this.edit.stateChanged$.subscribe(() => { this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); }); this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); this.lockDragSub?.unsubscribe(); this.lockDragSub = this.edit.lockDrag$.subscribe(() => { if (!this.dragMarker) return; this.dragMarker.dragging?.disable(); this.dragMarker.off('drag'); this.dragMarker.off('dragend'); }); this.mapZoomSub?.unsubscribe(); this.mapZoomSub = this.mapZoom.zoomTo$.subscribe((t: ZoomTarget) => { if (!this.map) return; this.clearZoomArtifacts(); if (t.type === 'clear') return; if (t.type === 'home') { this.zoomToHome(); return; } if (t.type === 'latlng') { const z = t.zoom ?? 17; const ll = L.latLng(t.lat, t.lng); const draggable = !!(t as any).draggable; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); if (draggable) { this.dragMarker = this.createDraggableCircleMarker(ll).addTo(this.map); this.dragMarker.on('drag', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.dragMarker.on('dragend', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.zoomHighlight = this.dragMarker; } else { this.zoomHighlight = L.circleMarker(ll, { radius: 15, weight: 5, color: '#7c3aed', fillColor: '#a78bfa', fillOpacity: 0.6 }).addTo(this.map); } return; } if (t.type === 'xy') { const ll = L.CRS.EPSG3857.unproject(L.point(t.x, t.y)); const z = t.zoom ?? 17; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); this.zoomHighlight = L.circleMarker(ll, { radius: 10, weight: 3, fillOpacity: 0.2 }).addTo(this.map); return; } if (t.type === 'bounds') { const b = L.latLngBounds(L.latLng(t.south, t.west), L.latLng(t.north, t.east)); this.map.invalidateSize(); this.map.fitBounds(b.pad(t.pad ?? 0.2), { animate: false }); } }); this.zoomSub?.unsubscribe(); this.zoomSub = this.attrTable.zoomTo$.subscribe(({ feature }) => { if (!this.map) return; try { if (this.highlightLayer && this.map.hasLayer(this.highlightLayer)) this.map.removeLayer(this.highlightLayer); const gj = L.geoJSON(feature); const bounds = gj.getBounds(); if (bounds?.isValid()) this.map.fitBounds(bounds.pad(0.2), { animate: false }); } catch (e) {} }); this.clearSelectionSub?.unsubscribe(); this.clearSelectionSub = this.attrTable.clearSelection$.subscribe(() => { if (!this.map) return; this.clearZoomArtifacts(); this.zoomToHome(); });
+      this.forceMapResize(); this.ui.activePanel = null; this.edit.disable(); this.clearZoomArtifacts(); this.mapZoom.clearHighlight(); this.layerManager.addAll(this.map!); this.layerManager.reloadAll(this.map!); this.map!.once('moveend', () => { if (this.map) this.layerManager.reloadVisible(this.map); }); this.captureHomeAfterFirstSettle(); this.initDeepLinking(); this.onMoveOrZoom = () => this.scheduleReload(); this.map!.on('moveend', this.onMoveOrZoom); this.editSuppressionSub?.unsubscribe(); this.editSuppressionSub = this.edit.stateChanged$.subscribe(() => { this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); }); this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); this.lockDragSub?.unsubscribe(); this.lockDragSub = this.edit.lockDrag$.subscribe(() => { if (!this.dragMarker) return; this.dragMarker.dragging?.disable(); this.dragMarker.off('drag'); this.dragMarker.off('dragend'); }); this.mapZoomSub?.unsubscribe(); this.mapZoomSub = this.mapZoom.zoomTo$.subscribe((t: ZoomTarget) => { if (!this.map) return; this.clearZoomArtifacts(); if (t.type === 'clear') return; if (t.type === 'home') { this.zoomToHome(); return; } if (t.type === 'latlng') { const z = t.zoom ?? 17; const ll = L.latLng(t.lat, t.lng); const draggable = !!(t as any).draggable; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); if (draggable) { this.dragMarker = this.createDraggableCircleMarker(ll).addTo(this.map); this.dragMarker.on('drag', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.dragMarker.on('dragend', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.zoomHighlight = this.dragMarker; } else { this.zoomHighlight = L.circleMarker(ll, { radius: 15, weight: 5, color: '#7c3aed', fillColor: '#a78bfa', fillOpacity: 0.6 }).addTo(this.map); } return; } if (t.type === 'xy') { const ll = L.CRS.EPSG3857.unproject(L.point(t.x, t.y)); const z = t.zoom ?? 17; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); this.zoomHighlight = L.circleMarker(ll, { radius: 10, weight: 3, fillOpacity: 0.2 }).addTo(this.map); return; } if (t.type === 'bounds') { const b = L.latLngBounds(L.latLng(t.south, t.west), L.latLng(t.north, t.east)); this.map.invalidateSize(); this.map.fitBounds(b.pad(t.pad ?? 0.2), { animate: false }); } }); this.zoomSub?.unsubscribe(); this.zoomSub = this.attrTable.zoomTo$.subscribe(({ feature }) => { if (!this.map) return; try { this.clearZoomArtifacts(); const gj = this.createAttributeHighlightLayer(feature); const bounds = gj.getBounds(); this.highlightLayer = gj.addTo(this.map); if ((this.highlightLayer as any).bringToFront) (this.highlightLayer as any).bringToFront(); if (bounds?.isValid()) this.map.fitBounds(bounds.pad(0.2), { animate: false }); } catch (e) {} }); this.clearSelectionSub?.unsubscribe(); this.clearSelectionSub = this.attrTable.clearSelection$.subscribe(() => { if (!this.map) return; this.clearZoomArtifacts(); this.zoomToHome(); });
     });
   }
 
@@ -362,6 +382,10 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     try { if (this.createStationDblClickHandler) this.map.off('dblclick', this.createStationDblClickHandler); if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { if (this.selectedStationMarker && this.map?.hasLayer(this.selectedStationMarker)) { this.map.removeLayer(this.selectedStationMarker); } this.selectedStationMarker = undefined; this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); this.createStationDblClickHandler = undefined; }
   }
 }
+
+
+
+
 
 
 

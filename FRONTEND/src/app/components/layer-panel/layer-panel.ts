@@ -167,17 +167,18 @@ export class LayerPanel {
     this.setExpanded(node.id, node.expanded);
   }
 
-  toggleNode(node: LayerTreeNode): void {
+  toggleNode(node: LayerTreeNode, checked: boolean): void {
     if (!this.mapRegistry.hasMap()) return;
     const map = this.mapRegistry.getMap();
 
     if (node.kind === 'group') {
-      const nextValue = !node.checked;
+      const nextValue = checked;
       node.checked = nextValue;
       (node.children || []).forEach((child) => this.applyNodeVisibility(child, nextValue, map));
     } else if (node.layerRef) {
-      node.checked = !!node.layerRef.visible;
-      this.layerManager.setVisible(node.layerRef.id, node.checked, map);
+      node.checked = checked;
+      node.layerRef.visible = checked;
+      this.layerManager.setVisible(node.layerRef.id, checked, map);
     }
 
     this.layerManager.applyVisibility(map);
@@ -196,4 +197,6 @@ export class LayerPanel {
     }
   }
 }
+
+
 

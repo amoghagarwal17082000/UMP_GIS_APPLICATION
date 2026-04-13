@@ -241,7 +241,14 @@
 }
 
 .attr-table tbody tr.attr-row-selected {
-  background: #dbeafe !important;
+  background: #bfdbfe !important;
+  box-shadow: inset 4px 0 0 #2563eb;
+}
+
+.attr-table tbody tr.attr-row-selected td {
+  background: transparent !important;
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .attr-table tbody tr,

@@ -1,4 +1,4 @@
-import { GeoJsonObject } from 'geojson';
+﻿import { GeoJsonObject } from 'geojson';
 import * as L from 'leaflet';
 import 'leaflet-polylinedecorator';
 import { NgZone } from '@angular/core';
@@ -26,7 +26,7 @@ const LANDPLAN_ONTRACK_LEGEND = defineLegend({
   color: '#FFA500',
   label: 'Landplan Ontrack',
   fillColor: '#fff59d',
-  fillOpacity: 0.72,
+  fillOpacity: 0.3,
   strokeColor: '#d4a017',
   strokeWidth: 2,
   symbolKind: 'square' as const,
@@ -515,10 +515,6 @@ export class LandOffsetLayer implements MapLayer {
 
   loadForMap(map: L.Map) {
     if (!this.visible) return;
-    if (!this.canShow(map)) {
-      this.syncVisibility(map);
-      return;
-    }
 
     this.syncVisibility(map);
 
@@ -767,11 +763,6 @@ export class DynamicDepartmentLayer implements MapLayer {
     if (!this.visible) return;
 
     this.addTo(map);
-    if (!this.canShow(map)) {
-      this.lastBbox = '';
-      this.layer.clearLayers();
-      return;
-    }
 
     const b = map.getBounds();
     const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
@@ -785,12 +776,18 @@ export class DynamicDepartmentLayer implements MapLayer {
         if (requestId !== this.requestSeq) return;
         this.legend = inferCivilLegendFromFeatureCollection(this.title, this.layerKey, geojson);
         ensurePane(map, paneNameForLegend(this.legend));
+        this.onData?.(geojson);
+
+        if (!this.canShow(map)) {
+          this.layer.clearLayers();
+          return;
+        }
+
         this.layer.clearLayers();
         this.layer.addData(geojson);
         if (this.legend.type !== 'polygon') {
           this.layer.bringToFront();
         }
-        this.onData?.(geojson);
       },
       error: (err: any) => console.error(`Dynamic department layer error (${this.layerKey})`, err),
     });

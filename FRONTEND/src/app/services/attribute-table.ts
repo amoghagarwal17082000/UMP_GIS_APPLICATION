@@ -40,7 +40,7 @@ export class AttributeTableService {
     'Railway Track': [],
   };
 
-  private _selected = new BehaviorSubject<{ layer: LayerKey; rowId: number } | null>(null);
+  private _selected = new BehaviorSubject<{ layer: LayerKey; rowId: number; signature: string } | null>(null);
   selected$ = this._selected.asObservable();
 
   private _zoomTo = new Subject<{ layer: LayerKey; feature: any }>();
@@ -126,7 +126,7 @@ export class AttributeTableService {
   selectRow(tab: LayerKey, row: AttrRow) {
     const rowId = Number((row as any).__rowid);
     if (Number.isNaN(rowId)) return;
-    this._selected.next({ layer: tab, rowId });
+    this._selected.next({ layer: tab, rowId, signature: this.getRowSignature(row) });
   }
 
   getSelected() {
@@ -178,5 +178,31 @@ export class AttributeTableService {
     };
 
     this._datasets.next(next);
+
+    const selected = this._selected.getValue();
+    if (!selected || selected.layer !== tab) return;
+
+    const sameRowExists = rows.some((row) => Number((row as any).__rowid) === selected.rowId);
+    if (sameRowExists) return;
+
+    const matchedRow = rows.find((row) => this.getRowSignature(row) === selected.signature);
+    if (matchedRow) {
+      this._selected.next({
+        layer: tab,
+        rowId: Number((matchedRow as any).__rowid),
+        signature: selected.signature,
+      });
+      return;
+    }
+
+    this._selected.next(null);
+  }
+
+  private getRowSignature(row: AttrRow): string {
+    const payload = Object.keys(row)
+      .filter((key) => key !== '__rowid')
+      .sort()
+      .map((key) => [key, row[key] ?? null]);
+    return JSON.stringify(payload);
   }
 }

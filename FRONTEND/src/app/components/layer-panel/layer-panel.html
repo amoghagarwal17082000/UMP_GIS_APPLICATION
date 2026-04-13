@@ -1,4 +1,4 @@
-﻿<div class="panel">
+<div class="panel">
   <div class="panel-header">
     <span>Layers</span>
     <button class="panel-close" type="button" aria-label="Close" (click)="close()">&times;</button>
@@ -20,7 +20,7 @@
           <input
             type="checkbox"
             [ngModel]="node.checked"
-            (ngModelChange)="toggleNode(node)"
+            (ngModelChange)="toggleNode(node, $event)"
           />
           <span [class.group-title]="node.kind === 'group'">{{ node.title }}</span>
         </label>
@@ -34,4 +34,5 @@
     </ng-template>
   </div>
 </div>
+
 

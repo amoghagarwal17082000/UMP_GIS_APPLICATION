@@ -59,9 +59,9 @@
                 <tbody>
                   <tr
                     *ngFor="let r of ds.rows"
-                    (click)="onRowClick($event)"
+                    (click)="onRowClick(a, r, $event)"
                     (dblclick)="onRowDoubleClick(a, r, $event)"
-                    [class.attr-row-selected]="isSelected(r)"
+                    [class.attr-row-selected]="isSelected(a, r)"
                     style="cursor:pointer;"
                   >
                     <td *ngFor="let c of ds.columns">{{ r[c] ?? '' }}</td>

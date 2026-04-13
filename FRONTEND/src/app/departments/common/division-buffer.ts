@@ -119,13 +119,13 @@ export class DivisionBufferLayer implements MapLayer {
         if (!this.fittedOnce) {
           const b = (this.layer as any).getBounds?.();
           if (b?.isValid?.()) {
-            map.fitBounds(b, { padding: [20, 20] });
-            this.fittedOnce = true;
+            map.fitBounds(b, { padding: [20, 20], animate: false });
+            map.setZoom(8.8, { animate: false });
           }
+          this.fittedOnce = true;
         }
       },
       error: (err: any) => console.error('Division buffer error', err),
     });
   }
 }
-

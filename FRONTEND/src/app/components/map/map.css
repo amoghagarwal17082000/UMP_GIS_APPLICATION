@@ -77,9 +77,9 @@
 .map-search-overlay {
   position: absolute;
   top: 12px;
-  left: 118px;
+  left: 116px;
   z-index: 5000;
-  width: min(320px, calc(100% - 202px));
+  width: min(320px, calc(100% - 200px));
   pointer-events: auto;
 }
 
@@ -108,15 +108,17 @@
 
 :host ::ng-deep .leaflet-top.leaflet-left {
   top: 12px;
-  left: 2px;
+  left: 6px;
 }
 
 @media (max-width: 767.98px) {
   .map-search-overlay {
-    left: 110px;
-    width: min(250px, calc(100% - 126px));
+    left: 108px;
+    width: min(250px, calc(100% - 124px));
   }
 }
+
+
 
 
 

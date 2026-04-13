@@ -411,8 +411,8 @@ body::before {
 .sign-in-btn {
   flex: 1;
   color: #ffffff;
-  background: linear-gradient(180deg, #1f66d6 0%, #0d49ac 100%);
-  box-shadow: 0 10px 20px rgba(8, 40, 100, 0.24);
+  background: linear-gradient(180deg, #1f9d55 0%, #157347 100%);
+  box-shadow: 0 10px 20px rgba(16, 102, 53, 0.24);
 }
 
 .sign-in-row .next-btn:not(.sign-in-btn) {

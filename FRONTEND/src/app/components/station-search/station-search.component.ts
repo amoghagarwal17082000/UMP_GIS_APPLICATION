@@ -49,6 +49,7 @@ export class StationSearchComponent implements OnInit, OnDestroy {
           this.searchResults = [];
           this.showResults = false;
           this.selectedIndex = -1;
+          this.searchCleared.emit();
           return;
         }
 
@@ -118,3 +119,4 @@ export class StationSearchComponent implements OnInit, OnDestroy {
     }, 0);
   }
 }
+

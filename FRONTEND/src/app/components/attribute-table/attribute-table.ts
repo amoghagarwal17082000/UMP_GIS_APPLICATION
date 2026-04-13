@@ -33,9 +33,10 @@ export class AttributeTableComponent {
     this.attr.setActive(tab);
   }
 
-  onRowClick(ev?: MouseEvent) {
+  onRowClick(active: LayerKey, row: AttrRow, ev?: MouseEvent) {
     ev?.stopPropagation();
     ev?.preventDefault();
+    this.attr.selectRow(active, row);
   }
 
   onRowDoubleClick(active: LayerKey, row: AttrRow, ev?: MouseEvent) {
@@ -84,10 +85,10 @@ export class AttributeTableComponent {
     return d[a] ?? { rows: [], columns: [], count: 0, features: [] };
   }
 
-  isSelected(row: AttrRow): boolean {
+  isSelected(active: LayerKey, row: AttrRow): boolean {
     const selected = this.attr.getSelected();
     if (!selected) return false;
-    return Number((row as any).__rowid) === selected.rowId;
+    return selected.layer === active && Number((row as any).__rowid) === selected.rowId;
   }
 
   hasSelectionFor(active: LayerKey): boolean {

@@ -30,6 +30,16 @@
         <input
           type="radio"
           name="basemap"
+          [checked]="selectedBasemap === 'Google Satellite'"
+          (change)="onBasemapChange('Google Satellite')"
+        />
+        <span>Google Satellite</span>
+      </label>
+
+      <label class="basemap-item">
+        <input
+          type="radio"
+          name="basemap"
           [checked]="selectedBasemap === 'Esri Topographic'"
           (change)="onBasemapChange('Esri Topographic')"
         />

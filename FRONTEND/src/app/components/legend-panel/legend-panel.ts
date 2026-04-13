@@ -9,7 +9,21 @@ function svgDataUrl(svg: string): string {
 }
 
 const POINT_CROSSING_ICON = 'assets/images/pointxing.png';
-const LEVEL_CROSSING_ICON = svgDataUrl('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" viewBox="0 0 20 18"><path d="M10 1 L19 17 H1 Z" fill="#f4b321" stroke="#d97706" stroke-width="1.8"/><rect x="8.9" y="6.1" width="2.2" height="5.1" rx="0.8" fill="#1f2937"/><rect x="6.2" y="11.2" width="7.6" height="2.5" rx="0.9" fill="#1f2937"/></svg>');
+const LEVEL_CROSSING_ICON = 'assets/images/levelxing.png';
+const BRIDGE_START_ICON = 'assets/images/bridge_start.png';
+const BRIDGE_END_ICON = 'assets/images/bridge_end.png';
+const BRIDGE_MINOR_ICON = 'assets/images/bridge_minor.png';
+const ROB_ICON = 'assets/images/rob.png';
+const RUB_LHS_ICON = 'assets/images/rub_lhs.png';
+const FOB_ICON = 'assets/images/fob.png';
+const TUNNEL_START_ICON = 'assets/images/tunnel_start.png';
+const TUNNEL_END_ICON = 'assets/images/tunnel_end.png';
+const GRADIENT_START_ICON = 'assets/images/gradient_start.png';
+const GRADIENT_END_ICON = 'assets/images/gradient_end.png';
+const CURVE_START_ICON = 'assets/images/curve_start.png';
+const CURVE_END_ICON = 'assets/images/curve_end.png';
+const CUTTING_START_ICON = 'assets/images/cutting_start.png';
+const CUTTING_END_ICON = 'assets/images/cutting_end.png';
 
 export function inferCivilLegendFromTitle(title: string, type: 'point' | 'line' | 'polygon', matchSource?: string): LayerLegend {
   const normalized = String(matchSource || title || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -18,22 +32,25 @@ export function inferCivilLegendFromTitle(title: string, type: 'point' | 'line' 
     { match: ['railway track', 'track'], legend: defineLegend({ type: 'line' as const, color: '#111827', label: title, strokeColor: '#111827', strokeWidth: 2, symbolKind: 'track' as const }) },
     { match: ['km post'], legend: defineLegend({ type: 'point' as const, color: '#2563eb', label: title, fillColor: '#2563eb', fillOpacity: 0.95, strokeColor: '#ffffff', strokeWidth: 1, radius: 6, symbolKind: 'diamond' as const }) },
     { match: ['point & crossing', 'point and crossing', 'point xing', 'pointxing', 'point_xing', 'pointxing_1'], legend: defineLegend({ type: 'point' as const, color: '#b86b68', label: title, fillColor: '#d79a97', strokeColor: '#b86b68', strokeWidth: 2, radius: 7, symbolKind: 'point-crossing' as const, imageUrl: POINT_CROSSING_ICON, imageWidth: 18, imageHeight: 18 }) },
-    { match: ['level crossing', 'levelxing'], legend: defineLegend({ type: 'point' as const, color: '#1f2937', label: title, fillColor: '#f4b321', strokeColor: '#d97706', strokeWidth: 2, radius: 7, symbolKind: 'level-crossing' as const, imageUrl: LEVEL_CROSSING_ICON, imageWidth: 18, imageHeight: 16 }) },
+    { match: ['level crossing', 'levelxing'], legend: defineLegend({ type: 'point' as const, color: '#1f2937', label: title, fillColor: '#f4b321', strokeColor: '#d97706', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: LEVEL_CROSSING_ICON, imageWidth: 18, imageHeight: 18 }) },
     { match: ['switch expansion joint', '(sej)', 'sej'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'S', textColor: '#ffffff', symbolKind: 'circle' as const }) },
     { match: ['buffer rail', 'buffer rails'], legend: defineLegend({ type: 'point' as const, color: '#65a30d', label: title, fillColor: '#84cc16', strokeColor: '#65a30d', strokeWidth: 1, radius: 5, symbolKind: 'diamond' as const }) },
-    { match: ['gradient start'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: '+', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['gradient end'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'G', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['curve start'], legend: defineLegend({ type: 'point' as const, color: '#d97706', label: title, fillColor: '#f59e0b', strokeColor: '#d97706', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['curve end'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['cutting start'], legend: defineLegend({ type: 'point' as const, color: '#84a65b', label: title, fillColor: '#eef7d0', strokeColor: '#84a65b', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#84a65b', symbolKind: 'ring' as const }) },
-    { match: ['cutting end'], legend: defineLegend({ type: 'point' as const, color: '#e57373', label: title, fillColor: '#fff1f1', strokeColor: '#e57373', strokeWidth: 2, radius: 7, symbolText: 'C', textColor: '#e57373', symbolKind: 'ring' as const }) },
-    { match: ['tunnel start'], legend: defineLegend({ type: 'point' as const, color: '#ff8a65', label: title, fillColor: '#ffab91', strokeColor: '#ff8a65', strokeWidth: 2, radius: 7, symbolText: 'T', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['tunnel end'], legend: defineLegend({ type: 'point' as const, color: '#0f172a', label: title, fillColor: '#0f172a', strokeColor: '#0f172a', strokeWidth: 2, radius: 7, symbolText: 'T', textColor: '#38bdf8', symbolKind: 'circle' as const }) },
-    { match: ['road over bridge', 'rob'], legend: defineLegend({ type: 'point' as const, color: '#4b5563', label: title, fillColor: '#a3aab5', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, textColor: '#374151', symbolKind: 'rob' as const }) },
-    { match: ['rub_lhs', 'rub lhs', 'rub'], legend: defineLegend({ type: 'point' as const, color: '#ffffff', label: title, fillColor: '#e7a61b', strokeColor: '#d97706', strokeWidth: 2, radius: 7, textColor: '#ffffff', symbolKind: 'rub' as const }) },
-    { match: ['foot over bridge', 'fob'], legend: defineLegend({ type: 'point' as const, color: '#d97706', label: title, fillColor: '#fde047', strokeColor: '#eab308', strokeWidth: 2, radius: 7, symbolText: 'F', textColor: '#d97706', symbolKind: 'fob' as const }) },
+    { match: ['gradient start'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: GRADIENT_START_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['gradient end'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: GRADIENT_END_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['curve start'], legend: defineLegend({ type: 'point' as const, color: '#d97706', label: title, fillColor: '#f59e0b', strokeColor: '#d97706', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: CURVE_START_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['curve end'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: CURVE_END_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['cutting start'], legend: defineLegend({ type: 'point' as const, color: '#84a65b', label: title, fillColor: '#eef7d0', strokeColor: '#84a65b', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: CUTTING_START_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['cutting end'], legend: defineLegend({ type: 'point' as const, color: '#e57373', label: title, fillColor: '#fff1f1', strokeColor: '#e57373', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: CUTTING_END_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['tunnel start'], legend: defineLegend({ type: 'point' as const, color: '#ff8a65', label: title, fillColor: '#ffab91', strokeColor: '#ff8a65', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: TUNNEL_START_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['tunnel end'], legend: defineLegend({ type: 'point' as const, color: '#0f172a', label: title, fillColor: '#0f172a', strokeColor: '#0f172a', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: TUNNEL_END_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['road over bridge', 'rob'], legend: defineLegend({ type: 'point' as const, color: '#4b5563', label: title, fillColor: '#a3aab5', strokeColor: '#6b7280', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: ROB_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['rub_lhs', 'rub lhs', 'rub'], legend: defineLegend({ type: 'point' as const, color: '#ffffff', label: title, fillColor: '#e7a61b', strokeColor: '#d97706', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: RUB_LHS_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['foot over bridge', 'fob'], legend: defineLegend({ type: 'point' as const, color: '#d97706', label: title, fillColor: '#fde047', strokeColor: '#eab308', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: FOB_ICON, imageWidth: 18, imageHeight: 18 }) },
     { match: ['rail over rail', 'ror'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 7, symbolText: 'R', textColor: '#ffffff', symbolKind: 'circle' as const }) },
-    { match: ['bridge start', 'bridge end', 'bridge stop', 'bridge minor', 'bridge'], legend: defineLegend({ type: 'point' as const, color: '#66bb6a', label: title, fillColor: '#9be59d', strokeColor: '#66bb6a', strokeWidth: 2, radius: 7, symbolText: 'B', textColor: '#ffffff', symbolKind: 'circle' as const }) },
+    { match: ['bridge start'], legend: defineLegend({ type: 'point' as const, color: '#66bb6a', label: title, fillColor: '#9be59d', strokeColor: '#66bb6a', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: BRIDGE_START_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['bridge end', 'bridge stop'], legend: defineLegend({ type: 'point' as const, color: '#6b7280', label: title, fillColor: '#9ca3af', strokeColor: '#6b7280', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: BRIDGE_END_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['bridge minor'], legend: defineLegend({ type: 'point' as const, color: '#2f80d1', label: title, fillColor: '#eaf3ff', strokeColor: '#2f80d1', strokeWidth: 2, radius: 8, symbolKind: 'square' as const, imageUrl: BRIDGE_MINOR_ICON, imageWidth: 18, imageHeight: 18 }) },
+    { match: ['bridge'], legend: defineLegend({ type: 'point' as const, color: '#66bb6a', label: title, fillColor: '#9be59d', strokeColor: '#66bb6a', strokeWidth: 2, radius: 7, symbolText: 'B', textColor: '#ffffff', symbolKind: 'circle' as const }) },
     { match: ['land boundary'], legend: defineLegend({ type: 'line' as const, color: '#f59e0b', label: title, strokeColor: '#f59e0b', strokeWidth: 3, symbolKind: 'line' as const }) },
     { match: ['land offset'], legend: defineLegend({ type: 'line' as const, color: '#111827', label: title, strokeColor: '#111827', strokeWidth: 2, symbolKind: 'line' as const }) },
     { match: ['landplan ontrack', 'land plan ontrack', 'land plans (on-track)', 'land plans on-track'], legend: defineLegend({ type: 'polygon' as const, color: '#FFA500', label: title, fillColor: '#FFA500', fillOpacity: 0.15, strokeColor: '#FFA500', strokeWidth: 3, symbolKind: 'square' as const }) },
@@ -175,3 +192,5 @@ export class LegendPanel {
     return style;
   }
 }
+
+

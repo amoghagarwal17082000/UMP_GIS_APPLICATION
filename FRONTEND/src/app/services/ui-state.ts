@@ -30,6 +30,7 @@ export class UiState {
   selectedBasemap:
     | 'Open Street Map'
     | 'satellite'
+    | 'Google Satellite'
     | 'Esri Topographic'
     | 'Bhuvan India' = 'Esri Topographic';
 }
