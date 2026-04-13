@@ -24,6 +24,33 @@
           />
           <span [class.group-title]="node.kind === 'group'">{{ node.title }}</span>
         </label>
+
+        <button
+          *ngIf="node.kind === 'layer'"
+          type="button"
+          class="node-actions-btn"
+          [class.active]="activeActionNodeId === node.id"
+          [attr.aria-label]="'Layer options for ' + node.title"
+          (click)="toggleNodeActions(node, $event)"
+        >
+          <span class="node-actions-dot"></span>
+          <span class="node-actions-dot"></span>
+          <span class="node-actions-dot"></span>
+        </button>
+
+        <div
+          *ngIf="node.kind === 'layer' && activeActionNodeId === node.id"
+          class="node-actions-menu"
+          (click)="$event.stopPropagation()"
+        >
+          <button
+            type="button"
+            class="node-actions-menu-item"
+            (click)="showInAttributeTable(node, $event)"
+          >
+            Show in Attribute Table
+          </button>
+        </div>
       </div>
 
       <ng-container *ngIf="node.kind === 'group' && node.expanded">

@@ -5,6 +5,7 @@ import { CommonViewingApi } from './common/viewing/common-viewing.api';
 import { CivilEngineeringAssetsViewingApi } from './civil_engineering_assets/viewing/viewing.api';
 import { CivilEngineeringAssetsEditingApi } from './civil_engineering_assets/editing/editing.api';
 import { FeedbackApi } from './feedback/feedback.api';
+import { ProfileApi } from './profile/profile.api';
 import { RatingApi } from './rating/rating.api';
 import { UserManagementApi } from './user_management/user-management.api';
 
@@ -17,6 +18,7 @@ export class Api {
     private ceaViewingApi: CivilEngineeringAssetsViewingApi,
     private ceaEditingApi: CivilEngineeringAssetsEditingApi,
     private feedbackApi: FeedbackApi,
+    private profileApi: ProfileApi,
     private ratingApi: RatingApi,
     private userManagementApi: UserManagementApi,
   ) {}
@@ -161,6 +163,14 @@ export class Api {
 
   addFeedBack(obj: any) {
     return this.feedbackApi.addFeedBack(obj);
+  }
+
+  updateProfile(obj: any) {
+    return this.profileApi.updateProfile(obj);
+  }
+
+  validateProfilePassword(obj: any) {
+    return this.profileApi.validatePassword(obj);
   }
 
   getUsers() {

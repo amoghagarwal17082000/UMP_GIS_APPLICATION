@@ -24,7 +24,18 @@ function getActualDivision(user) {
 }
 
 function shouldBypassOtp(user) {
-  return normalizeText(user?.division) === 'centre for railway information systems';
+  const division = normalizeText(user?.division);
+  const divisionCode = normalizeText(user?.division_code);
+  const unitType = normalizeText(user?.unit_type);
+  return (
+    division === 'centre for railway information systems' ||
+    division === 'cris' ||
+    division.includes('railway information systems') ||
+    division.includes('cris') ||
+    divisionCode === 'cris' ||
+    unitType.includes('railway information systems') ||
+    unitType.includes('cris')
+  );
 }
 
 function getJwtSecret() {
@@ -71,6 +82,8 @@ function toUserPayload(user) {
     unit_type: user.unit_type,
     email: user.email || '',
     mobile: user.contact_no || '',
+    hrmsid: user.hrmsid || '',
+    designation: user.designation || '',
   };
 }
 
@@ -85,8 +98,14 @@ async function login(req, res, next) {
     }
 
     const user = await authModel.findUserById(user_id);
-    if (!user || user.password !== password) {
-      const err = new Error('Invalid user_id or password');
+    if (!user) {
+      const err = new Error('Wrong user id');
+      err.status = 401;
+      throw err;
+    }
+
+    if (String(user.password || '') !== String(password || '')) {
+      const err = new Error('Wrong password');
       err.status = 401;
       throw err;
     }
@@ -113,8 +132,12 @@ async function requestOtp(req, res, next) {
     }
 
     const user = await authModel.findUserById(user_id);
-    if (!user || user.password !== password) {
-      return res.status(401).json({ success: false, message: 'Invalid user_id or password' });
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Wrong user id' });
+    }
+
+    if (String(user.password || '') !== String(password || '')) {
+      return res.status(401).json({ success: false, message: 'Wrong password' });
     }
 
 
@@ -123,6 +146,7 @@ async function requestOtp(req, res, next) {
       return res.json({
         success: true,
         bypassOtp: true,
+        otpRequired: false,
         message: 'OTP bypassed for this user. Logging in directly.',
         accessToken,
         tokenType: 'Bearer',
@@ -185,6 +209,7 @@ async function requestOtp(req, res, next) {
 
     return res.json({
       success: true,
+      otpRequired: true,
       message: reused ? 'Reusing last OTP. Please check email.' : 'OTP sent to registered email',
     });
   } catch (err) {

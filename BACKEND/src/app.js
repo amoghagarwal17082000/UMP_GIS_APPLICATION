@@ -14,6 +14,7 @@ const ceaEditRoutes = require('./modules/departments/civilEngineeringAssets/edit
 const userManagementRoutes = require('./modules/user-management/view/users/users.routes');
 const ratingRoutes = require('./modules/rating/rating.routes');
 const feedbackRoutes = require('./modules/feedback/feedback.routes');
+const profileRoutes= require('./modules/profile/profile.routes');
 
 const app = express();
 
@@ -85,6 +86,7 @@ for (const prefix of apiPrefixes) {
   app.use(`${prefix}/rating`, authenticateToken, ratingRoutes);
   app.use(`${prefix}/user-management/view/users`, authenticateToken, userManagementRoutes);
   app.use(`${prefix}/feedback`, authenticateToken, feedbackRoutes);
+  app.use(`${prefix}/update`, authenticateToken, profileRoutes);
 }
 
 /* ---------- 404 + Error ---------- */
