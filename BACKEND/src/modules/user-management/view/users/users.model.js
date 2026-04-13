@@ -196,7 +196,7 @@ async function assignLayersToMaker(makerId, layerIds) {
   const existingValue = existingResult.rows[0]?.assigned_layers || '';
 
   const existingIds = String(existingValue)
-    .split(',')
+    .split(', ')
     .map(v => v.trim())
     .filter(Boolean);
 
@@ -270,7 +270,7 @@ async function updateAssignedLayers(makerId, layerIds) {
   const finalValue = (Array.isArray(layerIds) ? layerIds : [])
     .map((v) => String(v).trim())
     .filter(Boolean)
-    .join(",");
+    .join(", ");
 
   const sql = `
     UPDATE user_master

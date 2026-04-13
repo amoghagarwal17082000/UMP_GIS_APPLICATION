@@ -11,6 +11,11 @@ import { Api } from 'src/app/api/api';
   styleUrl: './user-management.css',
 })
 export class UserManagementComponent implements OnInit {
+  toastMessage = '';
+  toastType: 'success' | 'error' | 'warning' = 'success';
+  showToast = false;
+  private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
   users: any[] = [];
   filteredUsers: any[] = [];
 
@@ -92,6 +97,34 @@ export class UserManagementComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadUsers();
+  }
+
+  showNotification(message: string, type: 'success' | 'error' | 'warning' = 'success') {
+    this.toastMessage = message;
+    this.toastType = type;
+    this.showToast = true;
+
+    if (this.toastTimeoutId) {
+      clearTimeout(this.toastTimeoutId);
+    }
+
+    this.toastTimeoutId = setTimeout(() => {
+      this.showToast = false;
+      this.cdr.detectChanges();
+    }, 1900);
+
+    this.cdr.detectChanges();
+  }
+
+  closeToast() {
+    this.showToast = false;
+
+    if (this.toastTimeoutId) {
+      clearTimeout(this.toastTimeoutId);
+      this.toastTimeoutId = null;
+    }
+
+    this.cdr.detectChanges();
   }
 
   loadUsers(): void {
@@ -321,7 +354,7 @@ export class UserManagementComponent implements OnInit {
 
   assignChecker() {
     if (this.selectedMaker == null || this.selectedChecker == null) {
-      alert('Please select Maker and Checker');
+      this.showNotification('Please select Maker and Checker', 'warning');
       return;
     }
 
@@ -343,11 +376,11 @@ export class UserManagementComponent implements OnInit {
           this.loadAssignedCheckerUsers();
         }
 
-        alert('Checker assigned successfully');
+        this.showNotification('Checker assigned successfully', 'success');
       },
       error: (err) => {
         console.error('Failed to assign checker', err);
-        alert('Failed to assign checker');
+        this.showNotification('Failed to assign checker', 'error');
       },
     });
   }
@@ -406,6 +439,22 @@ export class UserManagementComponent implements OnInit {
     this.noAssignableLayers = false;
     this.isAssignLayerEditMode = false;
     this.cdr.detectChanges();
+  }
+
+  formatLayerName(name: string): string {
+    return String(name || '')
+      .split('_')
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  formatAssignedLayerNames(layerNames: string): string {
+    return String(layerNames || '')
+      .split(',')
+      .map((name) => this.formatLayerName(name.trim()))
+      .filter(Boolean)
+      .join(', ');
   }
 
   onLayerMakerChange() {
@@ -480,19 +529,23 @@ export class UserManagementComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  isLayerSelected(layerId: any): boolean {
+    return this.selectedLayerIds.some((id) => String(id) === String(layerId));
+  }
+
   assignLayersToMaker() {
     if (!this.selectedLayerMaker) {
-      alert('Please select Maker');
+      this.showNotification('Please select Maker', 'warning');
       return;
     }
 
     if (this.noAssignableLayers) {
-      alert('No assignable layers are configured for this department');
+      this.showNotification('No assignable layers are configured for this department', 'warning');
       return;
     }
 
     if (!this.selectedLayerIds || this.selectedLayerIds.length === 0) {
-      alert('Please select at least one layer');
+      this.showNotification('Please select at least one layer', 'warning');
       return;
     }
 
@@ -509,11 +562,11 @@ export class UserManagementComponent implements OnInit {
         this.loadUsers();
         this.loadAssignedLayerUsers();
 
-        alert('Layers assigned successfully');
+        this.showNotification('Layers assigned successfully', 'success');
       },
       error: (err) => {
         console.error('Failed to assign layers', err);
-        alert('Failed to assign layers');
+        this.showNotification('Failed to assign layers', 'error');
       },
     });
   }
@@ -549,7 +602,7 @@ export class UserManagementComponent implements OnInit {
 
   updateAssignedChecker() {
     if (!this.selectedCheckerAssignmentUser || !this.updatedCheckerId) {
-      alert('Please select a checker');
+      this.showNotification('Please select a checker', 'warning');
       return;
     }
 
@@ -563,11 +616,11 @@ export class UserManagementComponent implements OnInit {
         console.log('Checker updated successfully', res);
         this.closeChangeCheckerModal();
         this.loadAssignedCheckerUsers();
-        alert('Checker updated successfully');
+        this.showNotification('Checker updated successfully', 'success');
       },
       error: (err) => {
         console.error('Failed to update checker', err);
-        alert('Failed to update checker');
+        this.showNotification('Failed to update checker', 'error');
       },
     });
   }
@@ -586,11 +639,11 @@ export class UserManagementComponent implements OnInit {
         console.log('Checker unassigned successfully', res);
         this.closeDeleteConfirmModal();
         this.loadAssignedCheckerUsers();
-        alert('Checker unassigned successfully');
+        this.showNotification('Checker unassigned successfully', 'success');
       },
       error: (err) => {
         console.error('Failed to unassign checker', err);
-        alert('Failed to unassign checker');
+        this.showNotification('Failed to unassign checker', 'error');
       },
     });
   }
@@ -649,11 +702,6 @@ export class UserManagementComponent implements OnInit {
     this.showPassword = !this.showPassword;
   }
 
-  validatePassword(password: string): boolean {
-    const passwordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-    return passwordRegex.test(String(password || ''));
-  }
-
   openEditConfirmModal() {
     this.editUserError = '';
     this.passwordError = '';
@@ -665,12 +713,6 @@ export class UserManagementComponent implements OnInit {
 
     if (!this.editUserForm.user_id?.trim()) {
       this.editUserError = 'User ID is required';
-      return;
-    }
-
-    if (!this.validatePassword(this.editUserForm.password)) {
-      this.passwordError =
-        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character';
       return;
     }
 
@@ -690,22 +732,24 @@ export class UserManagementComponent implements OnInit {
       password: this.editUserForm.password,
     };
 
+    this.showEditConfirmModal = false;
+    this.showEditUserModal = false;
+    this.cdr.detectChanges();
+
     this.api.updateUserDetails(payload).subscribe({
       next: (res) => {
-        this.showEditConfirmModal = false;
-        this.showEditUserModal = false;
-
         this.loadUsers();
         if (this.activeTab === 'assigned-checker') {
           this.loadAssignedCheckerUsers();
         }
 
-        alert('User updated successfully');
+        this.showNotification('User updated successfully', 'success');
       },
       error: (err) => {
         console.error('Failed to update user', err);
+        this.showEditUserModal = true;
         this.editUserError = 'Failed to update user';
-        this.showEditConfirmModal = false;
+        this.showNotification('Failed to update user', 'error');
         this.cdr.detectChanges();
       },
     });
@@ -727,12 +771,12 @@ export class UserManagementComponent implements OnInit {
 
   updateAssignedLayersForMaker() {
     if (!this.selectedLayerMaker) {
-      alert('Please select Maker');
+      this.showNotification('Please select Maker', 'warning');
       return;
     }
 
     if (this.noAssignableLayers) {
-      alert('No assignable layers are configured for this department');
+      this.showNotification('No assignable layers are configured for this department', 'warning');
       return;
     }
 
@@ -747,11 +791,11 @@ export class UserManagementComponent implements OnInit {
         this.closeAssignLayerModal();
         this.loadAssignedLayerUsers();
         this.loadUsers();
-        alert('Assigned layers updated successfully');
+        this.showNotification('Assigned layers updated successfully', 'success');
       },
       error: (err) => {
         console.error('Failed to update assigned layers', err);
-        alert('Failed to update assigned layers');
+        this.showNotification('Failed to update assigned layers', 'error');
       },
     });
   }
@@ -783,11 +827,11 @@ export class UserManagementComponent implements OnInit {
         this.closeAssignedLayerDeleteConfirmModal();
         this.loadAssignedLayerUsers();
         this.loadUsers();
-        alert('Assigned layers removed successfully');
+        this.showNotification('Assigned layers removed successfully', 'success');
       },
       error: (err) => {
         console.error('Failed to remove assigned layers', err);
-        alert('Failed to remove assigned layers');
+        this.showNotification('Failed to remove assigned layers', 'error');
       },
     });
   }

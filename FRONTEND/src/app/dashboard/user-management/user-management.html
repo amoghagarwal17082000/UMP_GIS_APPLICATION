@@ -1,4 +1,36 @@
 <div class="container-fluid user-management-page dashboard-page-shell">
+  <div class="user-toast-overlay" *ngIf="showToast">
+    <div class="user-toast" [ngClass]="'toast-' + toastType">
+      <div class="user-toast-icon">
+        <i
+          class="bi"
+          [ngClass]="{
+            'bi-check2-circle': toastType === 'success',
+            'bi-x-circle': toastType === 'error',
+            'bi-exclamation-circle': toastType === 'warning'
+          }"
+        ></i>
+      </div>
+
+      <div class="user-toast-content">
+        <div class="user-toast-title">
+          {{
+            toastType === 'success'
+              ? 'Success'
+              : toastType === 'error'
+                ? 'Something Went Wrong'
+                : 'Attention'
+          }}
+        </div>
+        <div class="user-toast-message">{{ toastMessage }}</div>
+      </div>
+
+      <button class="user-toast-close" (click)="closeToast()" aria-label="Close notification">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+
   <div class="row g-3 h-100">
     <div class="col-12 col-lg-3 col-xl-3 d-flex">
       <div class="left-panel-box w-100">
@@ -170,7 +202,9 @@
 
                     <td *ngIf="activeTab === 'user-list'">{{ user.hrmsid }}</td>
                     <td *ngIf="activeTab === 'user-list'">{{ user.designation }}</td>
-                    <td *ngIf="activeTab === 'assigned-layers'">{{ user.assigned_layer_names }}</td>
+                    <td *ngIf="activeTab === 'assigned-layers'">
+                      {{ formatAssignedLayerNames(user.assigned_layer_names) }}
+                    </td>
                     <td *ngIf="activeTab === 'assigned-checker'">{{ user.assigned_checker_name }}</td>
 
                     <td class="action-buttons">
@@ -295,7 +329,7 @@
             class="selected-layer-chip"
             *ngFor="let layer of selectedLayerObjects"
           >
-            <span>{{ layer.layar_name }}</span>
+            <span>{{ formatLayerName(layer.layar_name) }}</span>
             <button
               type="button"
               class="chip-remove-btn"
@@ -320,8 +354,10 @@
   <option
     *ngFor="let layer of availableLayers"
     [value]="layer.layer_id"
+    [disabled]="isLayerSelected(layer.layer_id)"
+    [class.layer-option-selected]="isLayerSelected(layer.layer_id)"
   >
-    {{ layer.layar_name }}
+    {{ formatLayerName(layer.layar_name) }}
   </option>
 </select>
 
@@ -565,7 +601,7 @@
             *ngIf="activeTab === 'assigned-layers' && selectedUserInfo?.assigned_layer_names"
           >
             <label>Assigned Layers :</label>
-            <div>{{ selectedUserInfo?.assigned_layer_names }}</div>
+            <div>{{ formatAssignedLayerNames(selectedUserInfo?.assigned_layer_names) }}</div>
           </div>
         </div>
 
@@ -628,7 +664,6 @@
             <i class="bi" [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
           </button>
         </div>
-        <small class="field-error" *ngIf="passwordError">{{ passwordError }}</small>
       </div>
 
       <div class="edit-form-group">
