@@ -100,6 +100,8 @@ export class CurrentUserService {
       unit_type: String(user.unit_type || '').trim(),
       email: String(user.email || '').trim(),
       mobile: String(user.mobile || '').trim(),
+      hrmsid: String(user.hrmsid || '').trim(),
+      designation: String(user.designation || '').trim(),
     };
   }
 }

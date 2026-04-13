@@ -209,13 +209,21 @@ this.api
                 });
                 return;
               }
-              this.loginFlowInProgress = false;
-              this.zone.run(() => {
-                this.loginStep = 'OTP';
-                this.otp = '';
-                this.infoMsg = res?.message || 'OTP sent to registered email.';
-                this.cdr.detectChanges();
-              });
+
+              if (res?.otpRequired === true) {
+                this.loginFlowInProgress = false;
+                this.zone.run(() => {
+                  this.loginStep = 'OTP';
+                  this.otp = '';
+                  this.infoMsg = res?.message || 'OTP sent to registered email.';
+                  this.cdr.detectChanges();
+                });
+                return;
+              }
+
+              this.showError(res?.message || 'Login failed');
+              this.zone.run(() => (this.loginStep = 'LOGIN'));
+              setTimeout(() => this.loadCaptcha('unexpected-requestOtp-success-shape'), 0);
             } else {
               this.loginFlowInProgress = false;
               this.showError(res?.message || res?.error || 'Invalid user ID or password');

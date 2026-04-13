@@ -15,6 +15,8 @@ async function findUserById(userId) {
       u.user_name,
       u.zone,
       u.division,
+      u.hrmsid,
+      u.designation,
       u.otp,
       u.otp_created_at,
       u.email,
@@ -22,7 +24,7 @@ async function findUserById(userId) {
       d.divcode AS division_code,
       dept.department_id,
       dept.department
-    FROM user_master u
+    FROM sde.user_master u
     LEFT JOIN div_master d ON u.div_id = d.div_id
     LEFT JOIN sde.department_table dept ON u.department_id = dept.department_id
     WHERE u.user_id = $1
@@ -42,7 +44,7 @@ async function getUserEmailById(userId) {
 
   const sql = `
     SELECT ${col} AS email
-    FROM user_master
+    FROM sde.user_master
     WHERE user_id = $1
     LIMIT 1;
   `;
@@ -53,7 +55,7 @@ async function getUserEmailById(userId) {
 
 async function saveOtp(userId, otp, ttlMinutes = Number(process.env.OTP_TTL_MINUTES || 10)) {
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET otp = $2,
         otp_created_at = NOW(),
         otp_expires_at = NOW() + ($3 || ' minutes')::interval,
@@ -66,7 +68,7 @@ async function saveOtp(userId, otp, ttlMinutes = Number(process.env.OTP_TTL_MINU
 
 async function clearOtp(userId) {
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET otp = NULL,
         otp_created_at = NULL,
         otp_expires_at = NULL,
@@ -80,7 +82,7 @@ async function clearOtp(userId) {
 async function getOtpState(userId) {
   const sql = `
     SELECT otp, otp_created_at, otp_expires_at, otp_attempts, otp_used
-    FROM user_master
+    FROM sde.user_master
     WHERE user_id = $1
     LIMIT 1;
   `;
@@ -90,7 +92,7 @@ async function getOtpState(userId) {
 
 async function incrementOtpAttempts(userId) {
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET otp_attempts = COALESCE(otp_attempts, 0) + 1
     WHERE user_id = $1;
   `;
@@ -99,7 +101,7 @@ async function incrementOtpAttempts(userId) {
 
 async function markOtpUsed(userId) {
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET otp_used = TRUE
     WHERE user_id = $1;
   `;
@@ -109,7 +111,7 @@ async function markOtpUsed(userId) {
 async function saveSessionToken(userId, token, expiresAt) {
   const tokenHash = hashToken(token);
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET jwt_token = $2,
         expires_at = $3,
         revoked_at = NULL,
@@ -130,7 +132,7 @@ async function getSessionToken(userId) {
       revoked_at,
       created_at,
       updated_at
-    FROM user_master
+    FROM sde.user_master
     WHERE user_id = $1
     LIMIT 1;
   `;
@@ -142,7 +144,7 @@ async function getSessionToken(userId) {
 async function revokeSessionByToken(userId, token) {
   const tokenHash = hashToken(token);
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET jwt_token = NULL,
         expires_at = NULL,
         revoked_at = NOW(),
@@ -156,7 +158,7 @@ async function revokeSessionByToken(userId, token) {
 
 async function clearSession(userId) {
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET jwt_token = NULL,
         expires_at = NULL,
         revoked_at = NOW(),
@@ -169,7 +171,7 @@ async function clearSession(userId) {
 
 async function touchSession(userId) {
   const sql = `
-    UPDATE user_master
+    UPDATE sde.user_master
     SET updated_at = NOW()
     WHERE user_id = $1
       AND jwt_token IS NOT NULL

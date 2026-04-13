@@ -9,6 +9,8 @@ export type CurrentUser = {
   unit_type: string;
   email?: string;
   mobile?: string;
+  hrmsid?: string;
+  designation?: string;
 };
 
 const USER_KEY = 'ump_current_user';

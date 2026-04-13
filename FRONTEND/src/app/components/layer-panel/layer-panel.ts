@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { UiState } from '../../services/ui-state';
 import { LayerManager } from '../../services/layer-manager';
 import { MapRegistry } from '../../services/map-registry';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AttributeTableService } from '../../services/attribute-table';
 
 type LayerTreeNode = {
   id: string;
@@ -24,12 +25,19 @@ type LayerTreeNode = {
 })
 export class LayerPanel {
   private expandState = new Map<string, boolean>();
+  activeActionNodeId: string | null = null;
 
   constructor(
     public ui: UiState,
     public layerManager: LayerManager,
-    private mapRegistry: MapRegistry
+    private mapRegistry: MapRegistry,
+    private attributeTable: AttributeTableService
   ) {}
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.activeActionNodeId = null;
+  }
 
   close() {
     this.ui.activePanel = null;
@@ -165,6 +173,22 @@ export class LayerPanel {
     if (node.kind !== 'group') return;
     node.expanded = !node.expanded;
     this.setExpanded(node.id, node.expanded);
+  }
+
+  toggleNodeActions(node: LayerTreeNode, event?: MouseEvent): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    this.activeActionNodeId = this.activeActionNodeId === node.id ? null : node.id;
+  }
+
+  showInAttributeTable(node: LayerTreeNode, event?: MouseEvent): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (node.kind !== 'layer') return;
+
+    this.attributeTable.setActive(node.title);
+    this.attributeTable.show();
+    this.activeActionNodeId = null;
   }
 
   toggleNode(node: LayerTreeNode, checked: boolean): void {

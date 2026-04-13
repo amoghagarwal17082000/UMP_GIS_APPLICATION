@@ -7,6 +7,7 @@ import { GisDashboardComponent } from './dashboard/gis-dashboard/gis-dashboard';
 import { UserManagementComponent } from './dashboard/user-management/user-management';
 import { adminGuard } from './guards/admin-guard';
 import { Feedback } from './dashboard/feedback/feedback';
+import { ProfileComponent } from './dashboard/profile/profile';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -36,6 +37,11 @@ export const routes: Routes = [
         path: 'feedback',
         component: Feedback,
         data: { title: 'Feedback' },
+      },
+      {
+        path: 'profile',
+        component: ProfileComponent,
+        data: { title: 'Profile' },
       },
     ],
   },

@@ -1,0 +1,257 @@
+<div class="container-fluid profile-page dashboard-page-shell dashboard-page-shell-compact">
+
+  <div class="row g-0 justify-content-center">
+    <div class="col-12">
+
+      <div class="profile-shell dashboard-page-width">
+
+        <!-- Header -->
+        <section class="profile-hero">
+          <div class="profile-hero-copy">
+            <p class="profile-kicker">UMP GIS Application</p>
+            <h1 class="profile-title">Update Your Details</h1>
+          </div>
+        </section>
+
+        <form [formGroup]="profileForm" (ngSubmit)="updateProfile()">
+
+          <section class="profile-card dashboard-surface-card">
+
+            <div class="row g-4 profile-grid">
+
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+                  <label>
+                    <i class="bi bi-person-badge"></i>
+                    <span>User ID</span>
+                  </label>
+
+                  <input type="text" class="profile-input profile-input-readonly" [value]="user_id" readonly />
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+                  <label>
+                    <i class="bi bi-lock"></i>
+                    <span>Password</span>
+                  </label>
+
+                  <div class="profile-password-row">
+                    <input
+                      type="password"
+                      class="profile-input"
+                      formControlName="password"
+                      placeholder="Enter current password"
+                      autocomplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      class="profile-validate-btn"
+                      (click)="validatePassword()"
+                      [disabled]="validatingPassword"
+                    >
+                      {{ validatingPassword ? 'Validating...' : 'Validate' }}
+                    </button>
+                  </div>
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('password')?.hasError('required') && !passwordMessage">
+                    Password is required
+                  </small>
+
+                  <small class="text-danger" *ngIf="passwordMessage && passwordMessageType === 'error'">
+                    {{ passwordMessage }}
+                  </small>
+
+                  <small class="text-success" *ngIf="passwordMessage && passwordMessageType === 'success'">
+                    {{ passwordMessage }}
+                  </small>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+                  <label>
+                    <i class="bi bi-building"></i>
+                    <span>Unit Name</span>
+                  </label>
+
+                  <input type="text" class="profile-input profile-input-readonly" [value]="unit_name || '--'" readonly />
+                </div>
+              </div>
+
+              <!-- Name -->
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-person"></i>
+                    <span>Name</span>
+                  </label>
+
+                  <input type="text" class="profile-input profile-input-readonly" formControlName="user_name" placeholder="Enter your name" />
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('user_name')?.errors">
+
+                    Name is required
+
+                  </small>
+
+                </div>
+              </div>
+
+              <!-- Email -->
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-envelope"></i>
+                    <span>Email</span>
+                  </label>
+
+                  <input type="email" class="profile-input" formControlName="email" placeholder="Enter email" />
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('email')?.errors?.['required']">
+
+                    Email is required
+
+                  </small>
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('email')?.errors?.['email']">
+
+                    Enter valid email
+
+                  </small>
+
+                </div>
+              </div>
+
+              <!-- Mobile -->
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-telephone-fill"></i>
+                    <span>Mobile</span>
+                  </label>
+
+                  <input type="text" class="profile-input" formControlName="mobile" placeholder="Enter mobile number" />
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('mobile')?.errors?.['required']">
+
+                    Mobile number required
+
+                  </small>
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('mobile')?.errors?.['pattern']">
+
+                    Enter valid 10-digit mobile number
+
+                  </small>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-person-workspace"></i>
+                    <span>Designation</span>
+                  </label>
+
+                  <input type="text" class="profile-input" formControlName="designation" placeholder="Enter designation" />
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('designation')?.errors">
+                    Designation is required
+                  </small>
+
+                </div>
+              </div>
+
+              <!-- Department -->
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-briefcase"></i>
+                    <span>Department</span>
+                  </label>
+
+                  <input type="text" class="profile-input profile-input-readonly" formControlName="department" />
+
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-credit-card-2-front"></i>
+                    <span>HRMS ID</span>
+                  </label>
+
+                  <input type="text" class="profile-input" formControlName="hrmsid" placeholder="Enter HRMS ID" />
+
+                  <small class="text-danger" *ngIf="submitted && profileForm.get('hrmsid')?.errors">
+                    HRMS ID is required
+                  </small>
+
+                </div>
+              </div>
+
+              <!-- Zone -->
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-train-front"></i>
+                    <span>Zone</span>
+                  </label>
+
+                  <input type="text" class="profile-input profile-input-readonly" formControlName="zone" />
+
+                </div>
+              </div>
+
+              <!-- Division -->
+              <div class="col-12 col-md-6">
+                <div class="profile-field">
+
+                  <label>
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Division</span>
+                  </label>
+
+                  <input type="text" class="profile-input profile-input-readonly" formControlName="division" />
+
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Submit Button -->
+            <div class="profile-submit-wrap mt-3">
+
+              <button type="submit" class="profile-submit-btn" [disabled]="profileForm.invalid || !passwordValidated">
+
+                <i class="bi bi-save"></i>
+                <span>Update Profile</span>
+
+              </button>
+
+            </div>
+
+            <p class="profile-submit-note">
+              First validate the password, then submit the details.
+            </p>
+
+          </section>
+
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
