@@ -43,7 +43,7 @@
       <span *ngIf="!(collapsed$ | async)">Profile</span>
     </li>
 
-    <li *ngIf="isAdmin" routerLink="/dashboard/user-management">
+    <li *ngIf="isAdmin || isSuperAdmin" [routerLink]="userManagementRoute">
       <i class="bi bi-people"></i>
       <span *ngIf="!(collapsed$ | async)">User Management</span>
     </li>

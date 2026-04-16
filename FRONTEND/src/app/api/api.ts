@@ -8,6 +8,8 @@ import { FeedbackApi } from './feedback/feedback.api';
 import { ProfileApi } from './profile/profile.api';
 import { RatingApi } from './rating/rating.api';
 import { UserManagementApi } from './user_management/user-management.api';
+import { SuperAdminUserManagementApi } from './super_admin/super-admin-user-management.api';
+
 
 @Injectable({ providedIn: 'root' })
 export class Api {
@@ -21,6 +23,7 @@ export class Api {
     private profileApi: ProfileApi,
     private ratingApi: RatingApi,
     private userManagementApi: UserManagementApi,
+    private superAdminUserManagementApi: SuperAdminUserManagementApi,
   ) {}
 
   getStations(bbox: string) {
@@ -219,6 +222,10 @@ export class Api {
 
   clearAssignedLayers(data: any) {
     return this.userManagementApi.clearAssignedLayers(data);
+  }
+
+  getSuperAdminUsers() {
+    return this.superAdminUserManagementApi.getAllUsers();
   }
 }
 

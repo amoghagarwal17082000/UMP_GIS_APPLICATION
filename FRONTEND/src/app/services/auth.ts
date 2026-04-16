@@ -15,7 +15,7 @@ export class Auth {
   constructor(
     private authApi: AuthApi,
     private http: HttpClient,
-    private currentUser: CurrentUserService
+    private currentUser: CurrentUserService,
   ) {}
 
   requestOtp(username: string, password: string): Observable<any> {
@@ -25,7 +25,7 @@ export class Auth {
           this.currentUser.setAuth(res.user || null, res.accessToken || null);
         }
         console.log('REQUEST OTP RESPONSE FROM SERVER:', res);
-      })
+      }),
     );
   }
 
@@ -35,7 +35,7 @@ export class Auth {
         if (res?.success) {
           this.currentUser.setAuth(res.user || null, res.accessToken || null);
         }
-      })
+      }),
     );
   }
 
@@ -43,7 +43,7 @@ export class Auth {
     return this.authApi.resendOtp(username).pipe(
       tap((res: any) => {
         console.log('RESEND OTP RESPONSE FROM SERVER:', res);
-      })
+      }),
     );
   }
 
@@ -65,6 +65,15 @@ export class Auth {
 
   isAdmin(): boolean {
     return this.getUserType() === 'Admin';
+  }
+
+  isSuperAdmin(): boolean {
+    return this.getUserType() === 'Super Admin';
+  }
+
+  hasUserManagementAccess(): boolean {
+    const userType = this.getUserType();
+    return userType === 'Admin' || userType === 'Super Admin';
   }
 }
 

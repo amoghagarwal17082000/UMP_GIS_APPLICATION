@@ -18,28 +18,32 @@ export class Sidebar implements OnInit {
   collapsed$!: Observable<boolean>;
   sidebarTitle = '';
   isAdmin = false;
+  isSuperAdmin = false;
+  userManagementRoute = '/dashboard';
 
   constructor(
     private sidebarState: SidebarState,
     private ui: UiState,
     private router: Router,
     private route: ActivatedRoute,
-    private auth: Auth
+    private auth: Auth,
   ) {
     this.collapsed$ = this.sidebarState.collapsed$;
   }
 
   ngOnInit(): void {
     this.isAdmin = this.auth.isAdmin();
+    this.isSuperAdmin = this.auth.isSuperAdmin();
+    this.setUserManagementRoute();
 
     this.sidebarTitle = this.resolveTitle(this.route);
 
-    this.router.events
-      .pipe(filter((event) => event instanceof NavigationEnd))
-      .subscribe(() => {
-        this.sidebarTitle = this.resolveTitle(this.route);
-        this.isAdmin = this.auth.isAdmin();
-      });
+    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
+      this.sidebarTitle = this.resolveTitle(this.route);
+      this.isAdmin = this.auth.isAdmin();
+      this.isSuperAdmin = this.auth.isSuperAdmin();
+      this.setUserManagementRoute();
+    });
   }
 
   toggleSidebar(): void {
@@ -53,5 +57,19 @@ export class Sidebar implements OnInit {
       current = current.firstChild;
     }
     return current?.snapshot.data['title'] ?? 'Dashboard';
+  }
+
+  private setUserManagementRoute(): void {
+    if (this.auth.isSuperAdmin()) {
+      this.userManagementRoute = '/dashboard/super-admin/user-management';
+      return;
+    }
+
+    if (this.auth.isAdmin()) {
+      this.userManagementRoute = '/dashboard/user-management';
+      return;
+    }
+
+    this.userManagementRoute = '/dashboard';
   }
 }
