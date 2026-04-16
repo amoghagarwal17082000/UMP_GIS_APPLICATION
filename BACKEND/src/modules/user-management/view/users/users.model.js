@@ -147,22 +147,37 @@ async function updateUserDetails(objectid, user_name, password) {
   return result.rows[0];
 }
 
-async function getMakerLayerList(divisionCode) {
+async function getMakerLayerList(divisionCode, currentUserId = '') {
   const makersSql = `
     SELECT
       u.objectid,
+      u.user_id,
       u.user_name,
       u.department_id,
       u.assigned_layers
     FROM user_master u
     JOIN div_master d
       ON u.division = d.div_name
-    WHERE d.divcode = $1
+    WHERE (
+      d.divcode = $1
       AND LOWER(TRIM(u.user_type)) = 'maker'
+    )
+      OR (
+        UPPER(TRIM($1)) = 'DLI'
+        AND NULLIF(TRIM($2), '') IS NOT NULL
+        AND UPPER(TRIM(u.user_id)) = UPPER(TRIM($2))
+        AND LOWER(TRIM(u.user_type)) = 'maker'
+        AND (
+          LOWER(TRIM(COALESCE(u.division, ''))) = 'centre for railway information systems'
+          OR LOWER(TRIM(COALESCE(u.division, ''))) = 'cris'
+          OR LOWER(TRIM(COALESCE(u.unit_type, ''))) LIKE '%cris%'
+          OR LOWER(TRIM(COALESCE(u.unit_type, ''))) LIKE '%railway information systems%'
+        )
+      )
     ORDER BY u.user_name
   `;
 
-  const makersResult = await pool.query(makersSql, [divisionCode]);
+  const makersResult = await pool.query(makersSql, [divisionCode, currentUserId]);
 
   return {
     makers: makersResult.rows

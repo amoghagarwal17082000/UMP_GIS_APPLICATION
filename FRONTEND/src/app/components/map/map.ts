@@ -7,7 +7,7 @@ import { filter } from 'rxjs/operators';
 import { ActivatedRoute, Router, NavigationStart } from '@angular/router';
 
 import { Api } from '../../api/api';
-import { StationLayer } from '../../departments/civil_engineering_assets/editing/station';
+import { StationLayer, LandPlanOntrackLayer } from '../../departments/civil_engineering_assets/editing/civil-engineering-assets-editing';
 import {
   DynamicDepartmentLayer,
   LandBoundaryLayer,
@@ -15,7 +15,6 @@ import {
   LandOffsetLayer,
   StationViewingLayer,
 } from '../../departments/civil_engineering_assets/viewing/civil-engineering-assets-viewing';
-import { LandPlanOntrackLayer } from '../../departments/civil_engineering_assets/editing/landplan-ontrack';
 import {
   DivisionBufferLayer,
   IndiaBoundaryLayer,

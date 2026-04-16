@@ -42,8 +42,12 @@ export class UserManagementApi {
     return this.http.put(`${BASE_URL}/api/user-management/view/users/update-user`, data);
   }
 
-  getMakerLayerList() {
-    const params = new HttpParams().set('division', this.getDivision());
+  getMakerLayerList(currentUserId?: string) {
+    let params = new HttpParams().set('division', this.getDivision());
+    const normalizedUserId = String(currentUserId || '').trim();
+    if (normalizedUserId) {
+      params = params.set('current_user_id', normalizedUserId);
+    }
     return this.http.get<any>(`${BASE_URL}/api/user-management/view/users/maker-layer-list`, {
       params,
     });

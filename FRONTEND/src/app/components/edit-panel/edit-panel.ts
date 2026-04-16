@@ -9,6 +9,10 @@ import { UiState } from '../../services/ui-state';
 import { MapZoomService } from 'src/app/services/map-zoom';
 import { CurrentUserService } from 'src/app/services/current-user';
 import {
+  CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS,
+  getCivilEngineeringAssetLayerDisplayName,
+} from 'src/app/departments/civil_engineering_assets/editing/civil-engineering-assets-editing';
+import {
   EDIT_LAYER_CONFIG,
   EDIT_LAYER_OPTIONS,
   type EditFieldConfig,
@@ -17,6 +21,11 @@ import {
 } from './edit-layer-config';
 type MakerTabKey = 'edit' | 'rejected' | 'sent_for_deletion';
 type CheckerTabKey = 'pending' | 'approved' | 'deletion_proposed';
+type MakerLayerOption = {
+  value: string;
+  label: string;
+  supported: boolean;
+};
 const RAILWAY_CODE_MAP: Record<string, string> = {
   'Central Railway': 'CR',
   'Eastern Railway': 'ER',
@@ -48,6 +57,11 @@ const RAILWAY_CODE_MAP: Record<string, string> = {
 export class EditPanel implements OnInit, OnDestroy {
   private allRows: any[] = [];
   private filteredRows: any[] = [];
+  private makerLayerOptions: MakerLayerOption[] = EDIT_LAYER_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+    supported: true,
+  }));
 
   rows: any[] = [];
 
@@ -90,6 +104,10 @@ export class EditPanel implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    if (this.isMaker()) {
+      this.loadAssignedMakerLayers();
+    }
+
     this.stateSub = this.edit.stateChanged$.subscribe(() => {
       if (!this.edit.enabled) return;
       if (this.edit.editLayer === 'stations' && this.mode === 'table' && !this.edit.creatingStation) {
@@ -137,7 +155,13 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   get layerOptions() {
-    return EDIT_LAYER_OPTIONS;
+    return this.isMaker()
+      ? this.makerLayerOptions
+      : CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+          supported: Object.prototype.hasOwnProperty.call(EDIT_LAYER_CONFIG, option.value),
+        }));
   }
 
   get currentLayerSchema() {
@@ -166,6 +190,19 @@ export class EditPanel implements OnInit, OnDestroy {
 
   get tableColSpan(): number {
     return this.activeTableColumns.length + 1;
+  }
+
+  get unsupportedLayerSelected(): boolean {
+    const selected = String(this.edit.editLayer || '').trim();
+    if (!selected) return false;
+    const option = this.layerOptions.find((item) => item.value === selected);
+    return !!option && !option.supported;
+  }
+
+  get selectedLayerLabel(): string {
+    const selected = String(this.edit.editLayer || '').trim();
+    if (!selected) return '';
+    return this.layerOptions.find((item) => item.value === selected)?.label || selected;
   }
 
   getCellValue(row: any, key: string): any {
@@ -197,7 +234,12 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   onLayerChange() {
-    this.edit.setLayer(this.edit.editLayer);
+    const selectedOption = this.layerOptions.find((option) => option.value === this.edit.editLayer);
+    if (selectedOption?.supported) {
+      this.edit.setLayer(this.edit.editLayer);
+    } else {
+      this.edit.resetSelection();
+    }
 
     this.mode = 'table';
     this.rows = [];
@@ -217,7 +259,7 @@ export class EditPanel implements OnInit, OnDestroy {
     this.dragSub = undefined;
     this.mapZoom.clearHighlight();
 
-    if (this.edit.editLayer === 'stations') {
+    if (selectedOption?.supported && this.edit.editLayer === 'stations') {
       setTimeout(() => this.load(true), 0);
     } else {
       this.syncSelectedFeatureDraft();
@@ -248,6 +290,124 @@ export class EditPanel implements OnInit, OnDestroy {
 
   private getUserType(): string {
     return (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase();
+  }
+
+  private normalizeLayerValue(value: any): string {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private toEditLayerKey(layer: any): EditLayerKey | null {
+    const id = this.normalizeLayerValue(layer?.layer_id);
+    const name = this.normalizeLayerValue(layer?.layar_name);
+    const combined = `${id} ${name}`.trim();
+
+    if (
+      id === 'stations' ||
+      id === 'station' ||
+      name === 'stations' ||
+      name === 'station' ||
+      combined.includes('station')
+    ) {
+      return 'stations';
+    }
+
+    if (
+      id === 'landplan' ||
+      id === 'land plan' ||
+      id === 'land plan on track' ||
+      name === 'land plan on track' ||
+      name === 'landplan on track' ||
+      combined.includes('land plan')
+    ) {
+      return 'landplan';
+    }
+
+    return null;
+  }
+
+  private makeUnsupportedLayerValue(layerId: any): string {
+    return `unsupported:${String(layerId || '').trim()}`;
+  }
+
+  private loadAssignedMakerLayers(): void {
+    const currentUserId = String(this.currentUser.getSnapshot()?.user_id || '').trim();
+    if (!currentUserId) {
+      this.makerLayerOptions = [];
+      return;
+    }
+
+    this.api.getMakerLayerList(currentUserId).subscribe({
+      next: (res: any) => {
+        const makers = Array.isArray(res?.makers) ? res.makers : [];
+        const maker = makers.find((item: any) => String(item?.user_id || '').trim() === currentUserId);
+
+        if (!maker?.department_id) {
+          this.makerLayerOptions = [];
+          this.ensureSelectedLayerStillAllowed();
+          this.cdr.detectChanges();
+          return;
+        }
+
+        const assignedIds = String(maker?.assigned_layers || '')
+          .split(',')
+          .map((value) => String(value || '').trim())
+          .filter(Boolean);
+
+        this.api.getDepartmentLayers(String(maker.department_id).trim()).subscribe({
+          next: (layers: any) => {
+            const departmentLayers = Array.isArray(layers) ? layers : [];
+            const nextOptions: MakerLayerOption[] = [];
+            const seenValues = new Set<string>();
+
+            departmentLayers
+              .filter((layer: any) => assignedIds.includes(String(layer?.layer_id || '').trim()))
+              .forEach((layer: any) => {
+                const editKey = this.toEditLayerKey(layer);
+                const value = editKey || this.makeUnsupportedLayerValue(layer?.layer_id);
+                if (seenValues.has(value)) return;
+                seenValues.add(value);
+                nextOptions.push({
+                  value,
+                  label: getCivilEngineeringAssetLayerDisplayName(
+                    String(layer?.layer_id || '').trim(),
+                    String(layer?.layar_name || '').trim()
+                  ),
+                  supported: !!editKey,
+                });
+              });
+
+            this.makerLayerOptions = nextOptions;
+            this.ensureSelectedLayerStillAllowed();
+            this.cdr.detectChanges();
+          },
+          error: () => {
+            this.makerLayerOptions = [];
+            this.ensureSelectedLayerStillAllowed();
+            this.cdr.detectChanges();
+          },
+        });
+      },
+      error: () => {
+        this.makerLayerOptions = [];
+        this.ensureSelectedLayerStillAllowed();
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private ensureSelectedLayerStillAllowed(): void {
+    const allowed = new Set(this.makerLayerOptions.map((option) => option.value));
+    if (this.edit.editLayer && !allowed.has(this.edit.editLayer)) {
+      this.edit.editLayer = null as any;
+      this.edit.resetSelection();
+    }
+    if (this.rejectedLayer && !allowed.has(this.rejectedLayer)) {
+      this.rejectedLayer = null;
+    }
   }
 
   isChecker(): boolean {
@@ -285,7 +445,13 @@ export class EditPanel implements OnInit, OnDestroy {
     }
     return '';
   }
-  get currentTableLayer(): EditLayerKey | null { if (this.isMakerRejectedView()) return this.rejectedLayer; return (this.edit.editLayer as EditLayerKey | null) ?? null; }
+  get currentTableLayer(): EditLayerKey | null {
+    const rawLayer = this.isMakerRejectedView() ? this.rejectedLayer : this.edit.editLayer;
+    if (!rawLayer) return null;
+    return Object.prototype.hasOwnProperty.call(EDIT_LAYER_CONFIG, rawLayer)
+      ? (rawLayer as EditLayerKey)
+      : null;
+  }
 
   onRejectedLayerChange() {
     this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.search = ''; this.error = null; this.draft = null;

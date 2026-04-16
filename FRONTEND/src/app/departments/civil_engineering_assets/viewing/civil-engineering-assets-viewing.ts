@@ -176,6 +176,10 @@ export class StationViewingLayer implements MapLayer {
   }
 
   removeFrom(map: L.Map) {
+    if (this.labelUpdateTimer) {
+      clearTimeout(this.labelUpdateTimer);
+      this.labelUpdateTimer = null;
+    }
     if (this.onMoveStartHandler) {
       map.off('zoomstart', this.onMoveStartHandler);
       map.off('movestart', this.onMoveStartHandler);
@@ -202,6 +206,9 @@ export class StationViewingLayer implements MapLayer {
   }
 
   protected updateLabels(map: L.Map) {
+    if (!this.isOnMap || !map || !map.getContainer || !map.getContainer()) return;
+    if (!map.hasLayer(this.layer)) return;
+
     const show = map.getZoom() >= this.LABEL_ZOOM;
     const bounds = map.getBounds();
     const occupied: Array<{ x: number; y: number }> = [];
@@ -223,7 +230,13 @@ export class StationViewingLayer implements MapLayer {
         l.closeTooltip();
         return;
       }
-      const p = map.latLngToContainerPoint(latlng);
+      let p: L.Point;
+      try {
+        p = map.latLngToContainerPoint(latlng);
+      } catch {
+        return;
+      }
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
       const tooClose = occupied.some((q) => {
         const dx = q.x - p.x;
         const dy = q.y - p.y;

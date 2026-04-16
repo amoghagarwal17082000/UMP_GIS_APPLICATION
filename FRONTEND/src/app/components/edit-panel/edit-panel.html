@@ -81,6 +81,10 @@
       </label>
     </div>
 
+    <div class="table-meta" *ngIf="mode === 'table' && unsupportedLayerSelected">
+      {{ selectedLayerLabel }} is assigned to this maker, but edit workflow is not wired for this layer yet.
+    </div>
+
     <div class="layer-picker rejected-picker" *ngIf="isMakerRejectedView()" style="margin-bottom:8px;">
       <label>
         Select Assigned Layer (Rejected Records)
@@ -92,6 +96,10 @@
           <option *ngFor="let option of layerOptions" [value]="option.value">{{ option.label }}</option>
         </select>
       </label>
+    </div>
+
+    <div class="table-meta" *ngIf="isMakerRejectedView() && unsupportedLayerSelected">
+      {{ selectedLayerLabel }} is assigned to this maker, but edit workflow is not wired for this layer yet.
     </div>
 
     <!-- <div class="table-meta" *ngIf="mode === 'table' && edit.editLayer === 'stations'">

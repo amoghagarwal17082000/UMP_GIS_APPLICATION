@@ -197,8 +197,8 @@ export class Api {
     return this.userManagementApi.updateUserDetails(data);
   }
 
-  getMakerLayerList() {
-    return this.userManagementApi.getMakerLayerList();
+  getMakerLayerList(currentUserId?: string) {
+    return this.userManagementApi.getMakerLayerList(currentUserId);
   }
 
   getDepartmentLayers(departmentId: string) {
