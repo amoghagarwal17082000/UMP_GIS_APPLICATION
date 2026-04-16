@@ -5,13 +5,15 @@ import { Api } from '../../../api/api';
 import { FilterState } from '../../../services/filter-state';
 import { EditState } from '../../../services/edit-state';
 import {
+  DynamicDepartmentLayer,
+  LandBoundaryLayer,
+  LandOffsetLayer,
   LandPlanOntrackViewingLayer,
   StationViewingLayer,
 } from '../viewing/civil-engineering-assets-viewing';
 
 export const CIVIL_ENGINEERING_ASSET_LAYER_ALIASES: Record<string, string> = {
   stations: 'Stations',
-  station: 'Station',
   km_post: 'Km Post',
   landplan_ontrack: 'Landplan Ontrack',
   landplan_offtrack: 'Landplan Offtrack',
@@ -38,6 +40,22 @@ export const CIVIL_ENGINEERING_ASSET_LAYER_ALIASES: Record<string, string> = {
   tunnel_end: 'Tunnel End',
 };
 
+export function normalizeCivilEngineeringLayerId(layerId: string): string {
+  const normalized = String(layerId || '').trim().toLowerCase();
+  const compact = normalized.replace(/[\s-]+/g, '_');
+  if (normalized === 'station') return 'stations';
+  if (normalized === 'landboundary' || compact === 'landboundary') return 'land_boundary';
+  if (normalized === 'land plan on track' || compact === 'land_plan_on_track') return 'landplan_ontrack';
+  if (normalized === 'landplan' || compact === 'landplan') return 'landplan_ontrack';
+  if (compact === 'bridge_start') return 'bridge_start';
+  if (compact === 'bridge_end') return 'bridge_end';
+  if (compact === 'bridge_minor') return 'bridge_minor';
+  if (compact === 'land_offset') return 'land_offset';
+  if (compact === 'land_boundary') return 'land_boundary';
+  if (compact === 'km_post') return 'km_post';
+  return compact;
+}
+
 export const CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS = Object.entries(
   CIVIL_ENGINEERING_ASSET_LAYER_ALIASES
 ).map(([value, label]) => ({
@@ -54,7 +72,7 @@ function toTitleCase(value: string): string {
 }
 
 export function toCivilEngineeringAssetLayerAlias(layerId: string): string {
-  const normalized = String(layerId || '').trim().toLowerCase();
+  const normalized = normalizeCivilEngineeringLayerId(layerId);
   if (!normalized) return '';
 
   if (CIVIL_ENGINEERING_ASSET_LAYER_ALIASES[normalized]) {
@@ -65,8 +83,8 @@ export function toCivilEngineeringAssetLayerAlias(layerId: string): string {
 }
 
 export function getCivilEngineeringAssetLayerDisplayName(layerId: string, layerName?: string): string {
-  const normalizedId = String(layerId || '').trim().toLowerCase();
-  const normalizedName = String(layerName || '').trim().toLowerCase();
+  const normalizedId = normalizeCivilEngineeringLayerId(layerId);
+  const normalizedName = normalizeCivilEngineeringLayerId(layerName || '');
 
   if (normalizedId && CIVIL_ENGINEERING_ASSET_LAYER_ALIASES[normalizedId]) {
     return CIVIL_ENGINEERING_ASSET_LAYER_ALIASES[normalizedId];
@@ -136,7 +154,76 @@ export class LandPlanOntrackLayer extends LandPlanOntrackViewingLayer {
 
   protected override onFeatureReady(feature: any, layer: any): void {
     layer.on('click', () => {
-      if (!this.edit.enabled || this.edit.editLayer !== 'landplan') return;
+      if (!this.edit.enabled || normalizeCivilEngineeringLayerId(this.edit.editLayer || '') !== 'landplan_ontrack') return;
+      this.edit.select(feature);
+    });
+  }
+}
+
+export class LandOffsetEditLayer extends LandOffsetLayer {
+  constructor(
+    api: Api,
+    private edit: EditState,
+    onData?: (geojson: any) => void
+  ) {
+    super(api, onData);
+  }
+
+  protected override isInteractive(): boolean {
+    return true;
+  }
+
+  protected override onFeatureReady(feature: any, layer: any): void {
+    layer.on('click', () => {
+      if (!this.edit.enabled || normalizeCivilEngineeringLayerId(this.edit.editLayer || '') !== 'land_offset') return;
+      this.edit.select(feature);
+    });
+  }
+}
+
+export class LandBoundaryEditLayer extends LandBoundaryLayer {
+  constructor(
+    api: Api,
+    private edit: EditState,
+    onData?: (geojson: any) => void
+  ) {
+    super(api, onData);
+  }
+
+  protected override isInteractive(): boolean {
+    return true;
+  }
+
+  protected override onFeatureReady(feature: any, layer: any): void {
+    layer.on('click', () => {
+      if (!this.edit.enabled || normalizeCivilEngineeringLayerId(this.edit.editLayer || '') !== 'land_boundary') return;
+      this.edit.select(feature);
+    });
+  }
+}
+
+export class DynamicDepartmentEditLayer extends DynamicDepartmentLayer {
+  constructor(
+    id: string,
+    title: string,
+    api: Api,
+    departmentRef: string,
+    layerKey: string,
+    private edit: EditState,
+    onData?: (geojson: any) => void
+  ) {
+    super(id, title, api, departmentRef, layerKey, onData);
+  }
+
+  protected override isInteractive(): boolean {
+    return true;
+  }
+
+  protected override onFeatureReady(feature: any, layer: any): void {
+    const normalizedLayerKey = normalizeCivilEngineeringLayerId(this.id.replace(/^department_/, ''));
+    layer.on('click', () => {
+      if (!this.edit.enabled) return;
+      if (normalizeCivilEngineeringLayerId(this.edit.editLayer || '') !== normalizedLayerKey) return;
       this.edit.select(feature);
     });
   }

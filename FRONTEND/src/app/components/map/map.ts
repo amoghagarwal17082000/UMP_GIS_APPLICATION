@@ -7,7 +7,14 @@ import { filter } from 'rxjs/operators';
 import { ActivatedRoute, Router, NavigationStart } from '@angular/router';
 
 import { Api } from '../../api/api';
-import { StationLayer, LandPlanOntrackLayer } from '../../departments/civil_engineering_assets/editing/civil-engineering-assets-editing';
+import {
+  DynamicDepartmentEditLayer,
+  LandBoundaryEditLayer,
+  LandOffsetEditLayer,
+  LandPlanOntrackLayer,
+  normalizeCivilEngineeringLayerId,
+  StationLayer,
+} from '../../departments/civil_engineering_assets/editing/civil-engineering-assets-editing';
 import {
   DynamicDepartmentLayer,
   LandBoundaryLayer,
@@ -32,7 +39,7 @@ import { CurrentUserService } from '../../services/current-user';
 import { MapZoomService, ZoomTarget } from '../../services/map-zoom';
 import { Station } from '../../services/station.service';
 
-type EditableLayer = 'stations' | 'landplan';
+type EditableLayer = string | null;
 type DepartmentModuleKey = 'civil_engineering_assets' | 'civil_engineering_assets_offtrack' | 'unknown';
 type DepartmentLayerMeta = {
   layerName: string;
@@ -170,7 +177,9 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     return m;
   }
 
-  private isEditableLayer(x: any): x is EditableLayer { return x === 'stations' || x === 'landplan'; }
+  private isEditableLayer(x: any): x is EditableLayer {
+    return !!normalizeCivilEngineeringLayerId(String(x || '').trim());
+  }
   private normalizeDepartmentName(value: string | null | undefined): string { return (value || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim(); }
 
   private updateStationCreateModeUi(): void { if (!this.map) return; const isCreatingStation = this.edit.enabled && this.edit.editLayer === 'stations' && this.edit.creatingStation; const container = this.map.getContainer(); container.style.cursor = isCreatingStation ? 'crosshair' : ''; if (isCreatingStation) this.map.doubleClickZoom.disable(); else this.map.doubleClickZoom.enable(); }
@@ -215,12 +224,13 @@ export class MapComponent implements AfterViewInit, OnDestroy {
           if (!layerKey || this.shouldSkipDynamicDepartmentLayer(layerKey, departmentKey)) return;
           const title = this.toLayerTitle(meta?.layerName || layerKey);
           this.layerManager.registerOnce(
-            new DynamicDepartmentLayer(
+            new DynamicDepartmentEditLayer(
               `department_${layerKey}`,
               title,
               this.api,
               departmentRef,
               layerKey,
+              this.edit,
               (g: any) => this.attrTable.pushFeatureCollection(title, g)
             )
           );
@@ -261,10 +271,15 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   private syncEditAwareLayers(): void {
     if (!this.map) return;
-    const wantsStationEditLayer = this.edit.enabled && this.edit.editLayer === 'stations';
-    const wantsLandPlanEditLayer = this.edit.enabled && this.edit.editLayer === 'landplan';
+    const normalizedEditLayer = normalizeCivilEngineeringLayerId(this.edit.editLayer || '');
+    const wantsStationEditLayer = this.edit.enabled && normalizedEditLayer === 'stations';
+    const wantsLandPlanEditLayer = this.edit.enabled && (normalizedEditLayer === 'landplan_ontrack' || normalizedEditLayer === 'landplan');
+    const wantsLandOffsetEditLayer = this.edit.enabled && normalizedEditLayer === 'land_offset';
+    const wantsLandBoundaryEditLayer = this.edit.enabled && normalizedEditLayer === 'land_boundary';
     this.layerManager.replaceLayer(wantsStationEditLayer ? new StationLayer(this.api, this.filters, this.edit, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)) : new StationViewingLayer(this.api, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)), this.map);
     this.layerManager.replaceLayer(wantsLandPlanEditLayer ? new LandPlanOntrackLayer(this.api, this.edit, (g) => this.attrTable.pushFeatureCollection('Land Plan Ontrack', g)) : new LandPlanOntrackViewingLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Plan Ontrack', g)), this.map);
+    this.layerManager.replaceLayer(wantsLandOffsetEditLayer ? new LandOffsetEditLayer(this.api, this.edit, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)) : new LandOffsetLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)), this.map);
+    this.layerManager.replaceLayer(wantsLandBoundaryEditLayer ? new LandBoundaryEditLayer(this.api, this.edit, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)) : new LandBoundaryLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)), this.map);
   }
 
   private initDeepLinking(): void {

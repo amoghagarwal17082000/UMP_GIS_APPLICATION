@@ -7,7 +7,7 @@ import { BASE_URL, getDivision } from '../../shared/api-utils';
 export class CivilEngineeringAssetsEditingApi {
   constructor(private http: HttpClient) {}
 
-  getStationTable(page: number, pageSize: number, search: string) {
+  getLayerTable(layer: string, page: number, pageSize: number, search: string) {
     const params: any = {
       page,
       pageSize,
@@ -15,10 +15,10 @@ export class CivilEngineeringAssetsEditingApi {
     };
     if (search) params.q = search;
 
-    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/station/table`, { params });
+    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/table`, { params });
   }
 
-  getStationDraftTable(page: number, pageSize: number, search: string, status: string) {
+  getLayerDraftTable(layer: string, page: number, pageSize: number, search: string, status: string) {
     const params: any = {
       page,
       pageSize,
@@ -27,70 +27,70 @@ export class CivilEngineeringAssetsEditingApi {
     if (search) params.q = search;
     if (status) params.status = status;
 
-    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/station/draft-table`, { params });
+    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/draft-table`, { params });
   }
 
-  updateStation(id: number, payload: any) {
-    return this.http.put(`${BASE_URL}/api/civil_engineering_assets/edit/station/${id}`, payload, {
+  updateLayer(layer: string, id: number, payload: any) {
+    return this.http.put(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}`, payload, {
       params: { division: getDivision() },
     });
   }
 
-  sendStationEdit(id: number, payload: any) {
-    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/${id}/send`, payload, {
+  sendLayerEdit(layer: string, id: number, payload: any) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}/send`, payload, {
       params: { division: getDivision() },
     });
   }
 
-  requestStationDeletion(id: number) {
-    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/${id}/request-deletion`, null, {
+  requestLayerDeletion(layer: string, id: number) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}/request-deletion`, null, {
       params: { division: getDivision() },
     });
   }
 
-  requestStationDraftDeletion(id: number) {
-    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/draft/${id}/request-deletion`, null, {
+  requestLayerDraftDeletion(layer: string, id: number) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/draft/${id}/request-deletion`, null, {
       params: { division: getDivision() },
     });
   }
 
-  resendStationDraft(id: number, payload: any) {
-    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/draft/${id}/resend`, payload, {
+  resendLayerDraft(layer: string, id: number, payload: any) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/draft/${id}/resend`, payload, {
       params: { division: getDivision() },
     });
   }
 
-  sendNewStationEdit(payload: any) {
-    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station/send-new`, payload, {
+  sendNewLayerEdit(layer: string, payload: any) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/send-new`, payload, {
       params: { division: getDivision() },
     });
   }
 
-  deleteStation(id: number) {
-    return this.http.delete(`${BASE_URL}/api/civil_engineering_assets/edit/station/${id}`, {
+  deleteLayer(layer: string, id: number) {
+    return this.http.delete(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}`, {
       params: { division: getDivision() },
     });
   }
 
-  createStation(payload: any) {
-    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/station`, payload, {
+  createLayer(layer: string, payload: any) {
+    return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}`, payload, {
       params: { division: getDivision() },
     });
   }
 
-  getStationById(id: number) {
+  getLayerById(layer: string, id: number) {
     const params = new HttpParams().set('division', getDivision());
-    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/station/${id}`, { params });
+    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}`, { params });
   }
 
-  getStationDraftById(id: number) {
+  getLayerDraftById(layer: string, id: number) {
     const params = new HttpParams().set('division', getDivision());
-    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/station/draft/${id}`, { params });
+    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/draft/${id}`, { params });
   }
 
-  updateStationDraftStatus(id: number, status: string) {
+  updateLayerDraftStatus(layer: string, id: number, status: string) {
     return this.http.post<any>(
-      `${BASE_URL}/api/civil_engineering_assets/edit/station/draft/${id}/status`,
+      `${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/draft/${id}/status`,
       { status },
       {
         params: { division: getDivision() },
@@ -108,5 +108,81 @@ export class CivilEngineeringAssetsEditingApi {
     return this.http.post<any>(`${BASE_URL}/api/civil_engineering_assets/edit/station/validate`, {
       station_code,
     });
+  }
+
+  getStationTable(page: number, pageSize: number, search: string) {
+    return this.getLayerTable('station', page, pageSize, search);
+  }
+
+  getBridgeStartTable(page: number, pageSize: number, search: string) {
+    return this.getLayerTable('bridge_start', page, pageSize, search);
+  }
+
+  getBridgeEndTable(page: number, pageSize: number, search: string) {
+    return this.getLayerTable('bridge_end', page, pageSize, search);
+  }
+
+  getBridgeMinorTable(page: number, pageSize: number, search: string) {
+    return this.getLayerTable('bridge_minor', page, pageSize, search);
+  }
+
+  getStationDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.getLayerDraftTable('station', page, pageSize, search, status);
+  }
+
+  getBridgeStartDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.getLayerDraftTable('bridge_start', page, pageSize, search, status);
+  }
+
+  getBridgeEndDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.getLayerDraftTable('bridge_end', page, pageSize, search, status);
+  }
+
+  getBridgeMinorDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.getLayerDraftTable('bridge_minor', page, pageSize, search, status);
+  }
+
+  updateStation(id: number, payload: any) {
+    return this.updateLayer('station', id, payload);
+  }
+
+  sendStationEdit(id: number, payload: any) {
+    return this.sendLayerEdit('station', id, payload);
+  }
+
+  requestStationDeletion(id: number) {
+    return this.requestLayerDeletion('station', id);
+  }
+
+  requestStationDraftDeletion(id: number) {
+    return this.requestLayerDraftDeletion('station', id);
+  }
+
+  resendStationDraft(id: number, payload: any) {
+    return this.resendLayerDraft('station', id, payload);
+  }
+
+  sendNewStationEdit(payload: any) {
+    return this.sendNewLayerEdit('station', payload);
+  }
+
+  deleteStation(id: number) {
+    return this.deleteLayer('station', id);
+  }
+
+  createStation(payload: any) {
+    return this.createLayer('station', payload);
+  }
+
+  getStationById(id: number) {
+    return this.getLayerById('station', id);
+  }
+
+  getStationDraftById(id: number) {
+    return this.getLayerDraftById('station', id);
+  }
+
+  updateStationDraftStatus(id: number, status: string) {
+    return this.updateLayerDraftStatus('station', id, status);
   }
 }

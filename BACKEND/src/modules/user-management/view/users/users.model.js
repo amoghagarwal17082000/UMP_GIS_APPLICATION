@@ -67,7 +67,7 @@ async function getMakerCheckerList(divisionCode) {
 
 async function assignChecker(maker_id, checker_id) {
   const checkerSql = `
-    SELECT user_name
+    SELECT user_id
     FROM user_master
     WHERE objectid = $1
   `;
@@ -78,7 +78,7 @@ async function assignChecker(maker_id, checker_id) {
     throw new Error('Checker not found');
   }
 
-  const checkerName = checkerResult.rows[0].user_name;
+  const checkerUserId = checkerResult.rows[0].user_id;
 
   const updateSql = `
     UPDATE user_master
@@ -86,7 +86,7 @@ async function assignChecker(maker_id, checker_id) {
     WHERE objectid = $2
   `;
 
-  await pool.query(updateSql, [checkerName, maker_id]);
+  await pool.query(updateSql, [checkerUserId, maker_id]);
 }
 
 async function getAssignedCheckerUsers(divisionCode) {
@@ -102,10 +102,13 @@ async function getAssignedCheckerUsers(divisionCode) {
       COALESCE(dt.department, u.department_id) AS department_id,
       u.hrmsid,
       u.designation,
-      u.assigned_checker AS assigned_checker_name
+      checker.user_name AS assigned_checker_name,
+      u.assigned_checker AS assigned_checker
     FROM user_master u
     JOIN div_master d
       ON u.division = d.div_name
+    LEFT JOIN user_master checker
+      ON LOWER(TRIM(COALESCE(checker.user_id, ''))) = LOWER(TRIM(COALESCE(u.assigned_checker, '')))
     LEFT JOIN (
       SELECT department_id, MIN(department) AS department
       FROM department_table

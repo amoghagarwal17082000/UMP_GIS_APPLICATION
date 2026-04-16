@@ -60,45 +60,111 @@ export class Api {
   getLandPlanOntrack(z: number) {
     return this.ceaViewingApi.getLandPlanOnTrack(z);
   }
+  getBridgeStart(bbox: string) {
+    return this.ceaViewingApi.getBridgeStart(bbox);
+  }
+  getBridgeEnd(bbox: string) {
+    return this.ceaViewingApi.getBridgeEnd(bbox);
+  }
+  getBridgeMinor(bbox: string) {
+    return this.ceaViewingApi.getBridgeMinor(bbox);
+  }
 
   getStationTable(page: number, pageSize: number, search: string) {
     return this.ceaEditingApi.getStationTable(page, pageSize, search);
   }
+  getBridgeStartTable(page: number, pageSize: number, search: string) {
+    return this.ceaEditingApi.getBridgeStartTable(page, pageSize, search);
+  }
+  getBridgeEndTable(page: number, pageSize: number, search: string) {
+    return this.ceaEditingApi.getBridgeEndTable(page, pageSize, search);
+  }
+  getBridgeMinorTable(page: number, pageSize: number, search: string) {
+    return this.ceaEditingApi.getBridgeMinorTable(page, pageSize, search);
+  }
+  getLayerTable(layer: string, page: number, pageSize: number, search: string) {
+    return this.ceaEditingApi.getLayerTable(layer, page, pageSize, search);
+  }
   getStationDraftTable(page: number, pageSize: number, search: string, status: string) {
     return this.ceaEditingApi.getStationDraftTable(page, pageSize, search, status);
+  }
+  getBridgeStartDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.ceaEditingApi.getBridgeStartDraftTable(page, pageSize, search, status);
+  }
+  getBridgeEndDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.ceaEditingApi.getBridgeEndDraftTable(page, pageSize, search, status);
+  }
+  getBridgeMinorDraftTable(page: number, pageSize: number, search: string, status: string) {
+    return this.ceaEditingApi.getBridgeMinorDraftTable(page, pageSize, search, status);
+  }
+  getLayerDraftTable(layer: string, page: number, pageSize: number, search: string, status: string) {
+    return this.ceaEditingApi.getLayerDraftTable(layer, page, pageSize, search, status);
   }
   updateStation(id: number, payload: any) {
     return this.ceaEditingApi.updateStation(id, payload);
   }
+  updateLayer(layer: string, id: number, payload: any) {
+    return this.ceaEditingApi.updateLayer(layer, id, payload);
+  }
   sendStationEdit(id: number, payload: any) {
     return this.ceaEditingApi.sendStationEdit(id, payload);
+  }
+  sendLayerEdit(layer: string, id: number, payload: any) {
+    return this.ceaEditingApi.sendLayerEdit(layer, id, payload);
   }
   requestStationDeletion(id: number) {
     return this.ceaEditingApi.requestStationDeletion(id);
   }
+  requestLayerDeletion(layer: string, id: number) {
+    return this.ceaEditingApi.requestLayerDeletion(layer, id);
+  }
   requestStationDraftDeletion(id: number) {
     return this.ceaEditingApi.requestStationDraftDeletion(id);
+  }
+  requestLayerDraftDeletion(layer: string, id: number) {
+    return this.ceaEditingApi.requestLayerDraftDeletion(layer, id);
   }
   resendStationDraft(id: number, payload: any) {
     return this.ceaEditingApi.resendStationDraft(id, payload);
   }
+  resendLayerDraft(layer: string, id: number, payload: any) {
+    return this.ceaEditingApi.resendLayerDraft(layer, id, payload);
+  }
   deleteStation(id: number) {
     return this.ceaEditingApi.deleteStation(id);
+  }
+  deleteLayer(layer: string, id: number) {
+    return this.ceaEditingApi.deleteLayer(layer, id);
   }
   createStation(payload: any) {
     return this.ceaEditingApi.createStation(payload);
   }
+  createLayer(layer: string, payload: any) {
+    return this.ceaEditingApi.createLayer(layer, payload);
+  }
   sendNewStationEdit(payload: any) {
     return this.ceaEditingApi.sendNewStationEdit(payload);
+  }
+  sendNewLayerEdit(layer: string, payload: any) {
+    return this.ceaEditingApi.sendNewLayerEdit(layer, payload);
   }
   getStationById(id: number) {
     return this.ceaEditingApi.getStationById(id);
   }
+  getLayerById(layer: string, id: number) {
+    return this.ceaEditingApi.getLayerById(layer, id);
+  }
   getStationDraftById(id: number) {
     return this.ceaEditingApi.getStationDraftById(id);
   }
+  getLayerDraftById(layer: string, id: number) {
+    return this.ceaEditingApi.getLayerDraftById(layer, id);
+  }
   updateStationDraftStatus(id: number, status: string) {
     return this.ceaEditingApi.updateStationDraftStatus(id, status);
+  }
+  updateLayerDraftStatus(layer: string, id: number, status: string) {
+    return this.ceaEditingApi.updateLayerDraftStatus(layer, id, status);
   }
   getStationByCode(code: string) {
     return this.ceaEditingApi.getStationByCode(code);

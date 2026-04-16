@@ -109,7 +109,11 @@
     <!-- ================= TABLE MODE ================= -->
     <ng-container *ngIf="currentTableLayer && mode === 'table'">
 
-      <div class="toolbar">
+      <div class="table-meta" *ngIf="!supportsCurrentLayerListing()">
+        Select a {{ currentLayerSchema?.label || 'layer' }} feature on the map to inspect it in the edit tool.
+      </div>
+
+      <div class="toolbar" *ngIf="supportsCurrentLayerListing()">
         <button class="add-btn" *ngIf="isMaker() && makerTab === 'edit' && currentTableLayer === 'stations'" (click)="startAddStation()">Add New Record</button>
         <div class="spacer"></div>
         <label class="search">Search:</label>
@@ -121,7 +125,7 @@
         />
       </div>
 
-      <div class="card">
+      <div class="card" *ngIf="supportsCurrentLayerListing()">
         <div class="table-scroll">
           <table class="tbl">
             <thead>
@@ -253,15 +257,15 @@
 
     <!-- ================= EDIT MODE ================= -->
 <!-- ================= EDIT MODE ================= -->
-<div *ngIf="mode === 'edit'" class="edit-form">
+<div *ngIf="mode === 'edit'" class="edit-form" [class.bridge-form]="isBridgeLayer()">
 
   <div class="edit-top">
     <div>
-      <h3 class="edit-title">Asset Details</h3>
+      <h3 class="edit-title">{{ getEditTitle() }}</h3>
       <!-- <div class="edit-subtitle">Selected Asset Details</div> -->
     </div>
 
-    <button class="back-btn" (click)="cancelEdit()">← Back</button>
+    <button class="back-btn" (click)="cancelEdit()">Back</button>
   </div>
 
   <div class="form-grid">
@@ -338,7 +342,7 @@
     </button>
 
     <button class="btn primary" type="button" (click)="send()" [disabled]="saving">
-      {{ saving ? 'Saving...' : 'Send' }}
+      {{ getSendButtonLabel() }}
     </button>
   </ng-container>
 </div>

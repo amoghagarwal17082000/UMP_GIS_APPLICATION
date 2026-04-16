@@ -114,7 +114,7 @@ app-map {
 }
 
 .right-panel.edit {
-  right: calc(12px + var(--widget-width) + var(--widget-gap) + 150px);
+  right: calc(12px + var(--widget-width) + var(--widget-gap) + 180px);
 }
 
 .right-panel.open {
