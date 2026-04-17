@@ -79,6 +79,7 @@ async function getDraftAssignments(client, makerUserId, fallbackDivision) {
     SELECT
       u.department_id,
       u.user_name,
+      NULLIF(TRIM(u.assigned_checker), '') AS assigned_checker,
       dept.department,
       COALESCE(d.divcode, $2) AS division_code,
       NULLIF(TRIM(d.div_name), '') AS division_name,
@@ -100,9 +101,21 @@ async function getDraftAssignments(client, makerUserId, fallbackDivision) {
     throw err;
   }
 
+  let checkerUserId = null;
+  if (maker.assigned_checker) {
+    const checkerSql = `
+      SELECT u.user_id
+      FROM user_master u
+      WHERE LOWER(TRIM(u.user_type)) = 'checker'
+        AND LOWER(TRIM(u.user_id)) = LOWER(TRIM($1))
+      LIMIT 1
+    `;
+    const { rows: checkerRows } = await client.query(checkerSql, [maker.assigned_checker]);
+    checkerUserId = checkerRows[0]?.user_id ? String(checkerRows[0].user_id).trim() : null;
+  }
+
   const assignmentSql = `
     SELECT
-      MAX(CASE WHEN LOWER(u.user_type) = 'checker' THEN u.user_id END) AS checker_user_id,
       MAX(CASE WHEN LOWER(u.user_type) = 'approver' THEN u.user_id END) AS approver_user_id
     FROM user_master u
     LEFT JOIN div_master d ON u.div_id = d.div_id
@@ -116,7 +129,7 @@ async function getDraftAssignments(client, makerUserId, fallbackDivision) {
     makerDepartment: maker.department ? String(maker.department).trim() : null,
     makerDivisionName: maker.division_name ? String(maker.division_name).trim() : null,
     makerRailwayCode: maker.railway_code ? String(maker.railway_code).trim() : null,
-    checkerUserId: rows[0]?.checker_user_id ? String(rows[0].checker_user_id).trim() : null,
+    checkerUserId: checkerUserId || (maker.assigned_checker ? String(maker.assigned_checker).trim() : null),
     approverUserId: rows[0]?.approver_user_id ? String(rows[0].approver_user_id).trim() : null,
   };
 }
@@ -131,6 +144,36 @@ async function getUserNameByUserId(client, userId) {
 
   const { rows } = await client.query(sql, [userId]);
   return rows[0]?.user_name ? String(rows[0].user_name).trim() : String(userId || '').trim();
+}
+
+async function getAssignedCheckerUserNameForMakerUserName(client, makerUserName) {
+  const normalizedMakerUserName = String(makerUserName || '').trim();
+  if (!normalizedMakerUserName) return '';
+
+  const sql = `
+    SELECT NULLIF(TRIM(assigned_checker), '') AS assigned_checker
+    FROM user_master
+    WHERE LOWER(TRIM(user_name)) = LOWER(TRIM($1))
+    LIMIT 1
+  `;
+
+  const { rows } = await client.query(sql, [normalizedMakerUserName]);
+  const assignedChecker = rows[0]?.assigned_checker ? String(rows[0].assigned_checker).trim() : '';
+  if (!assignedChecker) return '';
+
+  const checkerSql = `
+    SELECT NULLIF(TRIM(user_name), '') AS user_name
+    FROM user_master
+    WHERE LOWER(TRIM(COALESCE(user_type, ''))) = 'checker'
+      AND (
+        LOWER(TRIM(COALESCE(user_id, ''))) = LOWER(TRIM($1))
+        OR LOWER(TRIM(COALESCE(user_name, ''))) = LOWER(TRIM($1))
+      )
+    LIMIT 1
+  `;
+
+  const { rows: checkerRows } = await client.query(checkerSql, [assignedChecker]);
+  return checkerRows[0]?.user_name ? String(checkerRows[0].user_name).trim() : assignedChecker;
 }
 
 async function updateMainStatusByObjectId(client, config, objectId, division, status) {
@@ -294,6 +337,16 @@ function buildStationBaseInsert(mainTableColumns, config, record, objectId) {
   };
 }
 
+function setWorkflowAssignmentFields(record, workflow, draftTableColumns, assignments) {
+  if (workflow?.checkerColumn && draftTableColumns.includes(workflow.checkerColumn)) {
+    record[workflow.checkerColumn] = assignments.checkerUserId;
+  }
+
+  if (workflow?.approverColumn && draftTableColumns.includes(workflow.approverColumn)) {
+    record[workflow.approverColumn] = assignments.approverUserId;
+  }
+}
+
 async function getById(config, id, division) {
   const sql = `
     SELECT *
@@ -382,20 +435,37 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
       throw err;
     }
 
-    const assignedUserColumn = normalizedUserType === 'checker' ? workflow.checkerColumn : workflow.approverColumn;
-    const assignedUser = String(draft?.[assignedUserColumn] || '').trim();
-    if (assignedUser && assignedUser.toLowerCase() !== String(actingUserId || '').trim().toLowerCase()) {
-      const err = new Error(
-        normalizedUserType === 'checker'
-          ? 'This draft is assigned to a different checker'
-          : 'This draft is assigned to a different approver'
-      );
-      err.status = 403;
-      throw err;
+    const actingUserName = await getUserNameByUserId(client, actingUserId);
+    if (normalizedUserType === 'checker') {
+      const makerUserName = String(draft?.edited_by || '').trim();
+      const assignedCheckerUserName = await getAssignedCheckerUserNameForMakerUserName(client, makerUserName);
+      if (
+        assignedCheckerUserName &&
+        assignedCheckerUserName.toLowerCase() !== String(actingUserName || '').trim().toLowerCase()
+      ) {
+        const err = new Error('This draft is assigned to a different checker');
+        err.status = 403;
+        throw err;
+      }
+    } else {
+      const assignedUserColumn = workflow.approverColumn;
+      const hasAssignedUserColumn = assignedUserColumn && draft?.[assignedUserColumn] != null;
+      if (hasAssignedUserColumn) {
+        const assignedUser = String(draft?.[assignedUserColumn] || '').trim();
+        const normalizedAssignedUser = assignedUser.toLowerCase();
+        const matchesActingUser =
+          !assignedUser ||
+          normalizedAssignedUser === String(actingUserId || '').trim().toLowerCase() ||
+          normalizedAssignedUser === String(actingUserName || '').trim().toLowerCase();
+        if (!matchesActingUser) {
+          const err = new Error('This draft is assigned to a different approver');
+          err.status = 403;
+          throw err;
+        }
+      }
     }
 
     const draftTableColumns = await getTableColumns(client, workflow.table);
-    const actingUserName = await getUserNameByUserId(client, actingUserId);
     const setClauses = [`${workflow.statusColumn} = $1`];
     const params = [normalizedStatus];
 
@@ -542,13 +612,12 @@ async function requestStationDeletion(config, id, division, makerUserId, submitt
       [workflow.editIdColumn]: originalRow[config.idColumn],
       [workflow.originalIdColumn]: originalRow.gis_unique_id ?? null,
       [workflow.statusColumn]: 'Sent to Checker for Deletion',
-      [workflow.checkerColumn]: assignments.checkerUserId,
-      [workflow.approverColumn]: assignments.approverUserId,
       modified_by: draftTableColumns.includes('modified_by') ? assignments.makerUserName : undefined,
       modified_date: draftTableColumns.includes('modified_date') ? '__NOW__' : undefined,
       objectid: draftTableColumns.includes('objectid') ? await getNextManualId(client, workflow.table, 'objectid') : undefined,
       globalid: draftTableColumns.includes('globalid') ? generateGUID() : undefined,
     };
+    setWorkflowAssignmentFields(record, workflow, draftTableColumns, assignments);
 
     const { insertColumns, placeholders, values } = buildStationDraftInsert(draftTableColumns, config, record);
     const insertSql = `
@@ -719,13 +788,12 @@ async function resendStationDraft(config, draftObjectId, division, data, makerUs
         ? (data?.department ?? assignments.makerDepartment ?? draft?.department ?? null)
         : undefined,
       [workflow.statusColumn]: workflow.draftStatusValue,
-      [workflow.checkerColumn]: assignments.checkerUserId,
-      [workflow.approverColumn]: assignments.approverUserId,
       edited_by: draftTableColumns.includes('edited_by') ? makerUserName : undefined,
       edited_at: draftTableColumns.includes('edited_at') ? '__NOW__' : undefined,
       modified_by: draftTableColumns.includes('modified_by') ? makerUserName : undefined,
       modified_date: draftTableColumns.includes('modified_date') ? '__NOW__' : undefined,
     };
+    setWorkflowAssignmentFields(record, workflow, draftTableColumns, assignments);
 
     const setClauses = [];
     const values = [];
@@ -915,7 +983,7 @@ async function getTable(config, page, pageSize, q, division) {
   };
 }
 
-async function getDraftTable(config, page, pageSize, q, division, status) {
+async function getDraftTable(config, page, pageSize, q, division, status, actingUserId, actingUserType) {
   if (!config.draftWorkflow) {
     const err = new Error('Draft workflow config not found for layer');
     err.status = 400;
@@ -924,12 +992,50 @@ async function getDraftTable(config, page, pageSize, q, division, status) {
 
   const limit = Math.min(200, Math.max(1, Number(pageSize)));
   const offset = (Number(page) - 1) * limit;
+  const draftTableColumns = await getTableColumns(pool, config.draftWorkflow.table);
   const params = [division];
   let where = `UPPER(division) = UPPER($1)`;
 
   if (status) {
     params.push(status);
     where += ` AND UPPER(status) = UPPER($${params.length})`;
+  }
+
+  const normalizedUserType = String(actingUserType || '').trim().toLowerCase();
+  const normalizedActingUserId = String(actingUserId || '').trim();
+  if (normalizedActingUserId && normalizedUserType === 'checker') {
+    const actingUserName = await getUserNameByUserId(pool, normalizedActingUserId);
+    params.push(String(actingUserName || '').trim());
+    const actingUserNameIndex = params.length;
+    const makerAssignmentRule = draftTableColumns.includes('edited_by')
+      ? `
+        EXISTS (
+          SELECT 1
+          FROM user_master maker
+          LEFT JOIN user_master checker
+            ON LOWER(TRIM(COALESCE(checker.user_type, ''))) = 'checker'
+           AND (
+             LOWER(TRIM(COALESCE(checker.user_id, ''))) = LOWER(TRIM(COALESCE(maker.assigned_checker, '')))
+             OR LOWER(TRIM(COALESCE(checker.user_name, ''))) = LOWER(TRIM(COALESCE(maker.assigned_checker, '')))
+           )
+          WHERE LOWER(TRIM(COALESCE(maker.user_name, ''))) = LOWER(TRIM(d.edited_by::text))
+            AND LOWER(TRIM(COALESCE(checker.user_name, COALESCE(maker.assigned_checker, '')))) = LOWER($${actingUserNameIndex})
+        )`
+      : 'FALSE';
+    where += ` AND (${makerAssignmentRule})`;
+  } else if (normalizedActingUserId && normalizedUserType === 'approver') {
+    const approverColumn = config.draftWorkflow.approverColumn;
+    if (approverColumn && draftTableColumns.includes(approverColumn)) {
+      const actingUserName = await getUserNameByUserId(pool, normalizedActingUserId);
+      params.push(normalizedActingUserId);
+      const actingUserIdIndex = params.length;
+      params.push(String(actingUserName || '').trim());
+      const actingUserNameIndex = params.length;
+      where += ` AND (
+        LOWER(COALESCE(d.${approverColumn}::text, '')) = LOWER($${actingUserIdIndex})
+        OR LOWER(COALESCE(d.${approverColumn}::text, '')) = LOWER($${actingUserNameIndex})
+      )`;
+    }
   }
 
   if (q && config.searchableFields?.length) {
@@ -944,13 +1050,13 @@ async function getDraftTable(config, page, pageSize, q, division, status) {
 
   const totalSql = `
     SELECT COUNT(*)::int AS total
-    FROM ${config.draftWorkflow.table}
+    FROM ${config.draftWorkflow.table} d
     WHERE ${where}
   `;
 
   const listSql = `
-    SELECT *
-    FROM ${config.draftWorkflow.table}
+    SELECT d.*
+    FROM ${config.draftWorkflow.table} d
     WHERE ${where}
     ORDER BY objectid
     LIMIT ${limit} OFFSET ${offset}
@@ -1058,8 +1164,6 @@ async function sendStationEdit(config, id, division, data, makerUserId, submitti
       [workflow.editIdColumn]: originalRow[config.idColumn],
       [workflow.originalIdColumn]: originalRow.gis_unique_id ?? null,
       [workflow.statusColumn]: workflow.draftStatusValue,
-      [workflow.checkerColumn]: assignments.checkerUserId,
-      [workflow.approverColumn]: assignments.approverUserId,
       edited_by: String(submittingUserType || '').toLowerCase() === 'maker' && draftTableColumns.includes('edited_by') ? assignments.makerUserName : undefined,
       edited_at: String(submittingUserType || '').toLowerCase() === 'maker' && draftTableColumns.includes('edited_at') ? '__NOW__' : undefined,
       modified_by: String(submittingUserType || '').toLowerCase() === 'maker' && draftTableColumns.includes('modified_by') ? assignments.makerUserName : undefined,
@@ -1067,6 +1171,7 @@ async function sendStationEdit(config, id, division, data, makerUserId, submitti
       objectid: draftTableColumns.includes('objectid') ? await getNextManualId(client, workflow.table, 'objectid') : undefined,
       globalid: draftTableColumns.includes('globalid') ? generateGUID() : undefined,
     };
+    setWorkflowAssignmentFields(record, workflow, draftTableColumns, assignments);
 
     const { insertColumns, placeholders, values } = buildStationDraftInsert(draftTableColumns, config, record);
 
@@ -1145,8 +1250,6 @@ async function sendNewStationEdit(config, division, data, makerUserId, submittin
       [workflow.editIdColumn]: nextEditId,
       [workflow.originalIdColumn]: null,
       [workflow.statusColumn]: workflow.draftStatusValue,
-      [workflow.checkerColumn]: assignments.checkerUserId,
-      [workflow.approverColumn]: assignments.approverUserId,
       edited_by: isMakerSubmit && draftTableColumns.includes('edited_by') ? assignments.makerUserName : undefined,
       edited_at: isMakerSubmit && draftTableColumns.includes('edited_at') ? '__NOW__' : undefined,
       created_by: isMakerSubmit && draftTableColumns.includes('created_by') ? assignments.makerUserName : undefined,
@@ -1154,6 +1257,7 @@ async function sendNewStationEdit(config, division, data, makerUserId, submittin
       objectid: nextDraftObjectId,
       globalid: draftTableColumns.includes('globalid') ? generateGUID() : undefined,
     };
+    setWorkflowAssignmentFields(record, workflow, draftTableColumns, assignments);
 
     const { insertColumns, placeholders, values } = buildStationDraftInsert(draftTableColumns, config, record);
 

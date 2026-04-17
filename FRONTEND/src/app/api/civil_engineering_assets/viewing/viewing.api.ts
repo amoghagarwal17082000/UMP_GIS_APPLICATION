@@ -27,4 +27,25 @@ export class CivilEngineeringAssetsViewingApi {
       params: withDivision({ z }),
     });
   }
+
+  getBridgeStart(bbox: string) {
+    if (!hasDivision()) return of(emptyFeatureCollection());
+    return this.http.get<any>(`${BASE_URL}/api/common/view/layers/bridge_start`, {
+      params: withDivision({ bbox }),
+    });
+  }
+
+  getBridgeEnd(bbox: string) {
+    if (!hasDivision()) return of(emptyFeatureCollection());
+    return this.http.get<any>(`${BASE_URL}/api/common/view/layers/bridge_end`, {
+      params: withDivision({ bbox }),
+    });
+  }
+
+  getBridgeMinor(bbox: string) {
+    if (!hasDivision()) return of(emptyFeatureCollection());
+    return this.http.get<any>(`${BASE_URL}/api/common/view/layers/bridge_minor`, {
+      params: withDivision({ bbox }),
+    });
+  }
 }
