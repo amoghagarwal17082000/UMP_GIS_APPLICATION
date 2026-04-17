@@ -14,11 +14,11 @@ const STATION_LEGEND: LayerLegend = defineLegend({
   fillOpacity: 0.9,
   strokeColor: '#ffffff',
   strokeWidth: 1,
-  radius: 5,
+  radius: 6,
   symbolKind: 'circle' as const,
   imageUrl: 'assets/images/download.png',
-  imageWidth: 22,
-  imageHeight: 22,
+  imageWidth: 23,
+  imageHeight: 23,
 });
 
 const LANDPLAN_ONTRACK_LEGEND = defineLegend({
@@ -176,6 +176,10 @@ export class StationViewingLayer implements MapLayer {
   }
 
   removeFrom(map: L.Map) {
+    if (this.labelUpdateTimer) {
+      clearTimeout(this.labelUpdateTimer);
+      this.labelUpdateTimer = null;
+    }
     if (this.onMoveStartHandler) {
       map.off('zoomstart', this.onMoveStartHandler);
       map.off('movestart', this.onMoveStartHandler);
@@ -206,7 +210,11 @@ export class StationViewingLayer implements MapLayer {
   }
 
   protected updateLabels(map: L.Map) {
-    if (!this.isOnMap || !map.hasLayer(this.layer)) return;
+
+    if (!this.isOnMap || !map || !map.getContainer || !map.getContainer()) return;
+    if (!map.hasLayer(this.layer)) return;
+
+
     const show = map.getZoom() >= this.LABEL_ZOOM;
     const bounds = map.getBounds();
     const occupied: Array<{ x: number; y: number }> = [];
@@ -229,7 +237,13 @@ export class StationViewingLayer implements MapLayer {
         l.closeTooltip();
         return;
       }
-      const p = map.latLngToContainerPoint(latlng);
+      let p: L.Point;
+      try {
+        p = map.latLngToContainerPoint(latlng);
+      } catch {
+        return;
+      }
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
       const tooClose = occupied.some((q) => {
         const dx = q.x - p.x;
         const dy = q.y - p.y;
@@ -456,9 +470,18 @@ export class LandOffsetLayer implements MapLayer {
 
     this.layer = L.geoJSON(null, {
       style: () => pathStyleFromLegend(this.legend),
-      interactive: false,
+      interactive: this.isInteractive(),
+      onEachFeature: (feature: any, layer: any) => {
+        this.onFeatureReady(feature, layer);
+      },
     });
   }
+
+  protected isInteractive(): boolean {
+    return false;
+  }
+
+  protected onFeatureReady(_feature: any, _layer: any): void {}
 
   private canShow(map: L.Map): boolean {
     return this.visible && map.getZoom() >= this.minZoom;
@@ -618,8 +641,18 @@ export class LandBoundaryLayer implements MapLayer {
   constructor(private api: Api, private onData?: (geojson: any) => void) {
     this.layer = L.geoJSON(null, {
       style: pathStyleFromLegend(this.legend),
+      interactive: this.isInteractive(),
+      onEachFeature: (feature: any, layer: any) => {
+        this.onFeatureReady(feature, layer);
+      },
     });
   }
+
+  protected isInteractive(): boolean {
+    return false;
+  }
+
+  protected onFeatureReady(_feature: any, _layer: any): void {}
 
   private canShow(map: L.Map) {
     return this.visible && map.getZoom() >= this.minZoom;
@@ -715,19 +748,28 @@ export class DynamicDepartmentLayer implements MapLayer {
     this.minZoom = inferMinZoomFromTitle(title);
     this.layer = L.geoJSON(null, {
       style: () => pathStyleFromLegend(this.legend),
+      interactive: this.isInteractive(),
       pointToLayer: (_feature: any, latlng: L.LatLng) =>
         pointLayerFromLegend(this.legend, latlng, paneNameForLegend(this.legend)),
       onEachFeature: (feature: any, layer: any) => {
         const props = feature?.properties || {};
         const firstKeys = Object.keys(props).slice(0, 5);
-        if (!firstKeys.length) return;
-        const html = firstKeys
-          .map((key) => `<b>${key}</b>: ${props[key] ?? '-'}`)
-          .join('<br>');
-        layer.bindPopup(html);
+        if (firstKeys.length) {
+          const html = firstKeys
+            .map((key) => `<b>${key}</b>: ${props[key] ?? '-'}`)
+            .join('<br>');
+          layer.bindPopup(html);
+        }
+        this.onFeatureReady(feature, layer);
       },
     });
   }
+
+  protected isInteractive(): boolean {
+    return false;
+  }
+
+  protected onFeatureReady(_feature: any, _layer: any): void {}
 
   private canShow(map: L.Map): boolean {
     return this.visible && map.getZoom() >= this.minZoom;

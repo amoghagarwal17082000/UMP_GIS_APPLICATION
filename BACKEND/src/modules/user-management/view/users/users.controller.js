@@ -118,8 +118,11 @@ async function updateUserDetails(req, res, next) {
 
 async function getMakerLayerList(req, res, next) {
   try {
-    const { division } = req.query;
-    const data = await userModel.getMakerLayerList(division);
+    const { division, current_user_id } = req.query;
+    const data = await userModel.getMakerLayerList(
+      division,
+      String(current_user_id || '').trim()
+    );
     res.json(data);
   } catch (err) {
     next(err);
