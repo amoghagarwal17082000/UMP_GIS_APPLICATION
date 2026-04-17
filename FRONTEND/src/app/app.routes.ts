@@ -4,12 +4,12 @@ import { DashboardLayout } from './layouts/dashboard-layout/dashboard-layout';
 import { authGuard } from './guards/auth-guard';
 import { DashboardHome } from './dashboard/dashboard-home/dashboard-home';
 import { GisDashboardComponent } from './dashboard/gis-dashboard/gis-dashboard';
-import { UserManagementComponent } from './dashboard/user-management/user-management';
+import { UserManagementComponent } from './dashboard/user-management/divisional-admin/division-admin';
 import { adminGuard } from './guards/admin-guard';
 import { Feedback } from './dashboard/feedback/feedback';
 
 import { superAdminGuard } from './guards/super-admin-guard';
-import { SuperAdminUserManagementComponent } from './dashboard/super-admin-user-management/super-admin-user-management';
+import { SuperAdminUserManagementComponent } from './dashboard/user-management/super-admin/super-admin-user-management';
 
 
 import { ProfileComponent } from './dashboard/profile/profile';

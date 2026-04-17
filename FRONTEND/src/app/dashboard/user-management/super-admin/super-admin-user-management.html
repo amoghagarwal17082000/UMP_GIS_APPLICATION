@@ -1,0 +1,185 @@
+<div class="container-fluid super-admin-page dashboard-page-shell">
+  <div class="row g-3 h-100">
+    <div class="col-12 col-xl-3 d-flex">
+      <div class="super-admin-sidebar w-100">
+        <div class="welcome-card">
+          <h5>Hi, {{ currentUserName }}</h5>
+        </div>
+
+        <div class="identity-card">
+          <div class="identity-avatar">
+            <i class="bi bi-person-workspace"></i>
+          </div>
+          <div class="identity-meta">
+            <span class="identity-role-label">Role :</span>
+            <span class="identity-role-value">{{ currentUserRole }}</span>
+          </div>
+        </div>
+
+        <div class="summary-stat summary-stat-total">
+          <div class="summary-stat-label">Total Users</div>
+          <div class="summary-stat-value">{{ totalUsers }}</div>
+        </div>
+
+        <div class="summary-stat summary-stat-primary">
+          <div class="summary-stat-label">Super Admin</div>
+          <div class="summary-stat-value">{{ superAdminCount }}</div>
+        </div>
+
+        <div class="summary-group-list">
+          <div class="summary-group-card" *ngFor="let card of summaryCards">
+            <div class="summary-group-title">{{ card.label }}</div>
+
+            <div class="summary-group-grid">
+              <div class="summary-group-item" *ngFor="let count of card.counts">
+                <span class="summary-group-role">{{ count.role }}</span>
+                <span class="summary-group-value">{{ count.value }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-9 d-flex">
+      <div class="super-admin-main w-100">
+        <div class="super-admin-header">
+          <div>
+            <h4 class="super-admin-title">User List</h4>
+          </div>
+
+          <button class="create-user-btn" type="button">
+            + Create New User
+          </button>
+        </div>
+
+        <ul class="super-admin-tabs">
+          <li *ngFor="let tab of tabs">
+            <button
+              type="button"
+              class="super-admin-tab-btn"
+              [class.active]="activeTab === tab.key"
+              (click)="setActiveTab(tab.key)"
+            >
+              {{ tab.label }}
+            </button>
+          </li>
+        </ul>
+
+        <div class="search-panel">
+          <label for="super-admin-search">Search:</label>
+          <input
+            id="super-admin-search"
+            type="text"
+            class="form-control"
+            [(ngModel)]="searchText"
+            placeholder="Search by user, type, zone, division, HRMS ID..."
+          />
+        </div>
+
+        <div class="table-shell" *ngIf="!loading && !error; else stateBlock">
+          <div class="table-meta">
+            <span>Showing {{ filteredUsers.length }} users</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table super-admin-table align-middle">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>
+                    User Name
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    User Type
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    Unit Type
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    Unit Name
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    Zone
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    Division
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    Department
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    HRMS ID
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>
+                    Designation
+                    <span class="sort-icons">▲▼</span>
+                  </th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr *ngFor="let user of filteredUsers; let i = index; trackBy: trackByUser">
+                  <td>{{ i + 1 }}</td>
+                  <td>{{ user.user_name || '--' }}</td>
+                  <td>{{ user.user_type || '--' }}</td>
+                  <td>{{ user.unit_type || '--' }}</td>
+                  <td>{{ user.unit_name || '--' }}</td>
+                  <td>{{ user.zone || '--' }}</td>
+                  <td>{{ user.division || '--' }}</td>
+                  <td>{{ user.department_id || '--' }}</td>
+                  <td>{{ user.hrmsid || '--' }}</td>
+                  <td>{{ user.designation || '--' }}</td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" class="btn-action btn-view" title="View User">
+                        <i class="bi bi-person-vcard-fill"></i>
+                      </button>
+                      <button type="button" class="btn-action btn-edit" title="Edit User">
+                        <i class="bi bi-pencil-fill"></i>
+                      </button>
+                      <button type="button" class="btn-action btn-delete" title="Delete User">
+                        <i class="bi bi-trash-fill"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr *ngIf="filteredUsers.length === 0">
+                  <td colspan="11" class="empty-row">
+                    No users found for the selected filter.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <ng-template #stateBlock>
+          <div class="state-card" *ngIf="loading">
+            <div class="state-icon loading-icon">
+              <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div class="state-text">Loading users...</div>
+          </div>
+
+          <div class="state-card error-state" *ngIf="!loading && error">
+            <div class="state-icon">
+              <i class="bi bi-exclamation-circle-fill"></i>
+            </div>
+            <div class="state-text">{{ error }}</div>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+</div>

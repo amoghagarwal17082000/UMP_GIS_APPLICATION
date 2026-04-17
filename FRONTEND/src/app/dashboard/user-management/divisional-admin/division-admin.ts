@@ -7,8 +7,8 @@ import { Api } from 'src/app/api/api';
   selector: 'app-user-management',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './user-management.html',
-  styleUrl: './user-management.css',
+  templateUrl: './division-admin.html',
+  styleUrl: './division-admin.css',
 })
 export class UserManagementComponent implements OnInit {
   toastMessage = '';

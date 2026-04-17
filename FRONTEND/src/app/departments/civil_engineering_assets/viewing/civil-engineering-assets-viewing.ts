@@ -187,6 +187,10 @@ export class StationViewingLayer implements MapLayer {
     if (this.onMoveEndHandler) {
       map.off('moveend', this.onMoveEndHandler);
     }
+    this.onMoveStartHandler = undefined;
+    this.onMoveEndHandler = undefined;
+    if (this.labelUpdateTimer) clearTimeout(this.labelUpdateTimer);
+    this.labelUpdateTimer = null;
     if (map.hasLayer(this.layer)) map.removeLayer(this.layer);
     this.isOnMap = false;
   }
@@ -206,8 +210,10 @@ export class StationViewingLayer implements MapLayer {
   }
 
   protected updateLabels(map: L.Map) {
+
     if (!this.isOnMap || !map || !map.getContainer || !map.getContainer()) return;
     if (!map.hasLayer(this.layer)) return;
+
 
     const show = map.getZoom() >= this.LABEL_ZOOM;
     const bounds = map.getBounds();
@@ -219,6 +225,7 @@ export class StationViewingLayer implements MapLayer {
     this.layer.eachLayer((l: any) => {
       const label = (l as any).__stationTooltipState?.label || '';
       if (!label || !l.getLatLng) return;
+      if (!map.hasLayer(l)) return;
       if (!show) {
         this.bindStationTooltip(l, label, false);
         l.closeTooltip();
