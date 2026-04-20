@@ -52,16 +52,17 @@ export class BasemapPanel {
     if (type === 'satellite') {
       L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxNativeZoom: 18, maxZoom: 22, attribution: 'Tiles © Esri' }
+        { maxNativeZoom: 18, maxZoom: 22, attribution: 'Tiles Â© Esri' }
       ).addTo(map);
       return;
     }
 
     if (type === 'Google Satellite') {
       L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
+        maxNativeZoom: 20,
+        maxZoom: 22,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: 'Tiles © Google',
+        attribution: 'Tiles Â© Google',
       }).addTo(map);
       return;
     }
@@ -69,7 +70,7 @@ export class BasemapPanel {
     if (type === 'Esri Topographic') {
       L.tileLayer(
         'https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-        { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles © Esri' }
+        { maxNativeZoom: 17, maxZoom: 22, attribution: 'Tiles Â© Esri' }
       ).addTo(map);
       return;
     }

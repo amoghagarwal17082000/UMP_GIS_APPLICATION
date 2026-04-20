@@ -1,11 +1,13 @@
 export type EditLayerKey = string;
 
 export type EditFieldType = 'text' | 'number';
+export type EditControlType = 'input' | 'textarea';
 
 export type EditFieldConfig = {
   key: string;
   label: string;
   type?: EditFieldType;
+  control?: EditControlType;
   required?: boolean;
   full?: boolean;
   validateButton?: boolean;
@@ -22,191 +24,380 @@ export type LayerFormConfig = {
   label: string;
   formTitle?: string;
   note?: string;
+  tableColumnKeys: string[];
+  formFieldKeys: string[];
   tableColumns: TableColumnConfig[];
   formFields: EditFieldConfig[];
 };
 
-const GENERIC_STATUS_COLUMNS: TableColumnConfig[] = [
-  { key: 'objectid', label: 'Object ID' },
-  { key: 'status', label: 'Status' },
-  { key: 'modified_by', label: 'Modified By' },
+const COLUMN_LIBRARY: Record<string, TableColumnConfig> = {
+  objectid: { key: 'objectid', label: 'Object ID' },
+  status: { key: 'status', label: 'Status' },
+  modified_by: { key: 'modified_by', label: 'Modified By' },
+  sttncode: { key: 'sttncode', label: 'Station Code', stationLink: true },
+  sttnname: { key: 'sttnname', label: 'Station Name' },
+  distkm: { key: 'distkm', label: 'Distance (KM)' },
+  distm: { key: 'distm', label: 'Distance (M)' },
+  state: { key: 'state', label: 'State' },
+  district: { key: 'district', label: 'District' },
+  bridgeno: { key: 'bridgeno', label: 'Bridge No' },
+  asset_id: { key: 'asset_id', label: 'Asset ID', stationLink: true },
+  km: { key: 'km', label: 'KM' },
+  km_post: { key: 'km_post', label: 'KM Post' },
+  distfromkm: { key: 'distfromkm', label: 'From KM' },
+  distfromm: { key: 'distfromm', label: 'From M' },
+  disttokm: { key: 'disttokm', label: 'To KM' },
+  disttom: { key: 'disttom', label: 'To M' },
+  agency_name: { key: 'agency_name', label: 'Agency' },
+  assetid: { key: 'assetid', label: 'Asset ID' },
+};
+
+const FIELD_LIBRARY: Record<string, EditFieldConfig> = {
+  objectid: { key: 'objectid', label: 'Object ID', full: true },
+  status: { key: 'status', label: 'Current Status', full: true },
+  edited_by: { key: 'edited_by', label: 'Edited By', full: true },
+  edited_at: { key: 'edited_at', label: 'Edited At', full: true },
+  checked_by: { key: 'checked_by', label: 'Checked By', full: true },
+  checked_at: { key: 'checked_at', label: 'Checked At', full: true },
+  approved_by: { key: 'approved_by', label: 'Approved By', full: true },
+  approved_at: { key: 'approved_at', label: 'Approved At', full: true },
+  modified_by: { key: 'modified_by', label: 'Modified By', full: true },
+  comments: { key: 'comments', label: 'Comments', full: true, control: 'textarea' },
+
+  sttncode: { key: 'sttncode', label: 'Station Code', required: true, full: true, validateButton: true },
+  sttnname: { key: 'sttnname', label: 'Station Name', required: true },
+  stationtype: { key: 'stationtype', label: 'Station Type', required: true },
+  distkm: { key: 'distkm', label: 'Distance (KM)', type: 'number', required: true },
+  distm: { key: 'distm', label: 'Distance (M)', type: 'number', required: true },
+  state: { key: 'state', label: 'State', required: true },
+  district: { key: 'district', label: 'District', required: true },
+  category: { key: 'category', label: 'Category', required: true },
+  constituency: { key: 'constituency', label: 'Constituency', required: true, full: true },
+
+  km: { key: 'km', label: 'KM' },
+  km_post: { key: 'km_post', label: 'KM Post' },
+
+  distfromkm: { key: 'distfromkm', label: 'From KM', type: 'number', required: true },
+  distfromm: { key: 'distfromm', label: 'From M', type: 'number', required: true },
+  disttokm: { key: 'disttokm', label: 'To KM', type: 'number', required: true },
+  disttom: { key: 'disttom', label: 'To M', type: 'number', required: true },
+  railway: { key: 'railway', label: 'Railway' },
+  division: { key: 'division', label: 'Division' },
+  agency_name: { key: 'agency_name', label: 'Agency Name' },
+  land_plot: { key: 'land_plot', label: 'Land Plot' },
+
+  asset_id: { key: 'asset_id', label: 'Asset ID', required: true, full: true },
+  latitude: { key: 'latitude', label: 'Latitude', required: true, full: true },
+  longitude: { key: 'longitude', label: 'Longitude', required: true, full: true },
+  line: { key: 'line', label: 'Line', required: true, full: true },
+  tmssection: { key: 'tmssection', label: 'TMS Section', required: true, full: true },
+  xcoord: { key: 'xcoord', label: 'X Coordinate', required: true, full: true },
+  ycoord: { key: 'ycoord', label: 'Y Coordinate', required: true, full: true },
+  bridgeno: { key: 'bridgeno', label: 'Bridge No', required: true, full: true },
+  constituncy: { key: 'constituncy', label: 'Constituency', required: true, full: true },
+  bridgetype: { key: 'bridgetype', label: 'Bridge Type', required: true, full: true },
+  spanconf: { key: 'spanconf', label: 'Span Configuration', required: true, full: true },
+
+  assetid: { key: 'assetid', label: 'Asset ID' },
+};
+
+const GENERIC_STATUS_COLUMN_KEYS = ['objectid', 'status', 'modified_by'];
+const GENERIC_STATUS_FIELD_KEYS = [
+  'objectid',
+  'status',
+  'edited_by',
+  'edited_at',
+  'checked_by',
+  'checked_at',
+  'approved_by',
+  'approved_at',
+  'modified_by',
 ];
 
-const GENERIC_STATUS_FIELDS: EditFieldConfig[] = [
-  { key: 'objectid', label: 'Object ID', full: true },
-  { key: 'status', label: 'Current Status', full: true },
-  { key: 'edited_by', label: 'Edited By', full: true },
-  { key: 'edited_at', label: 'Edited At', full: true },
-  { key: 'checked_by', label: 'Checked By', full: true },
-  { key: 'checked_at', label: 'Checked At', full: true },
-  { key: 'approved_by', label: 'Approved By', full: true },
-  { key: 'approved_at', label: 'Approved At', full: true },
-  { key: 'modified_by', label: 'Modified By', full: true },
-];
+function resolveColumn(key: string): TableColumnConfig {
+  const column = COLUMN_LIBRARY[key];
+  return column ? { ...column } : { key, label: key };
+}
 
-function createGenericConfig(
-  id: string,
-  label: string,
-  extraColumns: TableColumnConfig[] = [],
-  extraFields: EditFieldConfig[] = []
-): LayerFormConfig {
+function resolveField(key: string): EditFieldConfig {
+  const field = FIELD_LIBRARY[key];
+  return field ? { ...field } : { key, label: key, full: true };
+}
+
+function buildLayerConfig(def: {
+  id: string;
+  label: string;
+  formTitle?: string;
+  note?: string;
+  tableColumnKeys?: string[];
+  formFieldKeys?: string[];
+  includeGenericStatusColumns?: boolean;
+  includeGenericStatusFields?: boolean;
+}): LayerFormConfig {
+  const tableColumnKeys = [
+    ...(def.tableColumnKeys || []),
+    ...(def.includeGenericStatusColumns === false ? [] : GENERIC_STATUS_COLUMN_KEYS),
+  ];
+  const formFieldKeys = [
+    ...(def.formFieldKeys || []),
+    ...(def.includeGenericStatusFields === false ? [] : GENERIC_STATUS_FIELD_KEYS),
+  ];
+
   return {
-    id,
-    label,
-    note: '* This layer is now supported in the edit tool shell. Select a feature on the map to inspect it. Save workflow remains wired only where backend editing is available.',
-    tableColumns: [...extraColumns, ...GENERIC_STATUS_COLUMNS],
-    formFields: [...extraFields, ...GENERIC_STATUS_FIELDS],
+    id: def.id,
+    label: def.label,
+    formTitle: def.formTitle,
+    note: def.note,
+    tableColumnKeys,
+    formFieldKeys,
+    tableColumns: tableColumnKeys.map(resolveColumn),
+    formFields: formFieldKeys.map(resolveField),
   };
 }
 
 export const EDIT_LAYER_CONFIG: Record<string, LayerFormConfig> = {
-  stations: {
+  stations: buildLayerConfig({
     id: 'stations',
     label: 'Stations',
     note: '* For Station: All starred fields are mandatory | For Landplan: Polygon geometry required',
-    tableColumns: [
-      { key: 'sttncode', label: 'Station Code', stationLink: true },
-      { key: 'sttnname', label: 'Station Name' },
-      { key: 'distkm', label: 'Dist (km)' },
-      { key: 'distm', label: 'Dist (m)' },
-      { key: 'state', label: 'State' },
-      { key: 'district', label: 'District' },
-    ],
-    formFields: [
-      { key: 'sttncode', label: 'Station Code', required: true, full: true, validateButton: true },
-      { key: 'sttnname', label: 'Station Name', required: true },
-      { key: 'stationtype', label: 'Station Type', required: true },
-      { key: 'distkm', label: 'Dist (KM)', type: 'number', required: true },
-      { key: 'distm', label: 'Dist (M)', type: 'number', required: true },
-      { key: 'state', label: 'State', required: true },
-      { key: 'district', label: 'District', required: true },
-      { key: 'category', label: 'Category', required: true },
-      { key: 'constituency', label: 'Constituency', required: true, full: true },
-      { key: 'status', label: 'Current Status', full: true },
-    ],
-  },
-  landplan: {
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['sttncode', 'sttnname', 'distkm', 'distm', 'state', 'district'],
+    formFieldKeys: ['sttncode', 'sttnname', 'stationtype', 'distkm', 'distm', 'state', 'district', 'category', 'constituency', 'status'],
+  }),
+
+  landplan: buildLayerConfig({
     id: 'landplan',
     label: 'Land Plan On Track',
     note: '* Layer forms are configuration-driven. Station workflow is fully wired; other layers can now plug into the same form engine.',
-    tableColumns: [
-      { key: 'distfromkm', label: 'From KM' },
-      { key: 'distfromm', label: 'From M' },
-      { key: 'disttokm', label: 'To KM' },
-      { key: 'disttom', label: 'To M' },
-      { key: 'status', label: 'Status' },
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['distfromkm', 'distfromm', 'disttokm', 'disttom', 'status'],
+    formFieldKeys: ['distfromkm', 'distfromm', 'disttokm', 'disttom', 'railway', 'division', 'status'],
+  }),
+
+  km_post: buildLayerConfig({
+    id: 'km_post',
+    label: 'Km Post',
+    tableColumnKeys: ['km', 'km_post', 'sttncode'],
+    formFieldKeys: ['km', 'km_post', 'sttncode', 'sttnname'],
+  }),
+
+  landplan_ontrack: buildLayerConfig({
+    id: 'landplan_ontrack',
+    label: 'Landplan Ontrack',
+    tableColumnKeys: ['distfromkm', 'disttokm', 'distfromm', 'disttom'],
+    formFieldKeys: ['distfromkm', 'distfromm', 'disttokm', 'disttom', 'railway', 'division'],
+  }),
+
+  landplan_offtrack: buildLayerConfig({
+    id: 'landplan_offtrack',
+    label: 'Landplan Offtrack',
+    tableColumnKeys: ['state', 'district', 'agency_name'],
+    formFieldKeys: ['state', 'district', 'agency_name', 'land_plot'],
+  }),
+
+  land_offset: buildLayerConfig({
+    id: 'land_offset',
+    label: 'Land Offset',
+    tableColumnKeys: ['distfromkm', 'disttokm'],
+    formFieldKeys: ['distfromkm', 'distfromm', 'disttokm', 'disttom'],
+  }),
+
+  land_boundary: buildLayerConfig({
+    id: 'land_boundary',
+    label: 'Land Boundary',
+    tableColumnKeys: ['distfromkm', 'disttokm'],
+    formFieldKeys: ['distfromkm', 'distfromm', 'disttokm', 'disttom'],
+  }),
+
+  bridge_start: buildLayerConfig({
+    id: 'bridge_start',
+    label: 'Bridge Start',
+    formTitle: 'Bridge Details',
+    note: '* Fill all mandatory bridge fields before sending the record to checker.',
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['asset_id', 'bridgeno', 'distkm', 'distm', 'state', 'district'],
+    formFieldKeys: [
+      'asset_id',
+      'distkm',
+      'distm',
+      'railway',
+      'division',
+      'state',
+      'district',
+      'bridgeno',
+      'constituncy',
+      'bridgetype',
+      'spanconf',
     ],
-    formFields: [
-      { key: 'distfromkm', label: 'From KM', type: 'number', required: true },
-      { key: 'distfromm', label: 'From M', type: 'number', required: true },
-      { key: 'disttokm', label: 'To KM', type: 'number', required: true },
-      { key: 'disttom', label: 'To M', type: 'number', required: true },
-      { key: 'railway', label: 'Railway' },
-      { key: 'division', label: 'Division' },
-      { key: 'status', label: 'Status', full: true },
+  }),
+
+  bridge_end: buildLayerConfig({
+    id: 'bridge_end',
+    label: 'Bridge End',
+    formTitle: 'Bridge Details',
+    note: '* Fill all mandatory bridge fields before sending the record to checker.',
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['asset_id', 'bridgeno', 'distkm', 'distm', 'state', 'district'],
+    formFieldKeys: [
+      'asset_id',
+      'distkm',
+      'distm',
+      'railway',
+      'division',
+      'state',
+      'district',
+      'bridgeno',
+      'constituncy',
+      'bridgetype',
+      'spanconf',
     ],
-  },
-  km_post: createGenericConfig(
-    'km_post',
-    'Km Post',
-    [
-      { key: 'km', label: 'KM' },
-      { key: 'km_post', label: 'KM Post' },
-      { key: 'sttncode', label: 'Station Code' },
+  }),
+
+  bridge_minor: buildLayerConfig({
+    id: 'bridge_minor',
+    label: 'Bridge Minor',
+    formTitle: 'Bridge Details',
+    note: '* Fill all mandatory bridge fields before sending the record to checker.',
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['asset_id', 'bridgeno', 'distkm', 'distm', 'state', 'district'],
+    formFieldKeys: [
+      'asset_id',
+      'distkm',
+      'distm',
+      'railway',
+      'division',
+      'state',
+      'district',
+      'bridgeno',
+      'constituncy',
+      'bridgetype',
+      'spanconf',
     ],
-    [
-      { key: 'km', label: 'KM' },
-      { key: 'km_post', label: 'KM Post' },
-      { key: 'sttncode', label: 'Station Code' },
-      { key: 'sttnname', label: 'Station Name', full: true },
-    ]
-  ),
-  landplan_ontrack: createGenericConfig(
-    'landplan_ontrack',
-    'Landplan Ontrack',
-    [
-      { key: 'distfromkm', label: 'From KM' },
-      { key: 'disttokm', label: 'To KM' },
-      { key: 'distfromm', label: 'From M' },
-      { key: 'disttom', label: 'To M' },
-    ],
-    [
-      { key: 'distfromkm', label: 'From KM' },
-      { key: 'distfromm', label: 'From M' },
-      { key: 'disttokm', label: 'To KM' },
-      { key: 'disttom', label: 'To M' },
-      { key: 'railway', label: 'Railway' },
-      { key: 'division', label: 'Division' },
-    ]
-  ),
-  landplan_offtrack: createGenericConfig(
-    'landplan_offtrack',
-    'Landplan Offtrack',
-    [
-      { key: 'state', label: 'State' },
-      { key: 'district', label: 'District' },
-      { key: 'agency_name', label: 'Agency' },
-    ],
-    [
-      { key: 'state', label: 'State' },
-      { key: 'district', label: 'District' },
-      { key: 'agency_name', label: 'Agency Name' },
-      { key: 'land_plot', label: 'Land Plot' },
-    ]
-  ),
-  land_offset: createGenericConfig(
-    'land_offset',
-    'Land Offset',
-    [
-      { key: 'distfromkm', label: 'From KM' },
-      { key: 'disttokm', label: 'To KM' },
-    ],
-    [
-      { key: 'distfromkm', label: 'From KM' },
-      { key: 'distfromm', label: 'From M' },
-      { key: 'disttokm', label: 'To KM' },
-      { key: 'disttom', label: 'To M' },
-    ]
-  ),
-  land_boundary: createGenericConfig(
-    'land_boundary',
-    'Land Boundary',
-    [
-      { key: 'distfromkm', label: 'From KM' },
-      { key: 'disttokm', label: 'To KM' },
-    ],
-    [
-      { key: 'distfromkm', label: 'From KM' },
-      { key: 'distfromm', label: 'From M' },
-      { key: 'disttokm', label: 'To KM' },
-      { key: 'disttom', label: 'To M' },
-    ]
-  ),
-  bridge_start: createGenericConfig('bridge_start', 'Bridge Start'),
-  bridge_end: createGenericConfig('bridge_end', 'Bridge End'),
-  bridge_minor: createGenericConfig('bridge_minor', 'Bridge Minor'),
-  levelxing: createGenericConfig('levelxing', 'Levelxing', [{ key: 'sttncode', label: 'Station Code' }, { key: 'assetid', label: 'Asset ID' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  road_over_bridge: createGenericConfig('road_over_bridge', 'Road Over Bridge', [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  rub_lhs: createGenericConfig('rub_lhs', 'Rub Lhs', [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  ror: createGenericConfig('ror', 'Ror', [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  rob: createGenericConfig('rob', 'Rob', [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  pointxing: createGenericConfig('pointxing', 'Pointxing', [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  switch_expansion_joint: createGenericConfig('switch_expansion_joint', 'Switch Expansion Joint', [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  buffer_rails: createGenericConfig('buffer_rails', 'Buffer Rails', [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }], [{ key: 'assetid', label: 'Asset ID' }, { key: 'sttncode', label: 'Station Code' }, { key: 'sttnname', label: 'Station Name', full: true }]),
-  gradient_start: createGenericConfig('gradient_start', 'Gradient Start', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
-  gradient_end: createGenericConfig('gradient_end', 'Gradient End', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
-  curve_start: createGenericConfig('curve_start', 'Curve Start', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
-  curve_end: createGenericConfig('curve_end', 'Curve End', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
-  cutting_start: createGenericConfig('cutting_start', 'Cutting Start', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
-  cutting_end: createGenericConfig('cutting_end', 'Cutting End', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
-  tunnel_start: createGenericConfig('tunnel_start', 'Tunnel Start', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
-  tunnel_end: createGenericConfig('tunnel_end', 'Tunnel End', [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }], [{ key: 'distkm', label: 'Dist (KM)' }, { key: 'distm', label: 'Dist (M)' }, { key: 'sttncode', label: 'Station Code' }]),
+  }),
+
+  levelxing: buildLayerConfig({
+    id: 'levelxing',
+    label: 'Levelxing',
+    tableColumnKeys: ['sttncode', 'assetid'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  road_over_bridge: buildLayerConfig({
+    id: 'road_over_bridge',
+    label: 'Road Over Bridge',
+    tableColumnKeys: ['assetid', 'sttncode'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  rub_lhs: buildLayerConfig({
+    id: 'rub_lhs',
+    label: 'Rub Lhs',
+    tableColumnKeys: ['assetid', 'sttncode'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  ror: buildLayerConfig({
+    id: 'ror',
+    label: 'Ror',
+    tableColumnKeys: ['assetid', 'sttncode'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  rob: buildLayerConfig({
+    id: 'rob',
+    label: 'Rob',
+    tableColumnKeys: ['assetid', 'sttncode'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  pointxing: buildLayerConfig({
+    id: 'pointxing',
+    label: 'Pointxing',
+    tableColumnKeys: ['assetid', 'sttncode'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  switch_expansion_joint: buildLayerConfig({
+    id: 'switch_expansion_joint',
+    label: 'Switch Expansion Joint',
+    tableColumnKeys: ['assetid', 'sttncode'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  buffer_rails: buildLayerConfig({
+    id: 'buffer_rails',
+    label: 'Buffer Rails',
+    tableColumnKeys: ['assetid', 'sttncode'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+  }),
+
+  gradient_start: buildLayerConfig({
+    id: 'gradient_start',
+    label: 'Gradient Start',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
+
+  gradient_end: buildLayerConfig({
+    id: 'gradient_end',
+    label: 'Gradient End',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
+
+  curve_start: buildLayerConfig({
+    id: 'curve_start',
+    label: 'Curve Start',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
+
+  curve_end: buildLayerConfig({
+    id: 'curve_end',
+    label: 'Curve End',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
+
+  cutting_start: buildLayerConfig({
+    id: 'cutting_start',
+    label: 'Cutting Start',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
+
+  cutting_end: buildLayerConfig({
+    id: 'cutting_end',
+    label: 'Cutting End',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
+
+  tunnel_start: buildLayerConfig({
+    id: 'tunnel_start',
+    label: 'Tunnel Start',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
+
+  tunnel_end: buildLayerConfig({
+    id: 'tunnel_end',
+    label: 'Tunnel End',
+    tableColumnKeys: ['distkm', 'distm'],
+    formFieldKeys: ['distkm', 'distm', 'sttncode'],
+  }),
 };
 
 export const EDIT_LAYER_OPTIONS = Object.values(EDIT_LAYER_CONFIG).map((config) => ({
   value: config.id,
   label: config.label,
 }));
+
 
 const BRIDGE_TABLE_COLUMNS: TableColumnConfig[] = [
   { key: 'asset_id', label: 'Asset ID', stationLink: true },
@@ -263,6 +454,7 @@ EDIT_LAYER_CONFIG.bridge_minor = {
   tableColumns: BRIDGE_TABLE_COLUMNS,
   formFields: BRIDGE_FORM_FIELDS,
 };
+
 
 export function getEditLayerConfig(layerId: string | null | undefined): LayerFormConfig | null {
   const normalized = String(layerId || '').trim().toLowerCase();

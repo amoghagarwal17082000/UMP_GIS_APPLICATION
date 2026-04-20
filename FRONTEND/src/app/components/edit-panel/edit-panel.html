@@ -257,7 +257,7 @@
 
     <!-- ================= EDIT MODE ================= -->
 <!-- ================= EDIT MODE ================= -->
-<div *ngIf="mode === 'edit'" class="edit-form" [class.bridge-form]="isBridgeLayer()">
+<div *ngIf="mode === 'edit'" class="edit-form">
 
   <div class="edit-top">
     <div>
@@ -293,12 +293,21 @@
       </div>
 
       <ng-template #standardField>
-        <input
-          class="field-input"
-          [type]="field.type || 'text'"
-          [(ngModel)]="draft[field.key]"
-          [readonly]="isFieldReadonly(field)"
-        />
+        <ng-container [ngSwitch]="field.control || 'input'">
+          <textarea
+            *ngSwitchCase="'textarea'"
+            class="field-input"
+            [(ngModel)]="draft[field.key]"
+            [readonly]="isFieldReadonly(field)"
+          ></textarea>
+          <input
+            *ngSwitchDefault
+            class="field-input"
+            [type]="field.type || 'text'"
+            [(ngModel)]="draft[field.key]"
+            [readonly]="isFieldReadonly(field)"
+          />
+        </ng-container>
       </ng-template>
     </div>
   </div>

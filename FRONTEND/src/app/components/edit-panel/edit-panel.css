@@ -351,13 +351,6 @@
   padding: 14px;
 }
 
-#panelEdit .edit-form.bridge-form{
-  border: none;
-  border-radius: 0;
-  padding: 6px 4px 10px;
-  background: #fff;
-}
-
 /* ✅ TOP ROW: Asset Details left, Back right (SAME LINE) */
 #panelEdit .edit-top{
   display: flex;
@@ -372,16 +365,6 @@
   font-size: 22px;
   font-weight: 900;
   color: #0f172a;
-}
-
-#panelEdit .edit-form.bridge-form .edit-top{
-  margin-bottom: 14px;
-}
-
-#panelEdit .edit-form.bridge-form .edit-title{
-  font-size: 18px;
-  font-weight: 800;
-  color: #111827;
 }
 
 /* ✅ Back button on right */
@@ -399,22 +382,11 @@
   white-space: nowrap;
 }
 
-#panelEdit .edit-form.bridge-form .back-btn{
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: #5b5b5b;
-  font-size: 11px;
-}
-
 /* Fields layout */
 #panelEdit .form-grid{
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-#panelEdit .edit-form.bridge-form .form-grid{
-  gap: 10px;
 }
 
 /* Field wrapper */
@@ -431,17 +403,6 @@
   margin-bottom: 6px;
 }
 
-#panelEdit .edit-form.bridge-form .field-label{
-  font-size: 11px;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 4px;
-}
-
-#panelEdit .edit-form.bridge-form .field-label span{
-  color: #dc2626;
-}
-
 /* Input */
 #panelEdit .field-input{
   width: 100%;
@@ -455,22 +416,16 @@
   font-size: 14px;
 }
 
-#panelEdit .edit-form.bridge-form .field-input{
-  height: 32px;
-  padding: 5px 9px;
-  border-radius: 2px;
-  border: 1px solid #cfd4dc;
-  font-size: 12px;
-  color: #111827;
+#panelEdit textarea.field-input{
+  min-height: 86px;
+  height: auto;
+  resize: vertical;
+  font-family: inherit;
 }
 
 #panelEdit .field-input[readonly]{
   background: #f8fafc;
   color: #334155;
-}
-
-#panelEdit .edit-form.bridge-form .field-input[readonly]{
-  background: #f7f7f7;
 }
 
 /* ✅ Station code row: input left + validate right (SAME LINE) */
@@ -496,28 +451,6 @@
   white-space: nowrap;
 }
 
-#panelEdit .edit-form.bridge-form .field-inline{
-  gap: 8px;
-}
-
-#panelEdit .edit-form.bridge-form .field-inline .btn,
-#panelEdit .edit-form.bridge-form .form-actions .btn{
-  background: #ff8c1a;
-  border-color: #ff8c1a;
-  color: #fff;
-  border-radius: 16px;
-  font-size: 11px;
-  font-weight: 700;
-  min-height: 30px;
-  padding: 6px 14px;
-}
-
-#panelEdit .edit-form.bridge-form .form-actions .btn.ghost{
-  background: #ffb66c;
-  border-color: #ffb66c;
-  color: #fff;
-}
-
 /* Actions row */
 #panelEdit .form-actions{
   display: flex;
@@ -526,15 +459,6 @@
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid #e5e7eb;
-}
-
-#panelEdit .edit-form.bridge-form .form-actions{
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: none;
 }
 
 /* Error + note */
@@ -549,11 +473,6 @@
   margin-top: 10px;
   font-size: 12px;
   color: #64748b;
-}
-
-#panelEdit .edit-form.bridge-form .note{
-  font-size: 11px;
-  color: #6b7280;
 }
 
 /* Actions column layout */
@@ -609,8 +528,8 @@
 
 #panelEdit .tbl td:last-child button.maker-delete-btn::before{
   background-image: url("../../../assets/images/delete.png");
-  width: 37px;
-  height: 37px;
+  width: 42px;
+  height: 42px;
 }
 
 /* Hover effects */
