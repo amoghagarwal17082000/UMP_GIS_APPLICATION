@@ -757,8 +757,8 @@
 /* Icon base */
 #panelEdit .tbl td:last-child button.action-btn::before{
   content: "";
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
 
   background-size: contain;
   background-repeat: no-repeat;
@@ -781,8 +781,8 @@
 
 #panelEdit .tbl td:last-child button.maker-delete-btn::before{
   background-image: url("../../../assets/images/delete.png");
-  width: 60px;
-  height: 60px;
+  width: 300px;
+  height: 300px;
 }
 
 /* Hover effects */
@@ -1077,4 +1077,17 @@
   gap: 6px;
   white-space: nowrap;
   transform: none;
+}
+
+/* Final maker delete icon override.
+   The generic action-btn::before rule below the main delete block was shrinking it back down. */
+#panelEdit .tbl td:last-child button.maker-delete-btn{
+  width: 42px;
+  height: 42px;
+}
+
+#panelEdit .tbl td:last-child button.maker-delete-btn::before{
+  width: 30px;
+  height: 30px;
+  background-size: contain;
 }

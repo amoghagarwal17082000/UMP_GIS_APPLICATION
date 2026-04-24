@@ -8,6 +8,7 @@ import { Api } from 'src/app/api/api';
 import { UiState } from '../../services/ui-state';
 import { MapZoomService } from 'src/app/services/map-zoom';
 import { CurrentUserService } from 'src/app/services/current-user';
+import { LayerManager } from 'src/app/services/layer-manager';
 import {
   CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS,
   getCivilEngineeringAssetLayerDisplayName,
@@ -118,7 +119,8 @@ export class EditPanel implements OnInit, OnDestroy {
     private api: Api,
     private cdr: ChangeDetectorRef,
     private mapZoom: MapZoomService,
-    private currentUser: CurrentUserService
+    private currentUser: CurrentUserService,
+    private layerManager: LayerManager
   ) {}
 
   ngOnInit(): void {
@@ -327,6 +329,18 @@ export class EditPanel implements OnInit, OnDestroy {
     const normalized = this.normalizeCurrentLayerDraft(this.edit.draft);
     this.draft = { ...normalized };
     this.originalDraft = { ...normalized };
+    const bestRenderedLayer = this.getBestRenderedLayer(this.edit.draft);
+    const selectedFeatureLatLng = this.getSelectedFeatureLatLng(this.edit.draft);
+    if (selectedFeatureLatLng) {
+      this.mapZoom.zoomTo({
+        type: 'latlng',
+        lat: selectedFeatureLatLng.lat,
+        lng: selectedFeatureLatLng.lng,
+        zoom: this.getEditFocusZoom(),
+        draggable: false,
+        existingLayer: bestRenderedLayer,
+      } as any);
+    }
     this.cdr.detectChanges();
   }
 
@@ -908,6 +922,20 @@ export class EditPanel implements OnInit, OnDestroy {
       return;
     }
 
+    const bestRenderedLayer = this.getBestRenderedLayer(row);
+    const selectedFeatureLatLng = this.getSelectedFeatureLatLng(row);
+    const renderedLatLng = selectedFeatureLatLng ?? this.getRenderedLayerLatLng(row);
+    if (renderedLatLng) {
+      this.mapZoom.zoomTo({
+        type: 'latlng',
+        lat: renderedLatLng.lat,
+        lng: renderedLatLng.lng,
+        zoom: this.getEditFocusZoom(),
+        draggable: false,
+        existingLayer: bestRenderedLayer,
+      } as any);
+    }
+
     const detailRequest$ = loadDraftDetail
       ? this.api.getLayerDraftById(layerKey, id)
       : this.api.getLayerById(layerKey, id);
@@ -919,8 +947,10 @@ export class EditPanel implements OnInit, OnDestroy {
         this.draft.lat = n.lat; this.draft.lng = n.lng; this.originalDraft = { ...this.draft };
         this.selectedAttachmentName = this.getExistingAttachmentName(this.draft);
         this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
-        if (Number.isFinite(n.lat) && Number.isFinite(n.lng)) {
-          this.mapZoom.zoomTo({ type: 'latlng', lat: n.lat, lng: n.lng, zoom: this.getEditFocusZoom(), draggable: false } as any);
+        const detailLat = Number.isFinite(n.lat) ? n.lat : null;
+        const detailLng = Number.isFinite(n.lng) ? n.lng : null;
+        if (!renderedLatLng && detailLat != null && detailLng != null) {
+          this.mapZoom.zoomTo({ type: 'latlng', lat: detailLat, lng: detailLng, zoom: this.getEditFocusZoom(), draggable: false } as any);
         }
         this.cdr.detectChanges();
       },
@@ -977,15 +1007,83 @@ export class EditPanel implements OnInit, OnDestroy {
     if (this.currentTableLayer === 'stations') return this.normalizeStation(row);
     if (this.currentTableLayer === 'landplan_ontrack') return this.normalizeLandPlan(row);
     const props = row?.properties ?? row ?? {};
+    const geometryCoords = Array.isArray(row?.geometry?.coordinates) ? row.geometry.coordinates : null;
+    const geometryLng = Number(geometryCoords?.[0]);
+    const geometryLat = Number(geometryCoords?.[1]);
     const normalized: any = {};
     Object.keys(props).forEach((key) => {
       normalized[key] = props[key];
     });
     normalized.objectid = props?.objectid ?? row?.id ?? row?.objectid ?? null;
     normalized.status = props?.status ?? row?.status ?? '';
-    normalized.lat = Number(props?.lat ?? props?.ycoord ?? props?.latitude);
-    normalized.lng = Number(props?.lon ?? props?.lng ?? props?.xcoord ?? props?.longitude);
+    normalized.lat = Number.isFinite(geometryLat) ? geometryLat : Number(props?.lat ?? props?.ycoord ?? props?.latitude);
+    normalized.lng = Number.isFinite(geometryLng) ? geometryLng : Number(props?.lon ?? props?.lng ?? props?.xcoord ?? props?.longitude);
     return normalized;
+  }
+
+  private rowMatchesFeature(row: any, feature: any): boolean {
+    const props = feature?.properties ?? {};
+    const toKey = (value: any) => String(value ?? '').trim().toLowerCase();
+    const rowKeys = [
+      row?.objectid,
+      row?.gid,
+      row?.asset_id,
+      row?.assetid,
+      row?.bridgeno,
+      row?.distkm != null && row?.distm != null ? `${row.distkm}:${row.distm}` : '',
+    ].map(toKey).filter(Boolean);
+    const featureKeys = [
+      feature?.id,
+      props?.objectid,
+      props?.OBJECTID,
+      props?.gid,
+      props?.asset_id,
+      props?.assetid,
+      props?.bridgeno,
+      props?.distkm != null && props?.distm != null ? `${props.distkm}:${props.distm}` : '',
+    ].map(toKey).filter(Boolean);
+    return rowKeys.some((key) => featureKeys.includes(key));
+  }
+
+  private getSelectedFeatureLatLng(row?: any): { lat: number; lng: number } | null {
+    const feature = this.edit.selectedFeature;
+    if (!feature) return null;
+    if (row && !this.rowMatchesFeature(row, feature)) return null;
+    const coords = Array.isArray(feature?.geometry?.coordinates) ? feature.geometry.coordinates : null;
+    const lng = Number(coords?.[0]);
+    const lat = Number(coords?.[1]);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }
+
+  private getRenderedLayerLatLng(row: any): { lat: number; lng: number } | null {
+    const layerId = String(this.currentTableLayer || '').trim();
+    if (!layerId) return null;
+    const layer = this.layerManager.findById(layerId) as any;
+    const bestLatLng = layer?.getBestRenderedLatLng?.(row);
+    if (bestLatLng) {
+      const bestLat = Number(bestLatLng.lat);
+      const bestLng = Number(bestLatLng.lng);
+      if (Number.isFinite(bestLat) && Number.isFinite(bestLng)) {
+        return { lat: bestLat, lng: bestLng };
+      }
+    }
+    const latLng = layer?.getRenderedLatLngForKey?.(
+      row?.objectid,
+      row?.gid,
+      row?.asset_id,
+      row?.assetid,
+    );
+    if (!latLng) return null;
+    const lat = Number(latLng.lat);
+    const lng = Number(latLng.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }
+
+  private getBestRenderedLayer(row: any): any | null {
+    const layerId = String(this.currentTableLayer || '').trim();
+    if (!layerId) return null;
+    const layer = this.layerManager.findById(layerId) as any;
+    return layer?.getBestRenderedLayer?.(row) || null;
   }
 
   startGeometryEdit() {

@@ -82,6 +82,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private routeSub?: Subscription;
   private createStationDblClickHandler?: (e: L.LeafletMouseEvent) => void;
   private selectedStationMarker?: L.Layer;
+  private highlightedMarkerElement?: HTMLElement | null;
 
   private readonly departmentAliases: Record<string, DepartmentModuleKey> = {
     'civil engineering assets': 'civil_engineering_assets',
@@ -147,7 +148,21 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   }
 
   private zoomToHome(): void { if (!this.map) return; if (!this.homeCaptured || !this.homeCenter || typeof this.homeZoom !== 'number') return; this.map.invalidateSize(); this.map.setView(this.homeCenter, this.homeZoom, { animate: false }); }
-  private clearZoomArtifacts(): void { if (!this.map) return; if (this.zoomHighlight && this.map.hasLayer(this.zoomHighlight as any)) this.map.removeLayer(this.zoomHighlight as any); this.zoomHighlight = undefined; if (this.highlightLayer && this.map.hasLayer(this.highlightLayer)) this.map.removeLayer(this.highlightLayer); this.highlightLayer = undefined; if (this.dragMarker && this.map.hasLayer(this.dragMarker as any)) { this.dragMarker.off(); this.map.removeLayer(this.dragMarker as any); } this.dragMarker = undefined; }
+  private clearExistingMarkerHighlight(): void {
+    if (this.highlightedMarkerElement) {
+      this.highlightedMarkerElement.classList.remove('map-selected-symbol');
+      this.highlightedMarkerElement = null;
+    }
+  }
+  private applyExistingMarkerHighlight(layer: any): boolean {
+    const element = layer?.getElement?.() as HTMLElement | null;
+    if (!element) return false;
+    this.clearExistingMarkerHighlight();
+    element.classList.add('map-selected-symbol');
+    this.highlightedMarkerElement = element;
+    return true;
+  }
+  private clearZoomArtifacts(): void { if (!this.map) return; this.clearExistingMarkerHighlight(); if (this.zoomHighlight && this.map.hasLayer(this.zoomHighlight as any)) this.map.removeLayer(this.zoomHighlight as any); this.zoomHighlight = undefined; if (this.highlightLayer && this.map.hasLayer(this.highlightLayer)) this.map.removeLayer(this.highlightLayer); this.highlightLayer = undefined; if (this.dragMarker && this.map.hasLayer(this.dragMarker as any)) { this.dragMarker.off(); this.map.removeLayer(this.dragMarker as any); } this.dragMarker = undefined; }
 
   private createAttributeHighlightLayer(feature: any): L.GeoJSON {
     return L.geoJSON(feature, {
@@ -177,12 +192,72 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     return m;
   }
 
+  private createFocusCircleMarker(ll: L.LatLng, size = 34, border = 5, fillOpacity = 0.6): L.Marker {
+    const icon = L.divIcon({
+      className: 'focus-circle-icon',
+      html: `<div style="width:${size}px;height:${size}px;border:${border}px solid #7c3aed;background: rgba(167,139,250,${fillOpacity.toFixed(2)});border-radius: 50%;box-sizing: border-box;box-shadow: 0 2px 10px rgba(0,0,0,0.18);"></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+    });
+    const marker = L.marker(ll, { draggable: false, icon, keyboard: false, interactive: false });
+    (marker as any).setZIndexOffset?.(9999);
+    return marker;
+  }
+
   private isEditableLayer(x: any): x is EditableLayer {
     return !!normalizeCivilEngineeringLayerId(String(x || '').trim());
   }
   private normalizeDepartmentName(value: string | null | undefined): string { return (value || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim(); }
 
   private updateStationCreateModeUi(): void { if (!this.map) return; const isCreatingStation = this.edit.enabled && this.edit.editLayer === 'stations' && this.edit.creatingStation; const container = this.map.getContainer(); container.style.cursor = isCreatingStation ? 'crosshair' : ''; if (isCreatingStation) this.map.doubleClickZoom.disable(); else this.map.doubleClickZoom.enable(); }
+  private getOverlayInsetRect(selector: string, mapRect: DOMRect): DOMRect | null {
+    const element = document.querySelector(selector) as HTMLElement | null;
+    if (!element) return null;
+    const style = window.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return null;
+    const rect = element.getBoundingClientRect();
+    const overlaps = rect.right > mapRect.left && rect.left < mapRect.right && rect.bottom > mapRect.top && rect.top < mapRect.bottom;
+    return overlaps ? rect : null;
+  }
+  private getVisualCenterPoint(): L.Point | null {
+    if (!this.map) return null;
+    const container = this.map.getContainer();
+    const mapRect = container.getBoundingClientRect();
+    const mapSize = this.map.getSize();
+    let leftInset = 0;
+    let rightInset = 0;
+    let bottomInset = 0;
+    const overlaySelectors = ['.right-panel.open', '.widget-rail', '.attr-dock'];
+    for (const selector of overlaySelectors) {
+      const rect = this.getOverlayInsetRect(selector, mapRect);
+      if (!rect) continue;
+      const overlapLeft = Math.max(mapRect.left, rect.left);
+      const overlapRight = Math.min(mapRect.right, rect.right);
+      const overlapTop = Math.max(mapRect.top, rect.top);
+      const overlapBottom = Math.min(mapRect.bottom, rect.bottom);
+      const overlapWidth = Math.max(0, overlapRight - overlapLeft);
+      const overlapHeight = Math.max(0, overlapBottom - overlapTop);
+      if (overlapWidth <= 0 || overlapHeight <= 0) continue;
+      if (rect.left <= mapRect.left + 1) leftInset = Math.max(leftInset, overlapWidth);
+      if (rect.right >= mapRect.right - 1) rightInset = Math.max(rightInset, overlapWidth);
+      if (rect.bottom >= mapRect.bottom - 1) bottomInset = Math.max(bottomInset, overlapHeight);
+    }
+    const usableWidth = Math.max(1, mapSize.x - leftInset - rightInset);
+    const usableHeight = Math.max(1, mapSize.y - bottomInset);
+    return L.point(leftInset + usableWidth / 2, usableHeight / 2);
+  }
+  private centerLatLngInVisibleMapArea(latlng: L.LatLngExpression, zoom: number): void {
+    if (!this.map) return;
+    this.map.invalidateSize();
+    this.map.setView(latlng, zoom, { animate: false });
+    const desiredPoint = this.getVisualCenterPoint();
+    if (!desiredPoint) return;
+    const currentPoint = this.map.latLngToContainerPoint(L.latLng(latlng));
+    const delta = currentPoint.subtract(desiredPoint);
+    if (Math.abs(delta.x) > 1 || Math.abs(delta.y) > 1) {
+      this.map.panBy(delta, { animate: false });
+    }
+  }
 
   private handleStationCreateDoubleClick(e: L.LeafletMouseEvent): void { if (!this.map) return; if (!this.edit.enabled || this.edit.editLayer !== 'stations' || !this.edit.creatingStation) return; const divisionBuffer = this.layerManager.findById('division_buffer') as DivisionBufferLayer | undefined; if (!divisionBuffer?.containsLatLng?.(e.latlng)) { this.zone.run(() => { alert('New station can only be created inside the division buffer.'); }); return; } const lat = Number(e.latlng.lat); const lng = Number(e.latlng.lng); if (!Number.isFinite(lat) || !Number.isFinite(lng)) return; this.zone.run(() => { this.edit.emitCreateStationPoint(lat, lng); this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: 17, draggable: false } as any); }); }
 
@@ -315,7 +390,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     base.once('load', () => { this.forceMapResize(); });
     this.registerDepartmentLayers();
     this.map.whenReady(() => {
-      this.forceMapResize(); this.ui.activePanel = null; this.edit.disable(); this.clearZoomArtifacts(); this.mapZoom.clearHighlight(); this.layerManager.addAll(this.map!); this.layerManager.reloadAll(this.map!); this.map!.once('moveend', () => { if (this.map) this.layerManager.reloadVisible(this.map); }); this.captureHomeAfterFirstSettle(); this.initDeepLinking(); this.onMoveOrZoom = () => this.scheduleReload(); this.map!.on('moveend', this.onMoveOrZoom); this.editSuppressionSub?.unsubscribe(); this.editSuppressionSub = this.edit.stateChanged$.subscribe(() => { this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); }); this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); this.lockDragSub?.unsubscribe(); this.lockDragSub = this.edit.lockDrag$.subscribe(() => { if (!this.dragMarker) return; this.dragMarker.dragging?.disable(); this.dragMarker.off('drag'); this.dragMarker.off('dragend'); }); this.mapZoomSub?.unsubscribe(); this.mapZoomSub = this.mapZoom.zoomTo$.subscribe((t: ZoomTarget) => { if (!this.map) return; this.clearZoomArtifacts(); if (t.type === 'clear') return; if (t.type === 'home') { this.zoomToHome(); return; } if (t.type === 'latlng') { const z = t.zoom ?? 17; const ll = L.latLng(t.lat, t.lng); const draggable = !!(t as any).draggable; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); if (draggable) { this.dragMarker = this.createDraggableCircleMarker(ll).addTo(this.map); this.dragMarker.on('drag', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.dragMarker.on('dragend', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.zoomHighlight = this.dragMarker; } else { this.zoomHighlight = L.circleMarker(ll, { radius: 15, weight: 5, color: '#7c3aed', fillColor: '#a78bfa', fillOpacity: 0.6 }).addTo(this.map); } return; } if (t.type === 'xy') { const ll = L.CRS.EPSG3857.unproject(L.point(t.x, t.y)); const z = t.zoom ?? 17; this.map.invalidateSize(); this.map.setView(ll, z, { animate: false }); this.zoomHighlight = L.circleMarker(ll, { radius: 10, weight: 3, fillOpacity: 0.2 }).addTo(this.map); return; } if (t.type === 'bounds') { const b = L.latLngBounds(L.latLng(t.south, t.west), L.latLng(t.north, t.east)); this.map.invalidateSize(); this.map.fitBounds(b.pad(t.pad ?? 0.2), { animate: false }); } }); this.zoomSub?.unsubscribe(); this.zoomSub = this.attrTable.zoomTo$.subscribe(({ feature }) => { if (!this.map) return; try { this.clearZoomArtifacts(); const gj = this.createAttributeHighlightLayer(feature); const bounds = gj.getBounds(); this.highlightLayer = gj.addTo(this.map); if ((this.highlightLayer as any).bringToFront) (this.highlightLayer as any).bringToFront(); if (bounds?.isValid()) this.map.fitBounds(bounds.pad(0.2), { animate: false }); } catch (e) {} }); this.clearSelectionSub?.unsubscribe(); this.clearSelectionSub = this.attrTable.clearSelection$.subscribe(() => { if (!this.map) return; this.clearZoomArtifacts(); this.zoomToHome(); });
+      this.forceMapResize(); this.ui.activePanel = null; this.edit.disable(); this.clearZoomArtifacts(); this.mapZoom.clearHighlight(); this.layerManager.addAll(this.map!); this.layerManager.reloadAll(this.map!); this.map!.once('moveend', () => { if (this.map) this.layerManager.reloadVisible(this.map); }); this.captureHomeAfterFirstSettle(); this.initDeepLinking(); this.onMoveOrZoom = () => this.scheduleReload(); this.map!.on('moveend', this.onMoveOrZoom); this.editSuppressionSub?.unsubscribe(); this.editSuppressionSub = this.edit.stateChanged$.subscribe(() => { this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); }); this.syncEditAwareLayers(); this.applyEditSuppression(); this.updateStationCreateModeUi(); this.lockDragSub?.unsubscribe(); this.lockDragSub = this.edit.lockDrag$.subscribe(() => { if (!this.dragMarker) return; this.dragMarker.dragging?.disable(); this.dragMarker.off('drag'); this.dragMarker.off('dragend'); }); this.mapZoomSub?.unsubscribe(); this.mapZoomSub = this.mapZoom.zoomTo$.subscribe((t: ZoomTarget) => { if (!this.map) return; this.clearZoomArtifacts(); if (t.type === 'clear') return; if (t.type === 'home') { this.zoomToHome(); return; } if (t.type === 'latlng') { const z = t.zoom ?? 17; const ll = L.latLng(t.lat, t.lng); const draggable = !!(t as any).draggable; const existingLayer = (t as any).existingLayer; this.centerLatLngInVisibleMapArea(ll, z); if (draggable) { this.dragMarker = this.createDraggableCircleMarker(ll).addTo(this.map); this.dragMarker.on('drag', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.dragMarker.on('dragend', () => { const p = this.dragMarker!.getLatLng(); this.edit.emitDragEnd(p.lat, p.lng); }); this.zoomHighlight = this.dragMarker; } else if (existingLayer && this.applyExistingMarkerHighlight(existingLayer)) { this.zoomHighlight = undefined; } else { this.zoomHighlight = this.createFocusCircleMarker(ll).addTo(this.map); } return; } if (t.type === 'xy') { const ll = L.CRS.EPSG3857.unproject(L.point(t.x, t.y)); const z = t.zoom ?? 17; this.centerLatLngInVisibleMapArea(ll, z); this.zoomHighlight = this.createFocusCircleMarker(ll, 24, 3, 0.2).addTo(this.map); return; } if (t.type === 'bounds') { const b = L.latLngBounds(L.latLng(t.south, t.west), L.latLng(t.north, t.east)); this.map.invalidateSize(); this.map.fitBounds(b.pad(t.pad ?? 0.2), { animate: false }); } }); this.zoomSub?.unsubscribe(); this.zoomSub = this.attrTable.zoomTo$.subscribe(({ feature }) => { if (!this.map) return; try { this.clearZoomArtifacts(); const gj = this.createAttributeHighlightLayer(feature); const bounds = gj.getBounds(); this.highlightLayer = gj.addTo(this.map); if ((this.highlightLayer as any).bringToFront) (this.highlightLayer as any).bringToFront(); if (bounds?.isValid()) this.map.fitBounds(bounds.pad(0.2), { animate: false }); } catch (e) {} }); this.clearSelectionSub?.unsubscribe(); this.clearSelectionSub = this.attrTable.clearSelection$.subscribe(() => { if (!this.map) return; this.clearZoomArtifacts(); this.zoomToHome(); });
     });
   }
 
