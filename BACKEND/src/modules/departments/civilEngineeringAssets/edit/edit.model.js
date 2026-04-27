@@ -65,9 +65,20 @@ async function getNextManualId(client, qualifiedName, columnName) {
   return Number(rows[0]?.next_id || 1);
 }
 
+function getGeometryReadColumn(config) {
+  const column = String(config?.geometry?.readColumn || '').trim();
+  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column) ? column : null;
+}
+
+function getMainSelectList(config) {
+  const geometryColumn = getGeometryReadColumn(config);
+  if (!geometryColumn) return '*';
+  return `*, ST_X(${geometryColumn}) AS geom_lng, ST_Y(${geometryColumn}) AS geom_lat`;
+}
+
 async function getByIdWithClient(client, config, id, division, lock = false) {
   const sql = `
-    SELECT *
+    SELECT ${getMainSelectList(config)}
     FROM ${config.table}
     WHERE ${config.idColumn} = $1
       AND UPPER(division) = UPPER($2)
@@ -208,7 +219,7 @@ function normalizeStationDraftPayload(data, originalRow) {
     ...originalRow,
     ...data,
     sttntype: data?.sttntype ?? data?.stationtype ?? originalRow?.sttntype,
-    constituncy: data?.constituncy ?? data?.constituency ?? originalRow?.constituncy,
+    constituncy: data?.constituncy ?? data?.constituency ?? originalRow?.constituncy ?? originalRow?.constituency,
     latitude: Number.isFinite(lat) ? lat : originalRow?.latitude ?? null,
     longitude: Number.isFinite(lng) ? lng : originalRow?.longitude ?? null,
     ycoord: Number.isFinite(lat) ? lat : originalRow?.ycoord ?? null,
@@ -353,7 +364,7 @@ function setWorkflowAssignmentFields(record, workflow, draftTableColumns, assign
 
 async function getById(config, id, division) {
   const sql = `
-    SELECT *
+    SELECT ${getMainSelectList(config)}
     FROM ${config.table}
     WHERE ${config.idColumn} = $1
       AND UPPER(division) = UPPER($2)
@@ -971,7 +982,7 @@ async function getTable(config, page, pageSize, q, division) {
   `;
 
   const listSql = `
-    SELECT *
+    SELECT ${getMainSelectList(config)}
     FROM ${config.table}
     WHERE ${where}
     ORDER BY ${config.idColumn}
@@ -1245,7 +1256,7 @@ function normalizeValidatedAssetResult(result) {
     state: pickResultValue(result, ['state']),
     district: pickResultValue(result, ['district']),
     bridgeno: pickResultValue(result, ['bridgeno', 'bridge_no', 'bridgeid']),
-    constituncy: pickResultValue(result, ['constituncy', 'constituency']),
+    constituency: pickResultValue(result, ['constituency', 'constituncy']),
     bridgetype: pickResultValue(result, ['bridgetype', 'bridge_type']),
     spanconf: pickResultValue(result, ['spanconf', 'span_configuration']),
     raw: result,

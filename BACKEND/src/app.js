@@ -8,6 +8,7 @@ const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
 const authenticateToken = require("./middleware/auth");
 const authRoutes = require("./modules/auth/auth.routes");
+const commonLocationRoutes = require("./modules/common/location/location.routes");
 const commonLayersRoutes = require("./modules/common/view/layers/layers.routes");
 const ceaViewRoutes = require("./modules/departments/civilEngineeringAssets/view/layers/layers.routes");
 const ceaDashboardRoutes = require("./modules/departments/civilEngineeringAssets/view/dashboard/dashboard.routes");
@@ -87,6 +88,11 @@ const apiPrefixes = ["/api", "/ump_gis/api"];
 
 for (const prefix of apiPrefixes) {
   app.use(`${prefix}/auth`, authRoutes);
+  app.use(
+    `${prefix}/common/location`,
+    authenticateToken,
+    commonLocationRoutes,
+  );
   app.use(
     `${prefix}/common/view/layers`,
     authenticateToken,

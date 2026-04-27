@@ -128,7 +128,7 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituncy',
+      'constituency',
       'gis_unique_id'
     ],
     updateFields: [
@@ -168,7 +168,7 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituncy',
+      'constituency',
       'gis_unique_id'
     ],
     searchableFields: [
@@ -198,6 +198,7 @@ module.exports = {
       enabled: true,
       type: 'Point',
       column: 'shape',
+      readColumn: 'geom',
       xField: 'xcoord',
       yField: 'ycoord'
     },
@@ -238,7 +239,7 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituncy',
+      'constituency',
       'gis_unique_id'
     ],
     updateFields: [
@@ -278,7 +279,7 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituncy',
+      'constituency',
       'gis_unique_id'
     ],
     searchableFields: [
@@ -308,6 +309,7 @@ module.exports = {
       enabled: true,
       type: 'Point',
       column: 'shape',
+      readColumn: 'geom',
       xField: 'xcoord',
       yField: 'ycoord'
     },
@@ -348,7 +350,7 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituncy',
+      'constituency',
       'gis_unique_id'
     ],
     updateFields: [
@@ -388,7 +390,7 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituncy',
+      'constituency',
       'gis_unique_id'
     ],
     searchableFields: [

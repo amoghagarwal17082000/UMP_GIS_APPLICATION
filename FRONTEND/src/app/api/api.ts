@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AuthApi } from './auth/auth.api';
 import { CommonDashboardApi } from './common/dashboard/dashboard.api';
+import { CommonLocationApi } from './common/location/location.api';
 import { CommonViewingApi } from './common/viewing/common-viewing.api';
 import { CivilEngineeringAssetsViewingApi } from './civil_engineering_assets/viewing/viewing.api';
 import { CivilEngineeringAssetsEditingApi } from './civil_engineering_assets/editing/editing.api';
@@ -15,6 +16,7 @@ import { SuperAdminUserManagementApi } from './super_admin/super-admin-user-mana
 export class Api {
   constructor(
     private authApi: AuthApi,
+    private commonLocationApi: CommonLocationApi,
     private commonViewingApi: CommonViewingApi,
     private commonDashboardApi: CommonDashboardApi,
     private ceaViewingApi: CivilEngineeringAssetsViewingApi,
@@ -37,6 +39,18 @@ export class Api {
   }
   getIndiaBoundary(bbox: string) {
     return this.commonViewingApi.getIndiaBoundary(bbox);
+  }
+
+  getStates() {
+    return this.commonLocationApi.getStates();
+  }
+
+  getDistricts(filters: { state?: string; state_lgd?: number | string } = {}) {
+    return this.commonLocationApi.getDistricts(filters);
+  }
+
+  getParliamentaryConstituencies(filters: { state?: string; q?: string; search?: string } = {}) {
+    return this.commonLocationApi.getParliamentaryConstituencies(filters);
   }
 
   getDivisionBuffer() {

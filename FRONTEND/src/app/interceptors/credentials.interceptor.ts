@@ -4,6 +4,8 @@ import { catchError, throwError } from 'rxjs';
 import { getAccessToken } from '../services/current-user.store';
 import { CurrentUserService } from '../services/current-user';
 
+const LAST_AUTH_FAILURE_KEY = 'ump_last_auth_failure';
+
 function isSessionAuthFailure(error: any): boolean {
   const message = String(
     error?.error?.message ||
@@ -39,6 +41,24 @@ export const credentialsInterceptor: HttpInterceptorFn = (req, next) => {
   return next(request).pipe(
     catchError((error) => {
       if (error?.status === 401 && !isAuthRequest && token && isSessionAuthFailure(error)) {
+        const reason = String(
+          error?.error?.message ||
+            error?.error?.error ||
+            error?.message ||
+            'Unauthorized'
+        ).trim();
+
+        if (typeof window !== 'undefined') {
+          const details = {
+            at: new Date().toISOString(),
+            url: req.url,
+            status: error?.status || 401,
+            reason,
+          };
+          sessionStorage.setItem(LAST_AUTH_FAILURE_KEY, JSON.stringify(details));
+          console.warn('[AUTH] Forced logout after API auth failure:', details);
+        }
+
         currentUser.clear();
         if (typeof window !== 'undefined' && !window.location.hash.includes('/login')) {
           window.location.hash = '#/login';

@@ -31,14 +31,9 @@ async function getDepartmentLayer(req, res, next) {
     }
 
     const effectiveDivision = String(division || req?.user?.division || '').trim();
-    const { where, params } = parseBbox(bbox);
-    const { geojson, meta } = await model.getDepartmentLayerGeoJSON(
-      departmentRef,
-      layerKey,
-      where,
-      params,
-      effectiveDivision
-    );
+    const { meta, layerConfig } = await model.resolveDepartmentLayerConfig(departmentRef, layerKey);
+    const { where, params } = parseBbox(bbox, layerConfig.geometryColumn);
+    const geojson = await model.getLayerGeoJSON(layerConfig, where, params, effectiveDivision);
 
     res.json(geojson || { type: 'FeatureCollection', features: [], meta });
   } catch (err) {
@@ -60,7 +55,7 @@ async function getLayer(req, res, next) {
       throw err;
     }
 
-    const { where, params } = parseBbox(bbox);
+    const { where, params } = parseBbox(bbox, layerConfig.geometryColumn);
 
     const geojson = await model.getLayerGeoJSON(
       layerConfig,

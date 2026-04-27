@@ -199,6 +199,127 @@
   font-size: 12px;
 }
 
+#panelEdit .add-record-modal-backdrop{
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+  border-radius: 12px;
+}
+
+#panelEdit .add-record-modal{
+  width: min(720px, calc(100% - 12px));
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+
+#panelEdit .add-record-modal-header{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+#panelEdit .add-record-modal-header h4{
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+#panelEdit .add-record-modal-header p{
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+#panelEdit .add-record-modal-close{
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#panelEdit .add-record-modal-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px 22px 22px;
+}
+
+#panelEdit .add-record-option-card{
+  padding: 18px;
+  border: 1px solid #d8e1f0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+#panelEdit .add-record-option-title{
+  font-size: 17px;
+  font-weight: 900;
+  color: #1d3b8b;
+}
+
+#panelEdit .add-record-option-text{
+  margin: 8px 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+#panelEdit .add-record-shapefile-input{
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 8px 12px;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+}
+
+#panelEdit .add-record-shapefile-input::file-selector-button{
+  margin-right: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #1d3b8b;
+  color: #ffffff;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#panelEdit .add-record-option-btn{
+  min-height: 46px;
+  width: 100%;
+}
+
+#panelEdit .add-record-option-meta{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a8a;
+  word-break: break-word;
+}
+
 /* =========================================================
    CARD + TABLE
    ========================================================= */
@@ -345,6 +466,7 @@
    EDIT MODE (FORM)
    ========================================================= */
 #panelEdit .edit-form{
+  position: relative;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -428,6 +550,13 @@
   color: #334155;
 }
 
+#panelEdit .field-input:disabled{
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 /* ✅ Station code row: input left + validate right (SAME LINE) */
 #panelEdit .field-inline{
   display: flex;
@@ -449,6 +578,137 @@
   border-radius: 10px;
   font-weight: 900;
   white-space: nowrap;
+}
+
+#panelEdit .attachment-field{
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid #d8e1f0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fbff 0%, #f1f6fd 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+#panelEdit .attachment-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+#panelEdit .attachment-head-copy{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+#panelEdit .attachment-label{
+  margin-bottom: 0;
+  color: #0f172a;
+}
+
+#panelEdit .attachment-help{
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+#panelEdit .attachment-types{
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(29, 59, 139, 0.08);
+  border: 1px solid rgba(29, 59, 139, 0.14);
+  color: #1d3b8b;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#panelEdit .attachment-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#panelEdit .attachment-input{
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 46px;
+  padding: 8px 12px;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+#panelEdit .attachment-input:hover{
+  border-color: #2563eb;
+  background: #f8fbff;
+}
+
+#panelEdit .attachment-input:focus{
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+#panelEdit .attachment-input::file-selector-button{
+  margin-right: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #1d3b8b;
+  color: #ffffff;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+#panelEdit .attachment-input::file-selector-button:hover{
+  background: #142b69;
+}
+
+#panelEdit .attachment-clear-btn{
+  flex: 0 0 auto;
+  height: 44px;
+  min-width: 76px;
+}
+
+#panelEdit .attachment-name{
+  margin-top: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a8a;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  word-break: break-word;
+}
+
+#panelEdit .attachment-selected-type{
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+@media (max-width: 767.98px){
+  #panelEdit .attachment-head{
+    flex-direction: column;
+  }
+
+  #panelEdit .attachment-types{
+    white-space: normal;
+  }
 }
 
 /* Actions row */
@@ -504,8 +764,8 @@
 /* Icon base */
 #panelEdit .tbl td:last-child button.action-btn::before{
   content: "";
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
 
   background-size: contain;
   background-repeat: no-repeat;
@@ -528,8 +788,8 @@
 
 #panelEdit .tbl td:last-child button.maker-delete-btn::before{
   background-image: url("../../../assets/images/delete.png");
-  width: 42px;
-  height: 42px;
+  width: 300px;
+  height: 300px;
 }
 
 /* Hover effects */
@@ -760,6 +1020,10 @@
   line-height: 1;
 }
 
+#panelEdit .tbl td.actions-cell button.reject-btn i{
+  font-size: 18px;
+}
+
 #panelEdit .tbl td.actions-cell button.accept-btn i{
   font-size: 22px;
   font-weight: 900;
@@ -820,4 +1084,17 @@
   gap: 6px;
   white-space: nowrap;
   transform: none;
+}
+
+/* Final maker delete icon override.
+   The generic action-btn::before rule below the main delete block was shrinking it back down. */
+#panelEdit .tbl td:last-child button.maker-delete-btn{
+  width: 42px;
+  height: 42px;
+}
+
+#panelEdit .tbl td:last-child button.maker-delete-btn::before{
+  width: 30px;
+  height: 30px;
+  background-size: contain;
 }

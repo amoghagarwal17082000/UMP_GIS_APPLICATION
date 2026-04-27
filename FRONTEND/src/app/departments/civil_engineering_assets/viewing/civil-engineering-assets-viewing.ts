@@ -103,6 +103,38 @@ function inferMinZoomFromTitle(title: string): number {
   return TOWN_LEVEL_MIN_ZOOM;
 }
 
+function getAssetPopupValue(props: Record<string, any>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = props?.[key];
+    if (value != null && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+  return '';
+}
+
+function buildDynamicLayerPopupHtml(props: Record<string, any>): string {
+  const lines: string[] = [];
+  const seenKeys = new Set<string>();
+
+  const pushLine = (label: string, value: string, sourceKey?: string) => {
+    if (!value) return;
+    if (sourceKey) seenKeys.add(sourceKey);
+    lines.push(`<b>${label}</b>: ${value}`);
+  };
+
+  pushLine('Asset ID', getAssetPopupValue(props, 'asset_id', 'assetid'), props.asset_id != null ? 'asset_id' : (props.assetid != null ? 'assetid' : undefined));
+
+  Object.keys(props)
+    .filter((key) => !seenKeys.has(key))
+    .slice(0, lines.length ? 4 : 5)
+    .forEach((key) => {
+      pushLine(key, props[key] == null ? '-' : String(props[key]), key);
+    });
+
+  return lines.join('<br>');
+}
+
 export class StationViewingLayer implements MapLayer {
   id = 'stations';
   title = 'Stations';
@@ -736,6 +768,8 @@ export class DynamicDepartmentLayer implements MapLayer {
   private added = false;
   private readonly minZoom: number;
   private onZoomEndHandler?: () => void;
+  private renderedPointIndex = new Map<string, L.LatLng>();
+  private renderedPointFeatures: Array<{ props: Record<string, any>; latLng: L.LatLng; layer?: any }> = [];
 
   constructor(
     public id: string,
@@ -753,11 +787,8 @@ export class DynamicDepartmentLayer implements MapLayer {
         pointLayerFromLegend(this.legend, latlng, paneNameForLegend(this.legend)),
       onEachFeature: (feature: any, layer: any) => {
         const props = feature?.properties || {};
-        const firstKeys = Object.keys(props).slice(0, 5);
-        if (firstKeys.length) {
-          const html = firstKeys
-            .map((key) => `<b>${key}</b>: ${props[key] ?? '-'}`)
-            .join('<br>');
+        const html = buildDynamicLayerPopupHtml(props);
+        if (html) {
           layer.bindPopup(html);
         }
         this.onFeatureReady(feature, layer);
@@ -770,6 +801,152 @@ export class DynamicDepartmentLayer implements MapLayer {
   }
 
   protected onFeatureReady(_feature: any, _layer: any): void {}
+
+  getRenderedLatLngForKey(...keys: Array<string | number | null | undefined>): L.LatLng | null {
+    for (const key of keys) {
+      const normalized = String(key ?? '').trim().toLowerCase();
+      if (!normalized) continue;
+      const latLng = this.renderedPointIndex.get(normalized);
+      if (latLng) return latLng;
+    }
+    return null;
+  }
+
+  getBestRenderedLatLng(row: any): L.LatLng | null {
+    if (!row || !this.renderedPointFeatures.length) return null;
+
+    const normalize = (value: any) => String(value ?? '').trim().toLowerCase();
+    const normalizeNumber = (value: any) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? String(num) : '';
+    };
+
+    let bestScore = 0;
+    let bestLatLng: L.LatLng | null = null;
+
+    for (const candidate of this.renderedPointFeatures) {
+      const props = candidate.props || {};
+      let score = 0;
+
+      const rowObjectId = normalizeNumber(row?.objectid);
+      const propObjectId = normalizeNumber(props?.objectid || props?.OBJECTID);
+      if (rowObjectId && propObjectId && rowObjectId === propObjectId) score += 100;
+
+      const rowGid = normalizeNumber(row?.gid);
+      const propGid = normalizeNumber(props?.gid);
+      if (rowGid && propGid && rowGid === propGid) score += 100;
+
+      const rowAssetId = normalize(row?.asset_id || row?.assetid);
+      const propAssetId = normalize(props?.asset_id || props?.assetid);
+      if (rowAssetId && propAssetId && rowAssetId === propAssetId) score += 80;
+
+      const rowBridgeNo = normalize(row?.bridgeno || row?.rorno);
+      const propBridgeNo = normalize(props?.bridgeno || props?.rorno);
+      if (rowBridgeNo && propBridgeNo && rowBridgeNo === propBridgeNo) score += 50;
+
+      const rowLine = normalize(row?.line);
+      const propLine = normalize(props?.line);
+      if (rowLine && propLine && rowLine === propLine) score += 40;
+
+      const rowDistKm = normalizeNumber(row?.distkm);
+      const rowDistM = normalizeNumber(row?.distm);
+      const candidateKmValues = [
+        normalizeNumber(props?.distkm),
+        normalizeNumber(props?.kmfrom),
+        normalizeNumber(props?.kmto),
+      ].filter(Boolean);
+      const candidateMValues = [
+        normalizeNumber(props?.distm),
+        normalizeNumber(props?.metfrom),
+        normalizeNumber(props?.metto),
+      ].filter(Boolean);
+      if (rowDistKm && candidateKmValues.includes(rowDistKm)) score += 25;
+      if (rowDistM && candidateMValues.includes(rowDistM)) score += 25;
+
+      const rowState = normalize(row?.state);
+      const propState = normalize(props?.state);
+      if (rowState && propState && rowState === propState) score += 10;
+
+      const rowDistrict = normalize(row?.district);
+      const propDistrict = normalize(props?.district);
+      if (rowDistrict && propDistrict && rowDistrict === propDistrict) score += 10;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestLatLng = candidate.latLng;
+      }
+    }
+
+    return bestScore > 0 ? bestLatLng : null;
+  }
+
+  getBestRenderedLayer(row: any): any | null {
+    if (!row || !this.renderedPointFeatures.length) return null;
+
+    const normalize = (value: any) => String(value ?? '').trim().toLowerCase();
+    const normalizeNumber = (value: any) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? String(num) : '';
+    };
+
+    let bestScore = 0;
+    let bestLayer: any | null = null;
+
+    for (const candidate of this.renderedPointFeatures) {
+      const props = candidate.props || {};
+      let score = 0;
+
+      const rowObjectId = normalizeNumber(row?.objectid);
+      const propObjectId = normalizeNumber(props?.objectid || props?.OBJECTID);
+      if (rowObjectId && propObjectId && rowObjectId === propObjectId) score += 100;
+
+      const rowGid = normalizeNumber(row?.gid);
+      const propGid = normalizeNumber(props?.gid);
+      if (rowGid && propGid && rowGid === propGid) score += 100;
+
+      const rowAssetId = normalize(row?.asset_id || row?.assetid);
+      const propAssetId = normalize(props?.asset_id || props?.assetid);
+      if (rowAssetId && propAssetId && rowAssetId === propAssetId) score += 80;
+
+      const rowBridgeNo = normalize(row?.bridgeno || row?.rorno);
+      const propBridgeNo = normalize(props?.bridgeno || props?.rorno);
+      if (rowBridgeNo && propBridgeNo && rowBridgeNo === propBridgeNo) score += 50;
+
+      const rowLine = normalize(row?.line);
+      const propLine = normalize(props?.line);
+      if (rowLine && propLine && rowLine === propLine) score += 40;
+
+      const rowDistKm = normalizeNumber(row?.distkm);
+      const rowDistM = normalizeNumber(row?.distm);
+      const candidateKmValues = [
+        normalizeNumber(props?.distkm),
+        normalizeNumber(props?.kmfrom),
+        normalizeNumber(props?.kmto),
+      ].filter(Boolean);
+      const candidateMValues = [
+        normalizeNumber(props?.distm),
+        normalizeNumber(props?.metfrom),
+        normalizeNumber(props?.metto),
+      ].filter(Boolean);
+      if (rowDistKm && candidateKmValues.includes(rowDistKm)) score += 25;
+      if (rowDistM && candidateMValues.includes(rowDistM)) score += 25;
+
+      const rowState = normalize(row?.state);
+      const propState = normalize(props?.state);
+      if (rowState && propState && rowState === propState) score += 10;
+
+      const rowDistrict = normalize(row?.district);
+      const propDistrict = normalize(props?.district);
+      if (rowDistrict && propDistrict && rowDistrict === propDistrict) score += 10;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestLayer = candidate.layer || null;
+      }
+    }
+
+    return bestScore > 0 ? bestLayer : null;
+  }
 
   private canShow(map: L.Map): boolean {
     return this.visible && map.getZoom() >= this.minZoom;
@@ -825,6 +1002,8 @@ export class DynamicDepartmentLayer implements MapLayer {
         this.legend = inferCivilLegendFromFeatureCollection(this.title, this.layerKey, geojson);
         ensurePane(map, paneNameForLegend(this.legend));
         this.onData?.(geojson);
+        this.renderedPointIndex.clear();
+        this.renderedPointFeatures = [];
 
         if (!this.canShow(map)) {
           this.layer.clearLayers();
@@ -833,6 +1012,29 @@ export class DynamicDepartmentLayer implements MapLayer {
 
         this.layer.clearLayers();
         this.layer.addData(geojson);
+        this.layer.eachLayer((featureLayer: any) => {
+          const feature = featureLayer?.feature;
+          const props = feature?.properties ?? {};
+          const coords = Array.isArray(feature?.geometry?.coordinates) ? feature.geometry.coordinates : null;
+          const lng = Number(coords?.[0]);
+          const lat = Number(coords?.[1]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          const latLng = L.latLng(lat, lng);
+          this.renderedPointFeatures.push({ props, latLng, layer: featureLayer });
+          const candidateKeys = [
+            props?.objectid,
+            props?.OBJECTID,
+            props?.gid,
+            props?.asset_id,
+            props?.assetid,
+            feature?.id,
+          ];
+          candidateKeys.forEach((key) => {
+            const normalized = String(key ?? '').trim().toLowerCase();
+            if (!normalized) return;
+            this.renderedPointIndex.set(normalized, latLng);
+          });
+        });
         if (this.legend.type !== 'polygon') {
           this.layer.bringToFront();
         }

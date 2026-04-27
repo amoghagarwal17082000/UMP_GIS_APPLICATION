@@ -31,8 +31,8 @@ const configuration = () =>
     }),
     JWT: Object.freeze({
       KEY: readString(process.env.JWT_SECRET) || readString(process.env.JWT_SECRET_KEY),
-      EXPIRES_IN: readString(process.env.JWT_EXPIRES_IN, '8h'),
-      IDLE_TIMEOUT_MINUTES: toNumber(process.env.IDLE_TIMEOUT_MINUTES, 30),
+      EXPIRES_IN: readString(process.env.JWT_EXPIRES_IN, '3h'),
+      IDLE_TIMEOUT_MINUTES: toNumber(process.env.IDLE_TIMEOUT_MINUTES, 180),
     }),
     SESSION: Object.freeze({
       SECRET: readString(process.env.SESSION_SECRET),

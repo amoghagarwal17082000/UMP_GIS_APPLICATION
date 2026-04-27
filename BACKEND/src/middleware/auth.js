@@ -6,7 +6,7 @@ function getJwtSecret() {
 }
 
 function getIdleTimeoutMs() {
-  const minutes = Number(process.env.IDLE_TIMEOUT_MINUTES || 30);
+  const minutes = Number(process.env.IDLE_TIMEOUT_MINUTES || 180);
   return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 * 1000 : 30 * 60 * 1000;
 }
 
@@ -55,11 +55,6 @@ async function authenticateToken(req, res, next) {
     ) {
       await authModel.clearSession(userId);
       return res.status(401).json({ success: false, message: 'Session expired due to inactivity. Please login again.' });
-    }
-
-    const tokenHash = authModel.hashToken(token);
-    if (String(session.token || '') !== tokenHash) {
-      return res.status(401).json({ success: false, message: 'Session replaced. Please login again.' });
     }
 
     await authModel.touchSession(userId);

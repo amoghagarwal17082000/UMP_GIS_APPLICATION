@@ -3,7 +3,7 @@ module.exports = {
   station: {
     table: 'sde.station',
     idColumn: 'objectid',
-    geometryColumn: 'shape'
+    geometryColumn: 'geom'
   },
 
   kmPost: {

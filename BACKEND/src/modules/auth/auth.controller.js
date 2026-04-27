@@ -50,7 +50,7 @@ async function issueAccessToken(user) {
     throw err;
   }
 
-  const expiresIn = process.env.JWT_EXPIRES_IN || '8h';
+  const expiresIn = process.env.JWT_EXPIRES_IN || '3h';
   const payload = {
     sub: user.user_id,
     user_id: user.user_id,

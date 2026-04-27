@@ -125,7 +125,7 @@ const BRIDGE_FORM_FIELD_KEYS = [
   'state',
   'district',
   'bridgeno',
-  'constituncy',
+  'constituency',
   'bridgetype',
   'spanconf',
 ];
@@ -192,7 +192,7 @@ export const EDIT_LAYER_CONFIG: Record<string, LayerFormConfig> = {
     includeGenericStatusColumns: false,
     includeGenericStatusFields: false,
     tableColumnKeys: ['sttncode', 'sttnname', 'distkm', 'distm', 'state', 'district'],
-    formFieldKeys: ['sttncode', 'sttnname', 'stationtype', 'distkm', 'distm', 'state', 'district', 'category', 'constituency', 'status'],
+    formFieldKeys: ['sttncode', 'sttnname', 'stationtype', 'distkm', 'distm', 'state', 'district', 'category', 'constituncy', 'status'],
   }),
 
   landplan: buildLayerConfig({
@@ -250,28 +250,28 @@ export const EDIT_LAYER_CONFIG: Record<string, LayerFormConfig> = {
     id: 'levelxing',
     label: 'Levelxing',
     tableColumnKeys: ['sttncode', 'assetid'],
-    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname', 'constituncy'],
   }),
 
   road_over_bridge: buildLayerConfig({
     id: 'road_over_bridge',
     label: 'Road Over Bridge',
     tableColumnKeys: ['assetid', 'sttncode'],
-    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname', 'constituncy'],
   }),
 
   rub_lhs: buildLayerConfig({
     id: 'rub_lhs',
     label: 'Rub Lhs',
     tableColumnKeys: ['assetid', 'sttncode'],
-    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname', 'constituncy'],
   }),
 
   ror: buildLayerConfig({
     id: 'ror',
     label: 'Ror',
     tableColumnKeys: ['assetid', 'sttncode'],
-    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname', 'constituncy'],
   }),
 
   rob: buildLayerConfig({
@@ -299,7 +299,7 @@ export const EDIT_LAYER_CONFIG: Record<string, LayerFormConfig> = {
     id: 'buffer_rails',
     label: 'Buffer Rails',
     tableColumnKeys: ['assetid', 'sttncode'],
-    formFieldKeys: ['assetid', 'sttncode', 'sttnname'],
+    formFieldKeys: ['assetid', 'sttncode', 'sttnname', 'constituency'],
   }),
 
   gradient_start: buildLayerConfig({

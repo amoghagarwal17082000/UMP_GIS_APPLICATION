@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 
 export type ZoomTarget =
-  | { type: 'latlng'; lat: number; lng: number; zoom?: number; draggable?: boolean }
+  | { type: 'latlng'; lat: number; lng: number; zoom?: number; draggable?: boolean; existingLayer?: any }
   | { type: 'xy'; x: number; y: number; zoom?: number }
   | { type: 'bounds'; west: number; south: number; east: number; north: number; pad?: number }
   | { type: 'home' }

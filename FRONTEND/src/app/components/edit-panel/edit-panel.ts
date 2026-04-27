@@ -8,6 +8,7 @@ import { Api } from 'src/app/api/api';
 import { UiState } from '../../services/ui-state';
 import { MapZoomService } from 'src/app/services/map-zoom';
 import { CurrentUserService } from 'src/app/services/current-user';
+import { LayerManager } from 'src/app/services/layer-manager';
 import {
   CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS,
   getCivilEngineeringAssetLayerDisplayName,
@@ -27,6 +28,12 @@ type MakerLayerOption = {
   value: string;
   label: string;
   supported: boolean;
+};
+type LocationOption = {
+  value: string;
+  label: string;
+  stateLgd?: number | null;
+  state?: string;
 };
 const RAILWAY_CODE_MAP: Record<string, string> = {
   'Central Railway': 'CR',
@@ -58,6 +65,7 @@ const RAILWAY_CODE_MAP: Record<string, string> = {
 })
 export class EditPanel implements OnInit, OnDestroy {
   private static readonly POINT_LAYER_ZOOM = 19;
+  private static readonly NEW_ASSET_ZOOM = 10;
   private static readonly DEFAULT_LAYER_ZOOM = 17;
   private static readonly NON_POINT_LAYERS = new Set([
     'landplan',
@@ -102,10 +110,20 @@ export class EditPanel implements OnInit, OnDestroy {
   rejectedLayer: EditLayerKey | null = null;
 
   geomEditing = false;
+  selectedAttachmentFile: File | null = null;
+  selectedAttachmentName = '';
+  selectedAttachmentKind: 'other' | null = null;
+  showAddRecordModal = false;
+  addRecordShapefileName = '';
   private dragSub?: Subscription;
   private stateSub?: Subscription;
   private createPointSub?: Subscription;
   private loadSeq = 0;
+  stateOptions: LocationOption[] = [];
+  districtOptions: LocationOption[] = [];
+  constituencyOptions: LocationOption[] = [];
+  private allDistrictOptions: Array<LocationOption & { state?: string }> = [];
+  private allConstituencyOptions: Array<LocationOption & { state?: string }> = [];
 
   constructor(
     public ui: UiState,
@@ -113,10 +131,13 @@ export class EditPanel implements OnInit, OnDestroy {
     private api: Api,
     private cdr: ChangeDetectorRef,
     private mapZoom: MapZoomService,
-    private currentUser: CurrentUserService
+    private currentUser: CurrentUserService,
+    private layerManager: LayerManager
   ) {}
 
   ngOnInit(): void {
+    this.loadLocationOptions();
+
     if (this.isMaker()) {
       this.loadAssignedMakerLayers();
     }
@@ -131,7 +152,11 @@ export class EditPanel implements OnInit, OnDestroy {
     });
 
     this.createPointSub = this.edit.createStationPoint$.subscribe(({ lat, lng }) => {
-      this.beginStationCreationDraft(lat, lng);
+      if (this.currentTableLayer === 'stations') {
+        this.beginStationCreationDraft(lat, lng);
+      } else {
+        this.beginGenericCreationDraft(lat, lng);
+      }
     });
 
     if (this.edit.enabled && this.supportsCurrentLayerListing()) this.load(true);
@@ -281,6 +306,9 @@ export class EditPanel implements OnInit, OnDestroy {
     this.originalDraft = null;
     this.stationValidated = false;
     this.validatedBridgeAssetId = null;
+    this.selectedAttachmentFile = null;
+    this.selectedAttachmentName = '';
+    this.selectedAttachmentKind = null;
 
     this.geomEditing = false;
     this.dragSub?.unsubscribe();
@@ -301,12 +329,18 @@ export class EditPanel implements OnInit, OnDestroy {
     if (layer === 'stations') return;
 
     this.mode = 'edit';
+    this.ensureLocationOptionsLoaded();
     this.error = null;
     this.stationValidated = false;
     this.validatedBridgeAssetId = null;
     this.validating = false;
     this.saving = false;
     this.deleting = false;
+    this.showAddRecordModal = false;
+    this.addRecordShapefileName = '';
+    this.selectedAttachmentFile = null;
+    this.selectedAttachmentName = this.getExistingAttachmentName(this.edit.draft);
+    this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
     this.geomEditing = false;
     this.dragSub?.unsubscribe();
     this.dragSub = undefined;
@@ -314,7 +348,74 @@ export class EditPanel implements OnInit, OnDestroy {
     const normalized = this.normalizeCurrentLayerDraft(this.edit.draft);
     this.draft = { ...normalized };
     this.originalDraft = { ...normalized };
+    this.prepareLocationDropdownsForDraft(false);
+    const bestRenderedLayer = this.getBestRenderedLayer(this.edit.draft);
+    const selectedFeatureLatLng = this.getSelectedFeatureLatLng(this.edit.draft);
+    if (selectedFeatureLatLng) {
+      this.mapZoom.zoomTo({
+        type: 'latlng',
+        lat: selectedFeatureLatLng.lat,
+        lng: selectedFeatureLatLng.lng,
+        zoom: this.getEditFocusZoom(),
+        draggable: false,
+        existingLayer: bestRenderedLayer,
+      } as any);
+    }
     this.cdr.detectChanges();
+  }
+
+  isLocationSelectField(field: EditFieldConfig): boolean {
+    return ['state', 'district', 'constituency', 'constituncy'].includes(field.key);
+  }
+
+  getLocationOptions(field: EditFieldConfig): LocationOption[] {
+    const options = field.key === 'state'
+      ? this.stateOptions
+      : field.key === 'district'
+        ? this.districtOptions
+        : field.key === 'constituency' || field.key === 'constituncy'
+          ? this.constituencyOptions
+          : [];
+    const current = field.key === 'constituency' || field.key === 'constituncy'
+      ? this.getDraftConstituencyValue()
+      : this.normalizeLocationValue(this.draft?.[field.key]);
+    if (!current || options.some((option) => option.value === current)) return options;
+    return [{ value: current, label: current }, ...options];
+  }
+
+  getLocationPlaceholder(field: EditFieldConfig): string {
+    if (field.key === 'state') return 'Select State';
+    if (field.key === 'district') return 'Select District';
+    if (field.key === 'constituency' || field.key === 'constituncy') return 'Select Constituency';
+    return `Select ${field.label}`;
+  }
+
+  getLocationFieldValue(field: EditFieldConfig): string {
+    if (field.key === 'constituency' || field.key === 'constituncy') {
+      return this.getDraftConstituencyValue(field.key);
+    }
+    return this.normalizeLocationValue(this.draft?.[field.key]);
+  }
+
+  onLocationFieldValueChange(field: EditFieldConfig, value: any): void {
+    if (!this.draft) return;
+    this.draft[field.key] = this.normalizeLocationValue(value);
+
+    if (field.key === 'state') {
+      this.draft.state = this.normalizeLocationValue(this.draft.state);
+      this.filterDistrictOptionsForDraftState(true);
+      this.filterConstituencyOptionsForDraftState(true);
+      return;
+    }
+
+    if (field.key === 'district') {
+      this.draft.district = this.normalizeLocationValue(this.draft.district);
+      return;
+    }
+
+    if (field.key === 'constituency' || field.key === 'constituncy') {
+      this.setDraftConstituency(this.normalizeLocationValue(value));
+    }
   }
 
   private getUserType(): string {
@@ -330,6 +431,214 @@ export class EditPanel implements OnInit, OnDestroy {
 
   private getNormalizedBridgeAssetId(value: any = this.draft?.asset_id): string {
     return String(value || '').trim().toUpperCase();
+  }
+
+  private normalizeLocationValue(value: any): string {
+    return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  }
+
+  private getValueByNormalizedKey(source: any, aliases: string[]): any {
+    if (!source || typeof source !== 'object') return undefined;
+    const aliasSet = new Set(aliases.map((alias) => alias.toLowerCase().replace(/[^a-z0-9]/g, '')));
+    for (const [key, value] of Object.entries(source)) {
+      const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (aliasSet.has(normalizedKey) && value != null && String(value).trim() !== '') {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  private uniqueLocationOptions(values: Array<{ value: any; label?: any; stateLgd?: any; state?: any }>): LocationOption[] {
+    const seen = new Set<string>();
+    const options: LocationOption[] = [];
+    values.forEach((item) => {
+      const value = this.normalizeLocationValue(item.value);
+      if (!value || seen.has(value)) return;
+      seen.add(value);
+      const stateLgd = Number(item.stateLgd);
+      options.push({
+        value,
+        label: this.normalizeLocationValue(item.label ?? item.value),
+        stateLgd: Number.isFinite(stateLgd) ? stateLgd : null,
+        state: this.normalizeLocationValue(item.state),
+      });
+    });
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  private uniqueConstituencyOptions(values: Array<{ value: any; label?: any; state?: any }>): LocationOption[] {
+    const seen = new Set<string>();
+    const options: LocationOption[] = [];
+    values.forEach((item) => {
+      const value = this.normalizeLocationValue(item.value);
+      const state = this.normalizeLocationValue(item.state);
+      const key = `${state}::${value}`;
+      if (!value || seen.has(key)) return;
+      seen.add(key);
+      options.push({
+        value,
+        label: this.normalizeLocationValue(item.label ?? item.value),
+        state,
+      });
+    });
+    return options.sort((a, b) => {
+      const stateCompare = this.normalizeLocationValue(a.state).localeCompare(this.normalizeLocationValue(b.state));
+      return stateCompare || a.label.localeCompare(b.label);
+    });
+  }
+
+  private uniqueStateScopedOptions(values: Array<{ value: any; label?: any; state?: any }>): LocationOption[] {
+    const seen = new Set<string>();
+    const options: LocationOption[] = [];
+    values.forEach((item) => {
+      const value = this.normalizeLocationValue(item.value);
+      const state = this.normalizeLocationValue(item.state);
+      const key = `${state}::${value}`;
+      if (!value || seen.has(key)) return;
+      seen.add(key);
+      options.push({
+        value,
+        label: this.normalizeLocationValue(item.label ?? item.value),
+        state,
+      });
+    });
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  private matchLocationOption(options: LocationOption[], value: any): string {
+    const normalized = this.normalizeLocationValue(value);
+    if (!normalized) return '';
+    return options.find((option) => this.normalizeLocationValue(option.value) === normalized)?.value || normalized;
+  }
+
+  private setDraftConstituency(value: any): void {
+    if (!this.draft) return;
+    const normalized = this.normalizeLocationValue(value);
+    this.draft.constituency = normalized;
+    if (Object.prototype.hasOwnProperty.call(this.draft, 'constituncy')) this.draft.constituncy = normalized;
+    if (this.formFields.some((field) => field.key === 'constituncy')) this.draft.constituncy = normalized;
+  }
+
+  private getDraftConstituencyValue(preferredKey?: string): string {
+    const preferred = this.normalizeLocationValue(preferredKey ? this.draft?.[preferredKey] : '');
+    if (preferred) return preferred;
+    const constituncy = this.normalizeLocationValue(this.draft?.constituncy);
+    if (constituncy) return constituncy;
+    const constituency = this.normalizeLocationValue(this.draft?.constituency);
+    if (constituency) return constituency;
+    return this.normalizeLocationValue(this.getValueByNormalizedKey(this.draft, [
+      'constituncy',
+      'constituency',
+      'constituen',
+      'constituency_name',
+      'parliamentary_constituency',
+      'pc_name',
+      'pc',
+    ]));
+  }
+
+  private loadLocationOptions(): void {
+    this.api.getStates().subscribe({
+      next: (res: any) => {
+        const rows = this.extractLookupRows(res);
+        this.stateOptions = this.uniqueLocationOptions(rows.map((row: any) => ({
+          value: row?.state,
+          label: row?.state,
+          stateLgd: row?.state_lgd,
+        })));
+        this.prepareLocationDropdownsForDraft(false);
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => console.error('State lookup failed:', err),
+    });
+
+    this.api.getDistricts().subscribe({
+      next: (res: any) => {
+        const rows = this.extractLookupRows(res);
+        this.allDistrictOptions = this.uniqueStateScopedOptions(rows.map((row: any) => ({
+          value: row?.district,
+          label: row?.district,
+          state: row?.state,
+        })));
+        this.filterDistrictOptionsForDraftState();
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => console.error('District lookup failed:', err),
+    });
+
+    this.api.getParliamentaryConstituencies().subscribe({
+      next: (res: any) => {
+        const rows = this.extractLookupRows(res);
+        this.allConstituencyOptions = this.uniqueConstituencyOptions(rows.map((row: any) => ({
+          value: row?.constituen ?? row?.constituency_name,
+          label: row?.constituen ?? row?.constituency_name,
+          state: row?.state,
+        })));
+        this.filterConstituencyOptionsForDraftState();
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => console.error('Parliamentary constituency lookup failed:', err),
+    });
+  }
+
+  private extractLookupRows(res: any): any[] {
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.rows)) return res.rows;
+    if (Array.isArray(res)) return res;
+    return [];
+  }
+
+  private ensureLocationOptionsLoaded(): void {
+    if (this.stateOptions.length && this.districtOptions.length && this.constituencyOptions.length) return;
+    this.loadLocationOptions();
+  }
+
+  private prepareLocationDropdownsForDraft(resetDependents: boolean): void {
+    if (!this.draft) return;
+    const matchedState = this.matchLocationOption(this.stateOptions, this.draft.state);
+    this.draft.state = matchedState || this.normalizeLocationValue(this.draft.state);
+    const constituency = this.getDraftConstituencyValue();
+    if (constituency) this.setDraftConstituency(constituency);
+    if (resetDependents) {
+      this.draft.district = '';
+      this.setDraftConstituency('');
+    }
+    this.filterDistrictOptionsForDraftState();
+    this.draft.district = this.matchLocationOption(this.districtOptions, this.draft.district);
+    this.filterConstituencyOptionsForDraftState();
+  }
+
+  private filterDistrictOptionsForDraftState(clearInvalid = false): void {
+    const state = this.normalizeLocationValue(this.draft?.state);
+    this.districtOptions = state
+      ? this.allDistrictOptions.filter((option) => this.normalizeLocationValue(option.state) === state)
+      : [...this.allDistrictOptions];
+
+    const current = this.normalizeLocationValue(this.draft?.district);
+    if (!current) return;
+    const matched = this.districtOptions.find((option) => this.normalizeLocationValue(option.value) === current)?.value;
+    if (matched) {
+      this.draft.district = matched;
+    } else if (clearInvalid) {
+      this.draft.district = '';
+    }
+  }
+
+  private filterConstituencyOptionsForDraftState(clearInvalid = false): void {
+    const state = this.normalizeLocationValue(this.draft?.state);
+    this.constituencyOptions = state
+      ? this.allConstituencyOptions.filter((option) => this.normalizeLocationValue(option.state) === state)
+      : [...this.allConstituencyOptions];
+
+    const current = this.getDraftConstituencyValue();
+    if (!current) return;
+    const matched = this.constituencyOptions.find((option) => this.normalizeLocationValue(option.value) === current)?.value;
+    if (matched) {
+      this.setDraftConstituency(matched);
+    } else if (clearInvalid) {
+      this.setDraftConstituency('');
+    }
   }
 
   private requiresBridgeAssetValidationBeforeSend(): boolean {
@@ -364,7 +673,8 @@ export class EditPanel implements OnInit, OnDestroy {
     this.draft.state = pick(row.state, this.draft.state);
     this.draft.district = pick(row.district, this.draft.district);
     this.draft.bridgeno = pick(source?.bridgeno, row.bridgeno, this.draft.bridgeno);
-    this.draft.constituncy = pick(source?.constituncy, source?.constituency, row.constituncy, this.draft.constituncy);
+    this.draft.constituency = pick(source?.constituency, source?.constituncy, row.constituency, row.constituncy, this.draft.constituency, this.draft.constituncy);
+    if (Object.prototype.hasOwnProperty.call(this.draft, 'constituncy')) this.draft.constituncy = this.draft.constituency;
     this.draft.bridgetype = pick(source?.bridgetype, row.bridgetype, this.draft.bridgetype);
     this.draft.spanconf = pick(source?.spanconf, row.spanconf, this.draft.spanconf);
 
@@ -381,6 +691,7 @@ export class EditPanel implements OnInit, OnDestroy {
       this.draft.lng = longitude;
       this.draft.lon = longitude;
     }
+    this.prepareLocationDropdownsForDraft(false);
   }
 
   private getEditFocusZoom(): number {
@@ -536,6 +847,7 @@ export class EditPanel implements OnInit, OnDestroy {
 
   onRejectedLayerChange() {
     this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.search = ''; this.error = null; this.draft = null;
+    this.selectedAttachmentFile = null; this.selectedAttachmentName = ''; this.selectedAttachmentKind = null;
     this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.clearHighlight();
     this.edit.setLayer((this.rejectedLayer as any) ?? null);
     if (this.rejectedLayer) setTimeout(() => this.load(true), 0);
@@ -754,21 +1066,56 @@ export class EditPanel implements OnInit, OnDestroy {
   nextPage() { if (this.page >= this.totalPages) return; this.page++; this.applyPagination(); this.cdr.detectChanges(); }
   prevPage() { if (this.page <= 1) return; this.page--; this.applyPagination(); this.cdr.detectChanges(); }
 
-  startAddStation() {
-    if (this.currentTableLayer !== 'stations') return;
+  startAddRecord() {
+    if (!this.currentTableLayer) return;
+    this.showAddRecordModal = true;
+    this.addRecordShapefileName = '';
+    this.cdr.detectChanges();
+  }
+
+  closeAddRecordModal(): void {
+    this.showAddRecordModal = false;
+  }
+
+  cancelAddNewRecordDrawing(): void {
+    this.edit.cancelCreateStation();
+    this.mapZoom.clearHighlight();
+    this.error = null;
+    this.cdr.detectChanges();
+  }
+
+  startAddRecordWithDrawingTool(): void {
+    if (!this.currentTableLayer) return;
+    this.showAddRecordModal = false;
     this.error = null;
     this.mode = 'table';
     this.draft = null;
     this.originalDraft = null;
     this.stationValidated = false;
+    this.validatedBridgeAssetId = null;
     this.validating = false;
     this.saving = false;
+    this.deleting = false;
+    this.selectedAttachmentFile = null;
+    this.selectedAttachmentName = '';
+    this.selectedAttachmentKind = null;
     this.geomEditing = false;
     this.dragSub?.unsubscribe();
     this.dragSub = undefined;
     this.mapZoom.clearHighlight();
+
     this.edit.startCreateStation();
-    alert('Point drawing mode is on. Double-click inside the division buffer to place the new station.');
+
+    this.cdr.detectChanges();
+  }
+
+  onAddRecordShapefileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] || null;
+    this.addRecordShapefileName = file?.name || '';
+    if (!file) return;
+    this.showAddRecordModal = false;
+    alert(`Selected shapefile: ${file.name}. Shapefile-based record creation UI is ready, but backend upload handling is not wired yet.`);
     this.cdr.detectChanges();
   }
 
@@ -777,6 +1124,7 @@ export class EditPanel implements OnInit, OnDestroy {
     const department = localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '';
 
     this.mode = 'edit';
+    this.ensureLocationOptionsLoaded();
     this.error = null;
     this.stationValidated = false;
     this.validating = false;
@@ -808,14 +1156,63 @@ export class EditPanel implements OnInit, OnDestroy {
       department,
     };
     this.originalDraft = { ...this.draft };
-    this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: this.getEditFocusZoom(), draggable: false } as any);
+    this.prepareLocationDropdownsForDraft(false);
+    this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: EditPanel.NEW_ASSET_ZOOM, draggable: false } as any);
+    this.cdr.detectChanges();
+  }
+
+  private beginGenericCreationDraft(lat?: number, lng?: number) {
+    const layer = this.currentTableLayer;
+    if (!layer || !this.currentLayerSchema) return;
+
+    const division = String(this.currentUser.getSnapshot()?.division || localStorage.getItem('division') || '').trim();
+    const department = String(localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '').trim();
+    const railwayName = this.getRailwayName();
+    const railwayCode = this.getRailwayCode();
+
+    const draft: Record<string, any> = {
+      objectid: null,
+      status: '',
+      railway: railwayCode,
+      division,
+      department,
+      zone_name: railwayName,
+      fname: railwayName,
+      div_name: division,
+    };
+
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      draft.lat = lat;
+      draft.lng = lng;
+      draft.latitude = lat;
+      draft.longitude = lng;
+      draft.ycoord = lat;
+      draft.xcoord = lng;
+    }
+
+    this.formFields.forEach((field) => {
+      if (field.key === 'objectid' || field.key === 'status') return;
+      if (draft[field.key] !== undefined) return;
+      draft[field.key] = field.type === 'number' ? null : '';
+    });
+
+    this.mode = 'edit';
+    this.ensureLocationOptionsLoaded();
+    this.draft = draft;
+    this.originalDraft = { ...draft };
+    this.prepareLocationDropdownsForDraft(false);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      this.mapZoom.zoomTo({ type: 'latlng', lat: lat!, lng: lng!, zoom: EditPanel.NEW_ASSET_ZOOM, draggable: false } as any);
+    }
     this.cdr.detectChanges();
   }
 
   editRow(row: any) {
     const loadDraftDetail = this.isReviewer() || this.isMakerRejectedView() || this.isMakerSentForDeletionView();
 
-    this.mode = 'edit'; this.error = null; this.draft = { ...row }; this.originalDraft = { ...row }; this.stationValidated = false; this.validatedBridgeAssetId = null;
+    this.mode = 'edit'; this.error = null; this.draft = { ...row }; this.originalDraft = { ...row }; this.stationValidated = false; this.validatedBridgeAssetId = null; this.selectedAttachmentFile = null; this.selectedAttachmentName = this.getExistingAttachmentName(row); this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
+    this.ensureLocationOptionsLoaded();
+    this.prepareLocationDropdownsForDraft(false);
     this.validating = false; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.clearHighlight();
 
     const id = Number(row?.objectid); if (!Number.isFinite(id)) return;
@@ -824,8 +1221,23 @@ export class EditPanel implements OnInit, OnDestroy {
       const normalized = this.normalizeCurrentLayerDraft(row);
       this.draft = { ...normalized };
       this.originalDraft = { ...normalized };
+      this.prepareLocationDropdownsForDraft(false);
       this.cdr.detectChanges();
       return;
+    }
+
+    const bestRenderedLayer = this.getBestRenderedLayer(row);
+    const selectedFeatureLatLng = this.getSelectedFeatureLatLng(row);
+    const renderedLatLng = selectedFeatureLatLng ?? this.getRenderedLayerLatLng(row);
+    if (renderedLatLng) {
+      this.mapZoom.zoomTo({
+        type: 'latlng',
+        lat: renderedLatLng.lat,
+        lng: renderedLatLng.lng,
+        zoom: this.getEditFocusZoom(),
+        draggable: false,
+        existingLayer: bestRenderedLayer,
+      } as any);
     }
 
     const detailRequest$ = loadDraftDetail
@@ -837,8 +1249,13 @@ export class EditPanel implements OnInit, OnDestroy {
         const n = this.normalizeCurrentLayerDraft(full);
         this.draft = { ...this.draft, ...n };
         this.draft.lat = n.lat; this.draft.lng = n.lng; this.originalDraft = { ...this.draft };
-        if (Number.isFinite(n.lat) && Number.isFinite(n.lng)) {
-          this.mapZoom.zoomTo({ type: 'latlng', lat: n.lat, lng: n.lng, zoom: this.getEditFocusZoom(), draggable: false } as any);
+        this.prepareLocationDropdownsForDraft(false);
+        this.selectedAttachmentName = this.getExistingAttachmentName(this.draft);
+        this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
+        const detailLat = Number.isFinite(n.lat) ? n.lat : null;
+        const detailLng = Number.isFinite(n.lng) ? n.lng : null;
+        if (!renderedLatLng && detailLat != null && detailLng != null) {
+          this.mapZoom.zoomTo({ type: 'latlng', lat: detailLat, lng: detailLng, zoom: this.getEditFocusZoom(), draggable: false } as any);
         }
         this.cdr.detectChanges();
       },
@@ -860,6 +1277,7 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   private normalizeStation(s: any) {
+    const constituency = this.normalizeLocationValue(s?.constituncy) || this.normalizeLocationValue(s?.constituency);
     return {
       objectid: s?.objectid ?? s?.OBJECTID,
       sttncode: s?.sttncode ?? s?.station_code,
@@ -870,7 +1288,8 @@ export class EditPanel implements OnInit, OnDestroy {
       distm: s?.distm,
       state: s?.state,
       district: s?.district,
-      constituency: s?.constituncy ?? s?.constituency,
+      constituncy: constituency,
+      constituency,
       status: s?.status ?? s?.asset_status ?? s?.workflow_status ?? '',
       lat: Number(s?.lat ?? s?.ycoord ?? s?.latitude),
       lng: Number(s?.lon ?? s?.lng ?? s?.xcoord ?? s?.longitude),
@@ -895,15 +1314,106 @@ export class EditPanel implements OnInit, OnDestroy {
     if (this.currentTableLayer === 'stations') return this.normalizeStation(row);
     if (this.currentTableLayer === 'landplan_ontrack') return this.normalizeLandPlan(row);
     const props = row?.properties ?? row ?? {};
+    const geometryCoords = Array.isArray(row?.geometry?.coordinates) ? row.geometry.coordinates : null;
+    const geometryLng = Number(geometryCoords?.[0]);
+    const geometryLat = Number(geometryCoords?.[1]);
     const normalized: any = {};
     Object.keys(props).forEach((key) => {
       normalized[key] = props[key];
     });
+    const constituency = this.normalizeLocationValue(this.getValueByNormalizedKey(normalized, [
+      'constituncy',
+      'constituency',
+      'constituen',
+      'constituency_name',
+      'parliamentary_constituency',
+      'pc_name',
+      'pc',
+    ]));
+    if (constituency) {
+      normalized.constituncy = constituency;
+      normalized.constituency = constituency;
+    }
     normalized.objectid = props?.objectid ?? row?.id ?? row?.objectid ?? null;
     normalized.status = props?.status ?? row?.status ?? '';
-    normalized.lat = Number(props?.lat ?? props?.ycoord ?? props?.latitude);
-    normalized.lng = Number(props?.lon ?? props?.lng ?? props?.xcoord ?? props?.longitude);
+    normalized.lat = Number.isFinite(geometryLat) ? geometryLat : Number(props?.geom_lat ?? props?.lat ?? props?.ycoord ?? props?.latitude);
+    normalized.lng = Number.isFinite(geometryLng) ? geometryLng : Number(props?.geom_lng ?? props?.lon ?? props?.lng ?? props?.xcoord ?? props?.longitude);
     return normalized;
+  }
+
+  private rowMatchesFeature(row: any, feature: any): boolean {
+    const props = feature?.properties ?? {};
+    const toKey = (value: any) => String(value ?? '').trim().toLowerCase();
+    const rowKeys = [
+      row?.objectid,
+      row?.gid,
+      row?.asset_id,
+      row?.assetid,
+      row?.bridgeno,
+      row?.distkm != null && row?.distm != null ? `${row.distkm}:${row.distm}` : '',
+    ].map(toKey).filter(Boolean);
+    const featureKeys = [
+      feature?.id,
+      props?.objectid,
+      props?.OBJECTID,
+      props?.gid,
+      props?.asset_id,
+      props?.assetid,
+      props?.bridgeno,
+      props?.distkm != null && props?.distm != null ? `${props.distkm}:${props.distm}` : '',
+    ].map(toKey).filter(Boolean);
+    return rowKeys.some((key) => featureKeys.includes(key));
+  }
+
+  private getSelectedFeatureLatLng(row?: any): { lat: number; lng: number } | null {
+    const feature = this.edit.selectedFeature;
+    if (!feature) return null;
+    if (row && !this.rowMatchesFeature(row, feature)) return null;
+    const coords = Array.isArray(feature?.geometry?.coordinates) ? feature.geometry.coordinates : null;
+    const lng = Number(coords?.[0]);
+    const lat = Number(coords?.[1]);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }
+
+  private getRenderedLayerLatLng(row: any): { lat: number; lng: number } | null {
+    const layerId = String(this.currentTableLayer || '').trim();
+    if (!layerId) return null;
+    const layer = this.findMapLayerForCurrentEditLayer();
+    const bestLatLng = layer?.getBestRenderedLatLng?.(row);
+    if (bestLatLng) {
+      const bestLat = Number(bestLatLng.lat);
+      const bestLng = Number(bestLatLng.lng);
+      if (Number.isFinite(bestLat) && Number.isFinite(bestLng)) {
+        return { lat: bestLat, lng: bestLng };
+      }
+    }
+    const latLng = layer?.getRenderedLatLngForKey?.(
+      row?.objectid,
+      row?.gid,
+      row?.asset_id,
+      row?.assetid,
+    );
+    if (!latLng) return null;
+    const lat = Number(latLng.lat);
+    const lng = Number(latLng.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }
+
+  private getBestRenderedLayer(row: any): any | null {
+    const layerId = String(this.currentTableLayer || '').trim();
+    if (!layerId) return null;
+    const layer = this.findMapLayerForCurrentEditLayer();
+    return layer?.getBestRenderedLayer?.(row) || null;
+  }
+
+  private findMapLayerForCurrentEditLayer(): any | null {
+    const layerId = String(this.currentTableLayer || '').trim();
+    if (!layerId) return null;
+    return (
+      (this.layerManager.findById(layerId) as any) ||
+      (this.layerManager.findById(`department_${layerId}`) as any) ||
+      null
+    );
   }
 
   startGeometryEdit() {
@@ -964,7 +1474,7 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   supportsCurrentLayerPersistence(): boolean {
-    return ['stations', 'bridge_start', 'bridge_end', 'bridge_minor'].includes(String(this.currentTableLayer || '').trim().toLowerCase());
+    return !!this.currentLayerSchema;
   }
 
   supportsCurrentLayerListing(): boolean {
@@ -998,7 +1508,37 @@ export class EditPanel implements OnInit, OnDestroy {
       if (readonlyKeys.has(field.key)) return true;
       return this.isReviewer() || this.isMakerSentForDeletionView();
     }
-    return true;
+    const genericReadonlyKeys = new Set([
+      'objectid',
+      'status',
+      'edited_by',
+      'edited_at',
+      'checked_by',
+      'checked_at',
+      'approved_by',
+      'approved_at',
+      'modified_by',
+      'comments',
+    ]);
+    if (genericReadonlyKeys.has(field.key)) return true;
+    return this.isReviewer() || this.isMakerSentForDeletionView();
+  }
+
+  isFieldDisabled(field: EditFieldConfig): boolean {
+    if (!this.isBridgeLayer()) return false;
+    if (this.isReviewer() || this.isMakerSentForDeletionView()) return false;
+
+    const lockedAfterValidation = new Set([
+      'tmssection',
+      'bridgeno',
+      'bridgetype',
+      'bridge_type',
+      'spanconf',
+    ]);
+    if (!lockedAfterValidation.has(field.key)) return false;
+
+    const assetId = this.getNormalizedBridgeAssetId();
+    return !!assetId && assetId === this.validatedBridgeAssetId;
   }
 
   showValidateButton(field: EditFieldConfig): boolean {
@@ -1024,9 +1564,38 @@ export class EditPanel implements OnInit, OnDestroy {
     }
   }
 
+  shouldShowAttachmentField(): boolean {
+    return this.mode === 'edit' && !!this.draft;
+  }
+
+  onAttachmentSelected(event: Event, kind: 'other'): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] || null;
+    this.selectedAttachmentFile = file;
+    this.selectedAttachmentName = file?.name || this.getExistingAttachmentName(this.draft);
+    this.selectedAttachmentKind = file ? kind : (this.selectedAttachmentName ? 'other' : null);
+  }
+
+  clearAttachmentSelection(input?: HTMLInputElement | null): void {
+    this.selectedAttachmentFile = null;
+    this.selectedAttachmentName = this.getExistingAttachmentName(this.draft);
+    this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
+    if (input) input.value = '';
+  }
+
+  private getExistingAttachmentName(source: any): string {
+    return String(
+      source?.attachment_name ??
+      source?.attachment ??
+      source?.file_name ??
+      source?.filename ??
+      ''
+    ).trim();
+  }
+
   cancelEdit() {
     if (this.originalDraft) this.draft = { ...this.originalDraft };
-    this.edit.cancelCreateStation(); this.mode = 'table'; this.draft = null; this.originalDraft = null; this.error = null; this.validating = false; this.stationValidated = false; this.validatedBridgeAssetId = null; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.zoomHome(); this.mapZoom.clearHighlight();
+    this.edit.cancelCreateStation(); this.mode = 'table'; this.draft = null; this.originalDraft = null; this.error = null; this.validating = false; this.stationValidated = false; this.validatedBridgeAssetId = null; this.showAddRecordModal = false; this.addRecordShapefileName = ''; this.selectedAttachmentFile = null; this.selectedAttachmentName = ''; this.selectedAttachmentKind = null; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.zoomHome(); this.mapZoom.clearHighlight();
   }
 
   send() {
@@ -1051,28 +1620,30 @@ export class EditPanel implements OnInit, OnDestroy {
     const hasExistingId = draftObjectId !== null && draftObjectId !== undefined && String(draftObjectId).trim() !== '' && Number.isFinite(Number(draftObjectId));
     const isCreate = !hasExistingId;
     const lat = Number(this.draft.lat); const lng = Number(this.draft.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) { this.error = 'New geometry not captured. Please drag the point and click Save Geometry.'; this.cdr.detectChanges(); return; }
-    const payload = {
+    if (this.requiresGeometryForSave() && (!Number.isFinite(lat) || !Number.isFinite(lng))) { this.error = 'New geometry not captured. Please drag the point and click Save Geometry.'; this.cdr.detectChanges(); return; }
+    const payload: any = {
       ...this.draft,
-      lat,
-      lng,
-      lon: lng,
-      longitude: lng,
-      latitude: lat,
-      xcoord: lng,
-      ycoord: lat,
       railway: this.draft?.railway ?? this.getRailwayCode(),
       zone_name: this.draft?.zone_name ?? this.getRailwayName(),
       fname: this.draft?.fname ?? this.getRailwayName(),
       div_name: this.draft?.div_name ?? (localStorage.getItem('division') || this.currentUser.getSnapshot()?.division || ''),
       department: this.draft?.department ?? (localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || ''),
     };
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      payload.lat = lat;
+      payload.lng = lng;
+      payload.lon = lng;
+      payload.longitude = lng;
+      payload.latitude = lat;
+      payload.xcoord = lng;
+      payload.ycoord = lat;
+    }
     this.saving = true;
     const rawStatus = this.originalDraft?.status == null ? '' : String(this.originalDraft.status).trim().toLowerCase();
     const isMakerRejectedResend = !isCreate && this.isMaker() && rawStatus === 'sent back to maker';
     const isMakerSend = !isCreate && this.isMaker() && !rawStatus;
     if (isCreate) {
-      alert('Station creation sent successfully to checker');
+      alert(`${this.currentLayerSchema?.label || 'Asset'} creation sent successfully to checker`);
     } else if (isMakerRejectedResend || isMakerSend) {
       alert('Message sent successfully to checker');
     }
@@ -1100,6 +1671,11 @@ export class EditPanel implements OnInit, OnDestroy {
         this.originalDraft = null;
         this.stationValidated = false;
         this.validatedBridgeAssetId = null;
+        this.showAddRecordModal = false;
+        this.addRecordShapefileName = '';
+        this.selectedAttachmentFile = null;
+        this.selectedAttachmentName = '';
+        this.selectedAttachmentKind = null;
         this.geomEditing = false;
         this.dragSub?.unsubscribe();
         this.dragSub = undefined;
@@ -1131,7 +1707,7 @@ export class EditPanel implements OnInit, OnDestroy {
         this.draft.sttnname = validatedName;
         this.draft.category = validatedCategory;
         if (this.draft?.objectid && (nameChanged || categoryChanged) && !(this.isMaker() && String(this.originalDraft?.status || '').trim().toLowerCase() === 'sent back to maker')) {
-          const payload = { distkm: this.draft.distkm, distm: this.draft.distm, state: this.draft.state, district: this.draft.district, constituncy: this.draft.constituency, sttnname: this.draft.sttnname, category: this.draft.category, sttntype: this.draft.stationtype };
+          const payload = { distkm: this.draft.distkm, distm: this.draft.distm, state: this.draft.state, district: this.draft.district, constituncy: this.draft.constituncy, sttnname: this.draft.sttnname, category: this.draft.category, sttntype: this.draft.stationtype };
           this.api.updateStation(this.draft.objectid, payload).subscribe({ next: () => { this.validating = false; this.stationValidated = true; alert(res?.message || 'Station code validated successfully'); this.cdr.detectChanges(); }, error: (err: any) => { this.validating = false; alert(err?.error?.message || 'Station code validated but failed to update station details'); this.cdr.detectChanges(); } });
           return;
         }
@@ -1181,6 +1757,11 @@ export class EditPanel implements OnInit, OnDestroy {
       this.originalDraft = null;
       this.stationValidated = false;
       this.validatedBridgeAssetId = null;
+      this.showAddRecordModal = false;
+      this.addRecordShapefileName = '';
+      this.selectedAttachmentFile = null;
+      this.selectedAttachmentName = '';
+      this.selectedAttachmentKind = null;
       this.error = null;
       this.geomEditing = false;
       this.dragSub?.unsubscribe();
@@ -1261,11 +1842,16 @@ export class EditPanel implements OnInit, OnDestroy {
   rejectDeletionDraft() { if (!this.draft) return; this.rejectDeletionRow(this.draft); }
 
   private resetPanelState() {
-    this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.pageSize = 8; this.search = ''; this.loading = false; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.validatedBridgeAssetId = null; this.saving = false; this.deleting = false; this.validating = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.error = null; this.edit.setLayer(null as any); this.mapZoom.clearHighlight();
+    this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.pageSize = 8; this.search = ''; this.loading = false; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.validatedBridgeAssetId = null; this.showAddRecordModal = false; this.addRecordShapefileName = ''; this.selectedAttachmentFile = null; this.selectedAttachmentName = ''; this.selectedAttachmentKind = null; this.saving = false; this.deleting = false; this.validating = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.error = null; this.edit.setLayer(null as any); this.mapZoom.clearHighlight();
   }
 
   close() {
     this.mapZoom.zoomHome(); this.mapZoom.clearHighlight(); this.ui.activePanel = null; this.resetPanelState(); this.edit.disable();
+  }
+
+  private requiresGeometryForSave(): boolean {
+    if (this.currentTableLayer === 'stations' || this.isBridgeLayer()) return true;
+    return this.formFields.some((field) => ['latitude', 'longitude', 'xcoord', 'ycoord'].includes(field.key));
   }
 }
 
