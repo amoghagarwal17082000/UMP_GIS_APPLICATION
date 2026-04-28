@@ -1,6 +1,7 @@
 import { Component, AfterViewInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StationSearchComponent } from '../station-search/station-search.component';
+import { MeasurementToolComponent } from '../measurement-tool/measurement-tool';
 import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -55,6 +56,7 @@ type DepartmentLayerMeta = {
   imports: [
     CommonModule,
     StationSearchComponent,
+    MeasurementToolComponent,
   ],
   templateUrl: './map.html',
   styleUrl: './map.css',

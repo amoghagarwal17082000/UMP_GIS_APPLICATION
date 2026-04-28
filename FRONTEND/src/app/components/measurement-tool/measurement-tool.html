@@ -1,0 +1,78 @@
+<button
+  *ngIf="!isOpen"
+  type="button"
+  class="measure-collapsed-btn"
+  title="Measurement"
+  (click)="isOpen = true; $event.stopPropagation()"
+>
+</button>
+
+<div class="measure-widget" *ngIf="isOpen" (click)="$event.stopPropagation()">
+  <div class="measure-header">
+    <span>Measurement</span>
+    <button type="button" class="measure-close" title="Close" (click)="close()">x</button>
+  </div>
+
+  <div class="measure-toolbar">
+    <button
+      type="button"
+      class="measure-tool-btn"
+      [class.active]="mode === 'area'"
+      title="Measure area"
+      (click)="setMode('area')"
+    >
+      &#9637;
+    </button>
+    <button
+      type="button"
+      class="measure-tool-btn"
+      [class.active]="mode === 'distance'"
+      title="Measure distance"
+      (click)="setMode('distance')"
+    >
+      &#8596;
+    </button>
+    <button
+      type="button"
+      class="measure-tool-btn"
+      [class.active]="mode === 'point'"
+      title="Point marker"
+      (click)="setMode('point')"
+    >
+      +
+    </button>
+    <span class="measure-separator"></span>
+    <label class="measure-unit-select" *ngIf="mode === 'distance'">
+      <select [value]="distanceUnit" (change)="setDistanceUnit($any($event.target).value)">
+        <option value="m">Meters</option>
+        <option value="km">Kilometers</option>
+      </select>
+    </label>
+    <label class="measure-unit-select" *ngIf="mode === 'area'">
+      <select [value]="areaUnit" (change)="setAreaUnit($any($event.target).value)">
+        <option value="acre">Acres</option>
+        <option value="ha">Hectares</option>
+        <option value="sqkm">Sq Km</option>
+        <option value="sqm">Sq M</option>
+      </select>
+    </label>
+    <label class="measure-unit-select" *ngIf="mode === 'point'">
+      <select [value]="coordinateUnit" (change)="setCoordinateUnit($any($event.target).value)">
+        <option value="degree">Degrees</option>
+        <option value="dms">DMS</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="measure-result-label">Measurement Result</div>
+  <div class="measure-rule"></div>
+
+  <div class="measure-result-value">
+    {{ result || '' }}
+  </div>
+
+  <button type="button" class="measure-clear-btn" (click)="resetMeasurement()">Clear</button>
+
+  <div class="measure-footer">Press CTRL to enable snapping</div>
+  <div class="measure-resize-grip"></div>
+</div>
