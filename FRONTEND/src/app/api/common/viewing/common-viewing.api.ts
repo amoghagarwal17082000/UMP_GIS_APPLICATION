@@ -6,6 +6,8 @@ import {
   emptyFeatureCollection,
   getDivision,
   hasDivision,
+  isPortalAdminUser,
+  withAllIndia,
   withDivision,
 } from '../../shared/api-utils';
 
@@ -21,9 +23,10 @@ export class CommonViewingApi {
   }
 
   getTracks(bbox: string) {
-    if (!hasDivision()) return of(emptyFeatureCollection());
+    const allIndia = isPortalAdminUser();
+    if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
     return this.http.get<any>(`${BASE_URL}/api/common/view/layers/railwayTrack`, {
-      params: withDivision({ bbox }),
+      params: allIndia ? withAllIndia({ bbox }) : withDivision({ bbox }),
     });
   }
 
@@ -35,9 +38,10 @@ export class CommonViewingApi {
   }
 
   getIndiaBoundary(bbox: string) {
-    if (!hasDivision()) return of(emptyFeatureCollection());
+    const allIndia = isPortalAdminUser();
+    if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
     return this.http.get<any>(`${BASE_URL}/api/common/view/layers/indiaBoundary`, {
-      params: withDivision({ bbox }),
+      params: allIndia ? withAllIndia({ bbox }) : withDivision({ bbox }),
     });
   }
 

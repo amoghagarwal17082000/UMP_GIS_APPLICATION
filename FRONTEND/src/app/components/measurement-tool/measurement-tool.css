@@ -3,7 +3,7 @@
   height: 42px;
   border: 0;
   border-radius: 8px;
-  background-color: rgba(17, 24, 39, 0.95);
+  background-color: rgba(40, 40, 40, 0.95);
   background-image: url('../../../assets/images/measurement.png');
   background-position: center;
   background-repeat: no-repeat;
@@ -15,7 +15,7 @@
 }
 
 .measure-collapsed-btn:hover {
-  background-color: rgba(17, 24, 39, 0.86);
+  background-color: rgba(70, 70, 70, 0.95);
   transform: translateY(-1px);
 }
 

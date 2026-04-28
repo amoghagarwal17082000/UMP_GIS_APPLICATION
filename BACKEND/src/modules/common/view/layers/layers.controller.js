@@ -2,6 +2,10 @@ const config = require('./layers.config');
 const model = require('./layers.model');
 const parseBbox = require('../../../../utils/parseBbox');
 
+function isTruthy(value) {
+  return ['1', 'true', 'yes', 'y'].includes(String(value || '').trim().toLowerCase());
+}
+
 async function getDepartmentLayers(req, res, next) {
   try {
     const departmentRef = String(req.params.departmentRef || req.query.department || '').trim();
@@ -44,16 +48,25 @@ async function getDepartmentLayer(req, res, next) {
 async function getLayer(req, res, next) {
   try {
     const { layer } = req.params;
-    const { bbox, division, limit } = req.query;
+    const { bbox, division, limit, allIndia } = req.query;
+    const useAllIndia = isTruthy(allIndia);
 
-    const effectiveDivision = String(division || req?.user?.division || '').trim();
-    const layerConfig = config[layer];
+    const effectiveDivision = useAllIndia ? '' : String(division || req?.user?.division || '').trim();
+    const baseLayerConfig = config[layer];
 
-    if (!layerConfig) {
+    if (!baseLayerConfig) {
       const err = new Error('Invalid layer name');
       err.status = 404;
       throw err;
     }
+
+    const layerConfig = useAllIndia && baseLayerConfig.allIndiaTable
+      ? {
+          ...baseLayerConfig,
+          table: baseLayerConfig.allIndiaTable,
+          hasDivision: false,
+        }
+      : baseLayerConfig;
 
     const { where, params } = parseBbox(bbox, layerConfig.geometryColumn);
 

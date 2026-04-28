@@ -142,9 +142,23 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private forceMapResize(): void { if (!this.map) return; this.map.invalidateSize(); requestAnimationFrame(() => this.map?.invalidateSize()); setTimeout(() => this.map?.invalidateSize(), 350); }
   private scheduleReload(): void { if (!this.map) return; if (this.reloadTimer) clearTimeout(this.reloadTimer); this.reloadTimer = setTimeout(() => { if (!this.map) return; this.layerManager.reloadVisible(this.map); }, 900); }
 
+  private isPortalAdmin(): boolean {
+    const user = this.currentUser.getSnapshot();
+    const userId = String(user?.user_id || '').trim().toLowerCase();
+    const userType = String(user?.user_type || '').trim().toLowerCase();
+    return userId === 'portaladmin' || userType === 'portaladmin' || userType === 'portal admin';
+  }
+
+  private getInitialMapView(): { center: L.LatLngExpression; zoom: number } {
+    return this.isPortalAdmin()
+      ? { center: [22.5, 79], zoom: 4.8 }
+      : { center: [22.5, 79], zoom: 8.5 };
+  }
+
   private captureHomeAfterFirstSettle(): void {
     if (!this.map || this.homeCaptured) return;
-    const initialCenter = L.latLng(22.5, 79); const initialZoom = 8.5;
+    const initialView = this.getInitialMapView();
+    const initialCenter = L.latLng(initialView.center); const initialZoom = initialView.zoom;
     const isInitialView = () => { if (!this.map) return true; const z = this.map.getZoom(); const c = this.map.getCenter(); return Math.abs(z - initialZoom) < 0.05 && c.distanceTo(initialCenter) < 50000; };
     const trySave = () => { if (!this.map || this.homeCaptured || isInitialView()) return; this.homeCenter = this.map.getCenter(); this.homeZoom = this.map.getZoom(); this.homeCaptured = true; this.map.off('moveend', trySave); this.map.off('zoomend', trySave); };
     this.map.on('moveend', trySave); this.map.on('zoomend', trySave);
@@ -428,7 +442,8 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     if (this.map) return;
     const anyEl = el as any; if (anyEl._leaflet_id) { try { anyEl._leaflet_id = undefined; } catch {} }
     this.ui.activePanel = null; this.edit.disable();
-    this.map = L.map(el, { preferCanvas: false, zoomControl: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 8, wheelDebounceTime: 60, wheelPxPerZoomLevel: 140, zoomSnap: 0.1, zoomDelta: 0.1, maxZoom: 22 }).setView([22.5, 79], 8.5);
+    const initialView = this.getInitialMapView();
+    this.map = L.map(el, { preferCanvas: false, zoomControl: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 8, wheelDebounceTime: 60, wheelPxPerZoomLevel: 140, zoomSnap: 0.1, zoomDelta: 0.1, maxZoom: 22 }).setView(initialView.center, initialView.zoom);
     L.control.zoom({ position: 'topleft' }).addTo(this.map);
     this.mapRegistry.setMap(this.map);
     this.createStationDblClickHandler = (e: L.LeafletMouseEvent) => this.handleStationCreateDoubleClick(e);
