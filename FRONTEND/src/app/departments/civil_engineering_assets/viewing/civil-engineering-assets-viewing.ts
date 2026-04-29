@@ -5,6 +5,7 @@ import { NgZone } from '@angular/core';
 import { Api } from '../../../api/api';
 import { LayerLegend, defineLegend, MapLayer, pathStyleFromLegend, pointLayerFromLegend } from '../../../services/interface';
 import { inferCivilLegendFromFeatureCollection } from '../../../components/legend-panel/legend-panel';
+import { buildAssetPopupHtml } from '../../../components/asset-popup/asset-popup';
 
 const STATION_LEGEND: LayerLegend = defineLegend({
   type: 'point' as const,
@@ -95,44 +96,19 @@ function orderLayerInPane(layer: L.GeoJSON, legend: LayerLegend): void {
   else layer.bringToFront();
 }
 
+function bindAssetPopup(feature: any, layer: any, title: string): void {
+  if (!layer?.bindPopup) return;
+  layer.bindPopup(buildAssetPopupHtml(title, feature?.properties || {}), {
+    maxWidth: 380,
+  });
+}
+
 function inferMinZoomFromTitle(title: string): number {
   const normalized = String(title || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (normalized.includes('station')) return 0;
   if (normalized.includes('track')) return 0;
   if (normalized.includes('km post')) return 0;
   return TOWN_LEVEL_MIN_ZOOM;
-}
-
-function getAssetPopupValue(props: Record<string, any>, ...keys: string[]): string {
-  for (const key of keys) {
-    const value = props?.[key];
-    if (value != null && String(value).trim() !== '') {
-      return String(value).trim();
-    }
-  }
-  return '';
-}
-
-function buildDynamicLayerPopupHtml(props: Record<string, any>): string {
-  const lines: string[] = [];
-  const seenKeys = new Set<string>();
-
-  const pushLine = (label: string, value: string, sourceKey?: string) => {
-    if (!value) return;
-    if (sourceKey) seenKeys.add(sourceKey);
-    lines.push(`<b>${label}</b>: ${value}`);
-  };
-
-  pushLine('Asset ID', getAssetPopupValue(props, 'asset_id', 'assetid'), props.asset_id != null ? 'asset_id' : (props.assetid != null ? 'assetid' : undefined));
-
-  Object.keys(props)
-    .filter((key) => !seenKeys.has(key))
-    .slice(0, lines.length ? 4 : 5)
-    .forEach((key) => {
-      pushLine(key, props[key] == null ? '-' : String(props[key]), key);
-    });
-
-  return lines.join('<br>');
 }
 
 export class StationViewingLayer implements MapLayer {
@@ -189,7 +165,7 @@ export class StationViewingLayer implements MapLayer {
 
   addTo(map: L.Map) {
     if (this.visible && !this.isOnMap) {
-      ensurePane(map, DEPARTMENT_POINT_PANE);
+      ensurePane(map, DEPARTMENT_POINT_PANE, 'auto');
       this.layer.addTo(map);
       this.isOnMap = true;
 
@@ -318,7 +294,9 @@ export class StationViewingLayer implements MapLayer {
     this.bindStationTooltip(marker as any, stationLabel, false);
 
     if (marker.bindPopup) {
-      marker.bindPopup('<b>' + (p.sttnname || 'Station') + '</b><br>Code: ' + (p.sttncode || '-'));
+      marker.bindPopup(buildAssetPopupHtml('Station Details', p), {
+        maxWidth: 380,
+      });
     }
 
     this.onFeatureReady(feature, marker);
@@ -385,13 +363,14 @@ export class LandPlanOntrackViewingLayer implements MapLayer {
       style: () => pathStyleFromLegend(this.legend),
       interactive: this.isInteractive(),
       onEachFeature: (feature: any, layer: any) => {
+        bindAssetPopup(feature, layer, this.title);
         this.onFeatureReady(feature, layer);
       },
     });
   }
 
   protected isInteractive(): boolean {
-    return false;
+    return true;
   }
 
   protected panePointerEvents(): string {
@@ -504,13 +483,14 @@ export class LandOffsetLayer implements MapLayer {
       style: () => pathStyleFromLegend(this.legend),
       interactive: this.isInteractive(),
       onEachFeature: (feature: any, layer: any) => {
+        bindAssetPopup(feature, layer, this.title);
         this.onFeatureReady(feature, layer);
       },
     });
   }
 
   protected isInteractive(): boolean {
-    return false;
+    return true;
   }
 
   protected onFeatureReady(_feature: any, _layer: any): void {}
@@ -675,13 +655,14 @@ export class LandBoundaryLayer implements MapLayer {
       style: pathStyleFromLegend(this.legend),
       interactive: this.isInteractive(),
       onEachFeature: (feature: any, layer: any) => {
+        bindAssetPopup(feature, layer, this.title);
         this.onFeatureReady(feature, layer);
       },
     });
   }
 
   protected isInteractive(): boolean {
-    return false;
+    return true;
   }
 
   protected onFeatureReady(_feature: any, _layer: any): void {}
@@ -786,7 +767,7 @@ export class DynamicDepartmentLayer implements MapLayer {
       pointToLayer: (_feature: any, latlng: L.LatLng) =>
         pointLayerFromLegend(this.legend, latlng, paneNameForLegend(this.legend)),
       onEachFeature: (feature: any, layer: any) => {
-        this.bindLazyPopup(feature, layer);
+        bindAssetPopup(feature, layer, this.title);
         this.onFeatureReady(feature, layer);
       },
     });
@@ -800,19 +781,8 @@ export class DynamicDepartmentLayer implements MapLayer {
     return this.isBridgeMinorLayer() ? 3000 : undefined;
   }
 
-  private bindLazyPopup(feature: any, layer: any): void {
-    layer.on?.('click', () => {
-      if (layer.getPopup?.()) return;
-      const html = buildDynamicLayerPopupHtml(feature?.properties || {});
-      if (html) {
-        layer.bindPopup(html);
-        layer.openPopup?.();
-      }
-    });
-  }
-
   protected isInteractive(): boolean {
-    return false;
+    return true;
   }
 
   protected onFeatureReady(_feature: any, _layer: any): void {}
@@ -985,7 +955,7 @@ export class DynamicDepartmentLayer implements MapLayer {
     }
 
     if (!this.canShow(map)) return;
-    ensurePane(map, paneNameForLegend(this.legend));
+    ensurePane(map, paneNameForLegend(this.legend), 'auto');
     this.layer.addTo(map);
     this.added = true;
   }
@@ -1015,7 +985,7 @@ export class DynamicDepartmentLayer implements MapLayer {
       next: (geojson: any) => {
         if (requestId !== this.requestSeq) return;
         this.legend = inferCivilLegendFromFeatureCollection(this.title, this.layerKey, geojson);
-        ensurePane(map, paneNameForLegend(this.legend));
+        ensurePane(map, paneNameForLegend(this.legend), 'auto');
         this.onData?.(geojson);
         this.renderedPointIndex.clear();
         this.renderedPointFeatures = [];

@@ -21,6 +21,7 @@ export class IndiaBoundaryLayer implements MapLayer {
   layerGroup = 'common' as const;
   legend = INDIA_BOUNDARY_LEGEND;
   private readonly MIN_ZOOM = 10;
+  private readonly PORTAL_ADMIN_MIN_ZOOM = 5.2;
   private layer: L.GeoJSON;
   private lastKey = '';
 
@@ -77,7 +78,7 @@ export class IndiaBoundaryLayer implements MapLayer {
   }
 
   private getMinZoom(): number {
-    return isPortalAdminUser() ? 0 : this.MIN_ZOOM;
+    return isPortalAdminUser() ? this.PORTAL_ADMIN_MIN_ZOOM : this.MIN_ZOOM;
   }
 }
 

@@ -26,7 +26,8 @@ async function getDepartmentLayer(req, res, next) {
   try {
     const departmentRef = String(req.params.departmentRef || '').trim();
     const layerKey = String(req.params.layerKey || '').trim();
-    const { bbox, division, limit } = req.query;
+    const { bbox, division, limit, allIndia } = req.query;
+    const useAllIndia = isTruthy(allIndia);
 
     if (!departmentRef || !layerKey) {
       const err = new Error('Department and layer are required');
@@ -34,7 +35,7 @@ async function getDepartmentLayer(req, res, next) {
       throw err;
     }
 
-    const effectiveDivision = String(division || req?.user?.division || '').trim();
+    const effectiveDivision = useAllIndia ? '' : String(division || req?.user?.division || '').trim();
     const { meta, layerConfig } = await model.resolveDepartmentLayerConfig(departmentRef, layerKey);
     const { where, params } = parseBbox(bbox, layerConfig.geometryColumn);
     const geojson = await model.getLayerGeoJSON(layerConfig, where, params, effectiveDivision, limit);

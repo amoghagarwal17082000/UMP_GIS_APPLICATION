@@ -326,6 +326,9 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   }
 
   private resolveDepartmentModule(): { key: DepartmentModuleKey; label: string } {
+    if (this.isPortalAdmin()) {
+      return { key: 'civil_engineering_assets', label: 'Civil Engineering Assets Layers' };
+    }
     const rawDepartment = localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '';
     const normalized = this.normalizeDepartmentName(rawDepartment);
     const key = this.departmentAliases[normalized] || 'unknown';
@@ -390,15 +393,23 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   private registerDepartmentLayers(): void {
     const department = this.resolveDepartmentModule();
-    const departmentRef = String(localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '').trim();
+    const departmentRef = this.isPortalAdmin()
+      ? 'Civil Engineering Assets'
+      : String(localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '').trim();
     const attributeTabs: LayerKey[] = [...this.commonAttributeTabs];
+    const portalAdmin = this.isPortalAdmin();
     this.layerManager.clear(); this.layerManager.setActiveDepartmentLabel(department.label);
     this.layerManager.registerOnce(new IndiaBoundaryLayer(this.api));
-    this.layerManager.registerOnce(new DivisionBufferLayer(this.api));
+    if (!portalAdmin) {
+      this.layerManager.registerOnce(new DivisionBufferLayer(this.api));
+    }
     this.layerManager.registerOnce(new TrackLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Railway Track', g)));
-    if (department.key === 'civil_engineering_assets') {
-      attributeTabs.unshift('Station', 'Land Plan Ontrack', 'Land Offset', 'Land Boundary');
+    if (department.key === 'civil_engineering_assets' || portalAdmin) {
+      attributeTabs.unshift('Station');
       this.layerManager.registerOnce(new StationViewingLayer(this.api, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)));
+    }
+    if (department.key === 'civil_engineering_assets') {
+      attributeTabs.splice(1, 0, 'Land Plan Ontrack', 'Land Offset', 'Land Boundary');
       this.layerManager.registerOnce(new LandOffsetLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)));
       this.layerManager.registerOnce(new LandBoundaryLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)));
       this.layerManager.registerOnce(new LandPlanOntrackViewingLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Plan Ontrack', g)));

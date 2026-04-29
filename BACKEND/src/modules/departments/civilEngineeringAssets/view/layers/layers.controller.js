@@ -2,12 +2,17 @@ const config = require('./layers.config');
 const model = require('./layers.model');
 const parseBbox = require('../../../../../utils/parseBbox');
 
+function isTruthy(value) {
+  return ['1', 'true', 'yes', 'y'].includes(String(value || '').trim().toLowerCase());
+}
+
 async function getLayer(req, res, next) {
   try {
     const { layer } = req.params;
-    const { bbox, division } = req.query;
+    const { bbox, division, allIndia } = req.query;
+    const useAllIndia = isTruthy(allIndia);
 
-    const effectiveDivision = String(division || req?.user?.division || '').trim();
+    const effectiveDivision = useAllIndia ? '' : String(division || req?.user?.division || '').trim();
     const layerConfig = config[layer];
 
     if (!layerConfig) {

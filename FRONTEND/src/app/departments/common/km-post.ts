@@ -1,5 +1,6 @@
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
+import { buildAssetPopupHtml } from '../../components/asset-popup/asset-popup';
 import { defineLegend, MapLayer, pointLayerFromLegend } from '../../services/interface';
 
 const KM_POST_PANE = 'KmPostPane';
@@ -22,7 +23,7 @@ function ensureKmPostPane(map: L.Map): void {
   }
   const pane = map.getPane(KM_POST_PANE)!;
   pane.style.zIndex = '450';
-  pane.style.pointerEvents = 'none';
+  pane.style.pointerEvents = 'auto';
 }
 
 
@@ -76,12 +77,9 @@ export class KmPostLayer implements MapLayer {
       });
     }
     if (marker.bindPopup) {
-      marker.bindPopup(
-        '<b>KM Post</b><br>' +
-        'KM: ' + (p.kmpostno ?? '-') + '<br>' +
-        'Line: ' + (p.line ?? '-') + '<br>' +
-        'Railway: ' + (p.railway ?? '-')
-      );
+      marker.bindPopup(buildAssetPopupHtml('KM Post Details', p), {
+        maxWidth: 380,
+      });
     }
     return marker;
   }
