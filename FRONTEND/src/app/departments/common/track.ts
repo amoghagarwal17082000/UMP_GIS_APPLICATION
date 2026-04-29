@@ -1,6 +1,7 @@
 import { GeoJsonObject } from 'geojson';
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
+import { buildAssetPopupHtml } from '../../components/asset-popup/asset-popup';
 import { defineLegend, MapLayer, pathStyleFromLegend } from '../../services/interface';
 
 const TRACK_LEGEND = defineLegend({
@@ -26,6 +27,12 @@ export class TrackLayer implements MapLayer {
   constructor(private api: Api, private onData?: (geojson: any) => void) {
     this.layer = L.geoJSON(null, {
       style: pathStyleFromLegend(this.legend),
+      interactive: true,
+      onEachFeature: (feature: any, layer: any) => {
+        layer.bindPopup?.(buildAssetPopupHtml('Railway Track Details', feature?.properties || {}), {
+          maxWidth: 380,
+        });
+      },
     });
   }
 

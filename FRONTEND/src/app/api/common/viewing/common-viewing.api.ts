@@ -6,6 +6,8 @@ import {
   emptyFeatureCollection,
   getDivision,
   hasDivision,
+  isPortalAdminUser,
+  withAllIndia,
   withDivision,
 } from '../../shared/api-utils';
 
@@ -14,16 +16,18 @@ export class CommonViewingApi {
   constructor(private http: HttpClient) {}
 
   getStations(bbox: string) {
-    if (!hasDivision()) return of(emptyFeatureCollection());
+    const allIndia = isPortalAdminUser();
+    if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
     return this.http.get<any>(`${BASE_URL}/api/common/view/layers/station`, {
-      params: withDivision({ bbox }),
+      params: allIndia ? withAllIndia({ bbox }) : withDivision({ bbox }),
     });
   }
 
   getTracks(bbox: string) {
-    if (!hasDivision()) return of(emptyFeatureCollection());
+    const allIndia = isPortalAdminUser();
+    if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
     return this.http.get<any>(`${BASE_URL}/api/common/view/layers/railwayTrack`, {
-      params: withDivision({ bbox }),
+      params: allIndia ? withAllIndia({ bbox }) : withDivision({ bbox }),
     });
   }
 
@@ -35,21 +39,23 @@ export class CommonViewingApi {
   }
 
   getIndiaBoundary(bbox: string) {
-    if (!hasDivision()) return of(emptyFeatureCollection());
+    const allIndia = isPortalAdminUser();
+    if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
     return this.http.get<any>(`${BASE_URL}/api/common/view/layers/indiaBoundary`, {
-      params: withDivision({ bbox }),
+      params: allIndia ? withAllIndia({ bbox }) : withDivision({ bbox }),
     });
   }
 
   getDivisionBuffer() {
-    if (!hasDivision()) return of(emptyFeatureCollection());
+    const allIndia = isPortalAdminUser();
+    if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
     return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/view/layers/divisionBuffer`, {
-      params: withDivision({}),
+      params: allIndia ? withAllIndia({}) : withDivision({}),
     });
   }
 
   getDivisionBufferKey(z: number) {
-    return `division=${getDivision()}|z=${z}`;
+    return isPortalAdminUser() ? `allIndia=true|z=${z}` : `division=${getDivision()}|z=${z}`;
   }
 
   getDepartmentLayerCatalog(departmentRef: string) {
@@ -63,13 +69,14 @@ export class CommonViewingApi {
   }
 
   getDepartmentLayerData(departmentRef: string, layerKey: string, bbox: string, limit?: number) {
-    if (!hasDivision() || !departmentRef?.trim() || !layerKey?.trim()) {
+    const allIndia = isPortalAdminUser();
+    if ((!hasDivision() && !allIndia) || !departmentRef?.trim() || !layerKey?.trim()) {
       return of(emptyFeatureCollection());
     }
 
     return this.http.get<any>(
       `${BASE_URL}/api/common/view/layers/department/${encodeURIComponent(departmentRef)}/layers/${encodeURIComponent(layerKey)}`,
-      { params: withDivision(limit ? { bbox, limit } : { bbox }) }
+      { params: allIndia ? withAllIndia(limit ? { bbox, limit } : { bbox }) : withDivision(limit ? { bbox, limit } : { bbox }) }
     );
   }
 }

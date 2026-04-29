@@ -1,0 +1,213 @@
+.measure-collapsed-btn {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background-color: rgba(40, 40, 40, 0.95);
+  background-image: url('../../../assets/images/measurement.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 24px 24px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 0;
+  transition: background-color 0.15s ease, transform 0.08s ease;
+}
+
+.measure-collapsed-btn:hover {
+  background-color: rgba(70, 70, 70, 0.95);
+  transform: translateY(-1px);
+}
+
+.measure-collapsed-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.measure-widget {
+  position: relative;
+  width: min(400px, 100%);
+  height: 410px;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+
+.measure-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 12px;
+  background: #163a70;   /* same as Edit Tool */
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.measure-close {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.measure-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 8px 14px;
+}
+
+.measure-tool-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.measure-tool-btn:hover,
+.measure-tool-btn.active {
+  border-color: #9ca3af;
+  background: linear-gradient(#f7f7f7, #d8d8d8);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.measure-tool-btn.active {
+  border-color: #f97316;
+  background: #f97316;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.22);
+}
+
+.measure-separator {
+  width: 1px;
+  height: 20px;
+  background: #6b7280;
+}
+
+.measure-unit-select select {
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.measure-result-label {
+  margin-top: 3px;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.measure-rule {
+  height: 1px;
+  margin: 10px 24px 0;
+  background: #111827;
+}
+
+.measure-result-value {
+  min-height: 70px;
+  margin: 16px 24px 0;
+  padding: 12px;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  word-break: break-word;
+}
+
+.measure-clear-btn {
+  display: block;
+  min-width: 72px;
+  height: 32px;
+  margin: 6px auto 0;
+  border: 0;
+  border-radius: 5px;
+  background: #ff790f;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.measure-clear-btn:hover {
+  background: #ea580c;
+}
+
+.measure-footer {
+  position: absolute;
+  left: 6px;
+  bottom: 5px;
+  color: #111827;
+  font-size: 10px;
+}
+
+.measure-resize-grip {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  background:
+    radial-gradient(circle, #9ca3af 1px, transparent 1px) 0 0 / 4px 4px;
+  opacity: 0.9;
+}
+
+:host ::ng-deep .measure-point-marker {
+  pointer-events: none;
+}
+
+:host ::ng-deep .measure-point-pin {
+  position: relative;
+  width: 19px;
+  height: 19px;
+  border: 2px solid #ffffff;
+  border-radius: 50% 50% 50% 0;
+  background: #2fa36b;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+
+:host ::ng-deep .measure-point-pin::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+@media (max-width: 767.98px) {
+  .measure-widget {
+    height: 360px;
+  }
+
+  .measure-result-value {
+    font-size: 20px;
+  }
+}

@@ -1,5 +1,6 @@
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
+import { isPortalAdminUser } from '../../api/shared/api-utils';
 import { defineLegend, MapLayer, pathStyleFromLegend } from '../../services/interface';
 
 const INDIA_BOUNDARY_LEGEND = defineLegend({
@@ -20,6 +21,7 @@ export class IndiaBoundaryLayer implements MapLayer {
   layerGroup = 'common' as const;
   legend = INDIA_BOUNDARY_LEGEND;
   private readonly MIN_ZOOM = 10;
+  private readonly PORTAL_ADMIN_MIN_ZOOM = 5.2;
   private layer: L.GeoJSON;
   private lastKey = '';
 
@@ -32,7 +34,7 @@ export class IndiaBoundaryLayer implements MapLayer {
 
   addTo(map: L.Map) {
     if (!this.visible) return;
-    if (map.getZoom() < this.MIN_ZOOM) {
+    if (map.getZoom() < this.getMinZoom()) {
       this.removeFrom(map);
       return;
     }
@@ -47,7 +49,7 @@ export class IndiaBoundaryLayer implements MapLayer {
   loadForMap(map: L.Map) {
     if (!this.visible) return;
 
-    if (map.getZoom() < this.MIN_ZOOM) {
+    if (map.getZoom() < this.getMinZoom()) {
       this.lastKey = '';
       this.layer.clearLayers();
       this.removeFrom(map);
@@ -73,6 +75,10 @@ export class IndiaBoundaryLayer implements MapLayer {
       },
       error: (err: any) => console.error('India boundary error', err),
     });
+  }
+
+  private getMinZoom(): number {
+    return isPortalAdminUser() ? this.PORTAL_ADMIN_MIN_ZOOM : this.MIN_ZOOM;
   }
 }
 

@@ -83,6 +83,15 @@
   pointer-events: auto;
 }
 
+.map-measure-overlay {
+  position: absolute;
+  top: 62px;
+  left: 116px;
+  z-index: 5000;
+  width: min(400px, calc(100% - 200px));
+  pointer-events: auto;
+}
+
 .map-search-box {
   display: block;
   width: 100%;
@@ -147,6 +156,11 @@
 
 @media (max-width: 767.98px) {
   .map-search-overlay {
+    left: 108px;
+    width: min(250px, calc(100% - 124px));
+  }
+
+  .map-measure-overlay {
     left: 108px;
     width: min(250px, calc(100% - 124px));
   }

@@ -1,6 +1,7 @@
 import { Component, AfterViewInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StationSearchComponent } from '../station-search/station-search.component';
+import { MeasurementToolComponent } from '../measurement-tool/measurement-tool';
 import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -55,6 +56,7 @@ type DepartmentLayerMeta = {
   imports: [
     CommonModule,
     StationSearchComponent,
+    MeasurementToolComponent,
   ],
   templateUrl: './map.html',
   styleUrl: './map.css',
@@ -140,9 +142,23 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private forceMapResize(): void { if (!this.map) return; this.map.invalidateSize(); requestAnimationFrame(() => this.map?.invalidateSize()); setTimeout(() => this.map?.invalidateSize(), 350); }
   private scheduleReload(): void { if (!this.map) return; if (this.reloadTimer) clearTimeout(this.reloadTimer); this.reloadTimer = setTimeout(() => { if (!this.map) return; this.layerManager.reloadVisible(this.map); }, 900); }
 
+  private isPortalAdmin(): boolean {
+    const user = this.currentUser.getSnapshot();
+    const userId = String(user?.user_id || '').trim().toLowerCase();
+    const userType = String(user?.user_type || '').trim().toLowerCase();
+    return userId === 'portaladmin' || userType === 'portaladmin' || userType === 'portal admin';
+  }
+
+  private getInitialMapView(): { center: L.LatLngExpression; zoom: number } {
+    return this.isPortalAdmin()
+      ? { center: [22.5, 79], zoom: 5.2 }
+      : { center: [22.5, 79], zoom: 8.5 };
+  }
+
   private captureHomeAfterFirstSettle(): void {
     if (!this.map || this.homeCaptured) return;
-    const initialCenter = L.latLng(22.5, 79); const initialZoom = 8.5;
+    const initialView = this.getInitialMapView();
+    const initialCenter = L.latLng(initialView.center); const initialZoom = initialView.zoom;
     const isInitialView = () => { if (!this.map) return true; const z = this.map.getZoom(); const c = this.map.getCenter(); return Math.abs(z - initialZoom) < 0.05 && c.distanceTo(initialCenter) < 50000; };
     const trySave = () => { if (!this.map || this.homeCaptured || isInitialView()) return; this.homeCenter = this.map.getCenter(); this.homeZoom = this.map.getZoom(); this.homeCaptured = true; this.map.off('moveend', trySave); this.map.off('zoomend', trySave); };
     this.map.on('moveend', trySave); this.map.on('zoomend', trySave);
@@ -310,6 +326,9 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   }
 
   private resolveDepartmentModule(): { key: DepartmentModuleKey; label: string } {
+    if (this.isPortalAdmin()) {
+      return { key: 'civil_engineering_assets', label: 'Civil Engineering Assets Layers' };
+    }
     const rawDepartment = localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '';
     const normalized = this.normalizeDepartmentName(rawDepartment);
     const key = this.departmentAliases[normalized] || 'unknown';
@@ -374,15 +393,23 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   private registerDepartmentLayers(): void {
     const department = this.resolveDepartmentModule();
-    const departmentRef = String(localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '').trim();
+    const departmentRef = this.isPortalAdmin()
+      ? 'Civil Engineering Assets'
+      : String(localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '').trim();
     const attributeTabs: LayerKey[] = [...this.commonAttributeTabs];
+    const portalAdmin = this.isPortalAdmin();
     this.layerManager.clear(); this.layerManager.setActiveDepartmentLabel(department.label);
     this.layerManager.registerOnce(new IndiaBoundaryLayer(this.api));
-    this.layerManager.registerOnce(new DivisionBufferLayer(this.api));
+    if (!portalAdmin) {
+      this.layerManager.registerOnce(new DivisionBufferLayer(this.api));
+    }
     this.layerManager.registerOnce(new TrackLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Railway Track', g)));
-    if (department.key === 'civil_engineering_assets') {
-      attributeTabs.unshift('Station', 'Land Plan Ontrack', 'Land Offset', 'Land Boundary');
+    if (department.key === 'civil_engineering_assets' || portalAdmin) {
+      attributeTabs.unshift('Station');
       this.layerManager.registerOnce(new StationViewingLayer(this.api, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)));
+    }
+    if (department.key === 'civil_engineering_assets') {
+      attributeTabs.splice(1, 0, 'Land Plan Ontrack', 'Land Offset', 'Land Boundary');
       this.layerManager.registerOnce(new LandOffsetLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)));
       this.layerManager.registerOnce(new LandBoundaryLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)));
       this.layerManager.registerOnce(new LandPlanOntrackViewingLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Plan Ontrack', g)));
@@ -426,7 +453,8 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     if (this.map) return;
     const anyEl = el as any; if (anyEl._leaflet_id) { try { anyEl._leaflet_id = undefined; } catch {} }
     this.ui.activePanel = null; this.edit.disable();
-    this.map = L.map(el, { preferCanvas: false, zoomControl: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 8, wheelDebounceTime: 60, wheelPxPerZoomLevel: 140, zoomSnap: 0.1, zoomDelta: 0.1, maxZoom: 22 }).setView([22.5, 79], 8.5);
+    const initialView = this.getInitialMapView();
+    this.map = L.map(el, { preferCanvas: false, zoomControl: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 8, wheelDebounceTime: 60, wheelPxPerZoomLevel: 140, zoomSnap: 0.1, zoomDelta: 0.1, maxZoom: 22 }).setView(initialView.center, initialView.zoom);
     L.control.zoom({ position: 'topleft' }).addTo(this.map);
     this.mapRegistry.setMap(this.map);
     this.createStationDblClickHandler = (e: L.LeafletMouseEvent) => this.handleStationCreateDoubleClick(e);
