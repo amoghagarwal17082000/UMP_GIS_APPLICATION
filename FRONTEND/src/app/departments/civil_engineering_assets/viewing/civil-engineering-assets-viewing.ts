@@ -96,8 +96,8 @@ function orderLayerInPane(layer: L.GeoJSON, legend: LayerLegend): void {
   else layer.bringToFront();
 }
 
-function bindAssetPopup(feature: any, layer: any, title: string): void {
-  bindAssetDetailsPopup(layer, title, feature?.properties || {});
+function bindAssetPopup(feature: any, layer: any, title: string, layerKey?: string): void {
+  bindAssetDetailsPopup(layer, title, feature?.properties || {}, { layerKey });
 }
 
 function inferMinZoomFromTitle(title: string): number {
@@ -762,7 +762,7 @@ export class DynamicDepartmentLayer implements MapLayer {
       pointToLayer: (_feature: any, latlng: L.LatLng) =>
         pointLayerFromLegend(this.legend, latlng, paneNameForLegend(this.legend)),
       onEachFeature: (feature: any, layer: any) => {
-        bindAssetPopup(feature, layer, this.title);
+        bindAssetPopup(feature, layer, this.title, this.layerKey);
         this.onFeatureReady(feature, layer);
       },
     });

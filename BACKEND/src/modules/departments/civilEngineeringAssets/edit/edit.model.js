@@ -1271,25 +1271,27 @@ async function validateAssetId(config, layer, division, assetId, objectId = null
     throw err;
   }
 
-  const duplicateParams = [trimmedAssetId];
-  let duplicateSql = `
-    SELECT ${config.idColumn}
-    FROM ${config.table}
-    WHERE TRIM(COALESCE(asset_id::text, '')) = TRIM($1)
-  `;
+  if (config?.table && config?.idColumn) {
+    const duplicateParams = [trimmedAssetId];
+    let duplicateSql = `
+      SELECT ${config.idColumn}
+      FROM ${config.table}
+      WHERE TRIM(COALESCE(asset_id::text, '')) = TRIM($1)
+    `;
 
-  if (Number.isFinite(Number(objectId))) {
-    duplicateParams.push(Number(objectId));
-    duplicateSql += ` AND ${config.idColumn} <> $2`;
-  }
+    if (Number.isFinite(Number(objectId))) {
+      duplicateParams.push(Number(objectId));
+      duplicateSql += ` AND ${config.idColumn} <> $2`;
+    }
 
-  duplicateSql += ' LIMIT 1';
+    duplicateSql += ' LIMIT 1';
 
-  const { rows: existingRows } = await pool.query(duplicateSql, duplicateParams);
-  if (existingRows.length > 0) {
-    const err = new Error('Asset ID already exists. Please enter a different Asset ID.');
-    err.status = 409;
-    throw err;
+    const { rows: existingRows } = await pool.query(duplicateSql, duplicateParams);
+    if (existingRows.length > 0) {
+      const err = new Error('Asset ID already exists. Please enter a different Asset ID.');
+      err.status = 409;
+      throw err;
+    }
   }
 
   const validationParam = getAssetValidationParam(layer);

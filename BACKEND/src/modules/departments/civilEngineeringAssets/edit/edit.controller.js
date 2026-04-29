@@ -234,7 +234,7 @@ async function validateAssetId(req, res, next) {
       throw err;
     }
 
-    const config = resolveConfig(layer);
+    const config = configMap[layer] || null;
     const row = await model.validateAssetId(
       config,
       layer,

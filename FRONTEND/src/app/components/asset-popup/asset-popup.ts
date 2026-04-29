@@ -1,11 +1,17 @@
 import * as L from 'leaflet';
-import { BASE_URL } from '../../api/shared/api-utils';
+import { BASE_URL, getDivision } from '../../api/shared/api-utils';
+import { getAccessToken } from '../../services/current-user.store';
 
 type PopupProperties = Record<string, any>;
 type PopupEntry = {
   layer: any;
   layerTitle: string;
+  layerKey?: string;
   properties: PopupProperties;
+};
+
+type PopupBindOptions = {
+  layerKey?: string;
 };
 
 const popupEntries: PopupEntry[] = [];
@@ -132,6 +138,11 @@ function normalizeKey(key: string): string {
   return String(key || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+function isAssetIdField(key: string): boolean {
+  const normalized = normalizeKey(key);
+  return normalized === 'assetid';
+}
+
 function isPopupLinkField(key: string): boolean {
   const normalized = normalizeKey(key);
   return normalized === 'imageno'
@@ -152,8 +163,50 @@ function toPopupHref(value: string): string | null {
   return null;
 }
 
-function formatPopupValue(key: string, value: any): string {
+function resolveAssetLayerKey(title: string, layerKey?: string): string | null {
+  const direct = String(layerKey || '').trim();
+  if (direct) return direct;
+
+  const normalized = normalizeKey(title);
+  const knownLayers: Record<string, string> = {
+    bridgestart: 'bridge_start',
+    bridgeend: 'bridge_end',
+    bridgeminor: 'bridge_minor',
+    roadoverbridge: 'road_over_bridge',
+    roadunderbridge: 'road_under_bridge',
+    footoverbridge: 'foot_over_bridge',
+    railoverrail: 'rail_over_rail',
+    switchexpansionjoint: 'switch_expansion_joint',
+    bufferrails: 'buffer_rails',
+    curvestart: 'curve_start',
+    curveend: 'curve_end',
+    pointxing: 'pointxing',
+    levelxing: 'levelxing',
+    tunnelstart: 'tunnel_start',
+    tunnelend: 'tunnel_end',
+  };
+
+  for (const [token, resolved] of Object.entries(knownLayers)) {
+    if (normalized.includes(token)) return resolved;
+  }
+  return null;
+}
+
+function getObjectId(props: PopupProperties): number | null {
+  const value = props?.['objectid'] ?? props?.['OBJECTID'] ?? props?.['gid'];
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function formatPopupValue(key: string, value: any, title = '', props: PopupProperties = {}, layerKey?: string): string {
   const formatted = formatValue(value);
+  if (isAssetIdField(key) && formatted !== '-') {
+    const resolvedLayerKey = resolveAssetLayerKey(title, layerKey);
+    if (resolvedLayerKey) {
+      return `<button type="button" class="asset-popup-link asset-popup-asset-id" data-asset-popup-action="asset-details" data-layer-key="${escapeHtml(resolvedLayerKey)}" data-asset-id="${escapeHtml(formatted)}" data-object-id="${escapeHtml(getObjectId(props) ?? '')}">${escapeHtml(formatted)}</button>`;
+    }
+  }
+
   if (!isPopupLinkField(key) || formatted === '-') return escapeHtml(formatted);
 
   const href = toPopupHref(formatted);
@@ -220,18 +273,32 @@ function isPdfSource(src: string): boolean {
   return /\.pdf(?:[?#].*)?$/i.test(src);
 }
 
-function toPreviewSource(src: string): string {
+function isIrGeoportalLandPlanSource(src: string): boolean {
   try {
     const url = new URL(src, window.location.origin);
     const host = url.hostname.toLowerCase();
-    if ((host === 'irgeoportal.gov.in' || host === 'www.irgeoportal.gov.in')
-      && url.pathname.toLowerCase().startsWith('/offtrack/landplans/')) {
+    return (host === 'irgeoportal.gov.in' || host === 'www.irgeoportal.gov.in')
+      && url.pathname.toLowerCase().startsWith('/offtrack/landplans/');
+  } catch {
+    return false;
+  }
+}
+
+function toPreviewSource(src: string): string {
+  try {
+    const url = new URL(src, window.location.origin);
+    if (isIrGeoportalLandPlanSource(url.toString())) {
       return `${BASE_URL}/api/common/view/preview/land-plan?url=${encodeURIComponent(url.toString())}`;
     }
   } catch {
     return src;
   }
   return src;
+}
+
+function focusPdfPageOne(src: string): string {
+  const base = String(src || '').split('#')[0];
+  return `${base}#page=1&view=FitH`;
 }
 
 function buildUploadedPlanPreview(sources: string[]): string {
@@ -242,9 +309,10 @@ function buildUploadedPlanPreview(sources: string[]): string {
 
   if (pdfSource) {
     return `
-      <a class="asset-popup-plan-link" href="${escapeHtml(primary)}" target="_blank" rel="noopener noreferrer">
-        <iframe class="asset-popup-plan-pdf" src="${escapeHtml(previewPrimary)}" title="Uploaded Land Plan PDF"></iframe>
-      </a>
+      <div class="asset-popup-plan-link">
+        <iframe class="asset-popup-plan-pdf" src="${escapeHtml(focusPdfPageOne(previewPrimary))}" title="Uploaded Land Plan PDF"></iframe>
+        <a class="asset-popup-plan-open" href="${escapeHtml(primary)}" target="_blank" rel="noopener noreferrer">Open Land Plan</a>
+      </div>
     `;
   }
 
@@ -401,7 +469,7 @@ function highlightPopupEntry(popup: L.Popup, entry: PopupEntry): void {
 export function buildAssetPopupHtml(
   title: string,
   properties: PopupProperties,
-  options: { index?: number; total?: number } = {}
+  options: { index?: number; total?: number; layerKey?: string } = {}
 ): string {
   const props = properties || {};
   const keys = orderedKeys(props, title);
@@ -424,7 +492,7 @@ export function buildAssetPopupHtml(
     .map((key) => `
       <tr>
         <th class="asset-popup-field">${escapeHtml(resolveFieldLabel(key, title))}</th>
-        <td class="asset-popup-value">${formatPopupValue(key, props[key])}</td>
+        <td class="asset-popup-value">${formatPopupValue(key, props[key], title, props, options.layerKey)}</td>
       </tr>
     `)
     .join('');
@@ -454,15 +522,79 @@ export function buildAssetPopupHtml(
       <div class="asset-popup-actions">
         <button type="button" class="asset-popup-zoom" data-asset-popup-action="zoom">Zoom to</button>
       </div>
-      ${
-        rows
-          ? `<div class="asset-popup-table-wrap"><table class="asset-popup-table">${rows}</table></div>`
-          : '<div class="asset-popup-empty">No details available</div>'
-      }
-      ${uploadedPlanHtml}
+      <div class="asset-popup-scroll-body">
+        <div class="asset-popup-original-details">
+          <div class="asset-popup-section-heading">Original Asset Details</div>
+          ${
+            rows
+              ? `<div class="asset-popup-table-wrap"><table class="asset-popup-table">${rows}</table></div>`
+              : '<div class="asset-popup-empty">No details available</div>'
+          }
+        </div>
+        <div class="asset-popup-asset-details" data-asset-popup-details hidden></div>
+        ${uploadedPlanHtml}
+      </div>
       <div class="asset-popup-count">${keys.length} field${keys.length === 1 ? '' : 's'}</div>
     </div>
   `;
+}
+
+function detailRowsFromApiRow(row: any): Array<[string, any]> {
+  const normalizedEntries = Object.entries(row || {}).filter(([key, value]) => key !== 'raw' && hasValue(value));
+  const raw = row?.raw && typeof row.raw === 'object' ? row.raw : null;
+  const normalizedKeys = new Set(normalizedEntries.map(([key]) => normalizeKey(key)));
+  const rawEntries = raw
+    ? Object.entries(raw).filter(([key, value]) => hasValue(value) && !normalizedKeys.has(normalizeKey(key)))
+    : [];
+  return [...normalizedEntries, ...rawEntries];
+}
+
+function renderAssetDetails(row: any): string {
+  const rows = detailRowsFromApiRow(row);
+  if (!rows.length) return '<div class="asset-popup-asset-detail-empty">No API details returned</div>';
+
+  return `
+    <div class="asset-popup-section-heading">Asset Details from API</div>
+    <div class="asset-popup-table-wrap asset-popup-asset-detail-wrap">
+      <table class="asset-popup-table">
+        ${rows.map(([key, value]) => `
+          <tr>
+            <th class="asset-popup-field">${escapeHtml(toLabel(key))}</th>
+            <td class="asset-popup-value">${escapeHtml(formatValue(value))}</td>
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+  `;
+}
+
+async function loadAssetIdDetails(layerKey: string, assetId: string, objectId: string): Promise<any> {
+  const token = getAccessToken();
+  const division = getDivision();
+  const params = new URLSearchParams();
+  if (division) params.set('division', division);
+
+  const response = await fetch(
+    `${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layerKey)}/asset-id/validate?${params.toString()}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        asset_id: assetId,
+        objectid: Number.isFinite(Number(objectId)) ? Number(objectId) : null,
+      }),
+    }
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || `Asset details failed (${response.status})`);
+  }
+  return payload?.row || payload;
 }
 
 function positionPopupSmartly(popup: L.Popup): void {
@@ -567,6 +699,7 @@ function renderPopupEntry(popup: L.Popup, entries: PopupEntry[], index: number):
   popup.setContent(buildAssetPopupHtml(entry.layerTitle, entry.properties, {
     index: safeIndex,
     total: entries.length,
+    layerKey: entry.layerKey,
   }));
   highlightPopupEntry(popup, entry);
   wirePopupSwitcher(popup, entries, safeIndex);
@@ -613,6 +746,7 @@ function keepPopupOpenAfterZoom(popup: L.Popup, entries: PopupEntry[], index: nu
     popup.setContent(buildAssetPopupHtml(entry.layerTitle, entry.properties, {
       index,
       total: entries.length,
+      layerKey: entry.layerKey,
     }));
     highlightPopupEntry(popup, entry);
     wirePopupSwitcher(popup, entries, index);
@@ -662,20 +796,65 @@ function wirePopupSwitcher(popup: L.Popup, entries: PopupEntry[], index: number)
           event.stopPropagation();
           zoomToEntry(popup, entries, index);
         }, { once: true });
+      } else if (action === 'asset-details') {
+        control.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const details = element.querySelector<HTMLElement>('[data-asset-popup-details]');
+          const button = control as HTMLButtonElement;
+          if (!details || button.disabled) return;
+
+          if (details.dataset['loaded'] === 'true' && !details.hidden) {
+            details.hidden = true;
+            button.setAttribute('aria-expanded', 'false');
+            positionPopupSmartly(popup);
+            return;
+          }
+
+          if (details.dataset['loaded'] === 'true') {
+            details.hidden = false;
+            button.setAttribute('aria-expanded', 'true');
+            positionPopupSmartly(popup);
+            return;
+          }
+
+          const layerKey = button.dataset['layerKey'] || '';
+          const assetId = button.dataset['assetId'] || '';
+          const objectId = button.dataset['objectId'] || '';
+
+          details.hidden = false;
+          details.innerHTML = '<div class="asset-popup-asset-detail-loading">Loading asset details...</div>';
+          button.disabled = true;
+          button.setAttribute('aria-expanded', 'true');
+          positionPopupSmartly(popup);
+
+          try {
+            const row = await loadAssetIdDetails(layerKey, assetId, objectId);
+            details.innerHTML = renderAssetDetails(row);
+            details.dataset['loaded'] = 'true';
+          } catch (err: any) {
+            details.innerHTML = `<div class="asset-popup-asset-detail-error">${escapeHtml(err?.message || 'Asset details could not be loaded')}</div>`;
+          } finally {
+            button.disabled = false;
+            positionPopupSmartly(popup);
+          }
+        });
       }
     });
   });
 }
 
-function registerPopupEntry(layer: any, title: string, properties: PopupProperties): PopupEntry {
+function registerPopupEntry(layer: any, title: string, properties: PopupProperties, options: PopupBindOptions = {}): PopupEntry {
   const existing = layerEntries.get(layer);
   if (existing) {
     existing.layerTitle = title;
+    existing.layerKey = options.layerKey;
     existing.properties = properties;
     return existing;
   }
 
-  const entry = { layer, layerTitle: title, properties };
+  const entry = { layer, layerTitle: title, layerKey: options.layerKey, properties };
   layerEntries.set(layer, entry);
   popupEntries.push(entry);
   layer.on?.('remove', () => {
@@ -685,11 +864,11 @@ function registerPopupEntry(layer: any, title: string, properties: PopupProperti
   return entry;
 }
 
-export function bindAssetDetailsPopup(layer: any, title: string, properties: PopupProperties): void {
+export function bindAssetDetailsPopup(layer: any, title: string, properties: PopupProperties, options: PopupBindOptions = {}): void {
   if (!layer?.bindPopup) return;
-  const entry = registerPopupEntry(layer, title, properties);
+  const entry = registerPopupEntry(layer, title, properties, options);
 
-  layer.bindPopup(buildAssetPopupHtml(title, properties, { index: 0, total: 1 }), {
+  layer.bindPopup(buildAssetPopupHtml(title, properties, { index: 0, total: 1, layerKey: options.layerKey }), {
     className: 'asset-below-popup',
     maxWidth: isLandPlanUploadPopup(title) ? 660 : 420,
     minWidth: isLandPlanUploadPopup(title) ? 460 : 300,
