@@ -151,7 +151,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   private getInitialMapView(): { center: L.LatLngExpression; zoom: number } {
     return this.isPortalAdmin()
-      ? { center: [22.5, 79], zoom: 4.8 }
+      ? { center: [22.5, 79], zoom: 5.2 }
       : { center: [22.5, 79], zoom: 8.5 };
   }
 
