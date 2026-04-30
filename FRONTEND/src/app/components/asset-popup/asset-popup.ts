@@ -20,9 +20,11 @@ const NEARBY_PIXEL_TOLERANCE = 28;
 const POPUP_GAP_PX = 8;
 const SYMBOL_CLEARANCE_PX = 12;
 const POPUP_VIEW_PADDING_PX = 18;
+const ASSET_HIGHLIGHT_PANE = 'AssetPopupHighlightPane';
 const POPUP_CONTROL_STOP_EVENTS = 'click dblclick mousedown mouseup pointerdown pointerup contextmenu';
 let highlightedElement: Element | null = null;
 let highlightLayer: L.Layer | null = null;
+let activeAssetPopup: L.Popup | null = null;
 
 const HIDDEN_KEYS = new Set([
   'shape',
@@ -362,16 +364,19 @@ function fieldSortBucket(key: string): number {
 
 function orderedLandPopupKeys(props: PopupProperties, visibleKeys: string[]): string[] {
   const landKeys = LAND_POPUP_FIELDS.map((field) => findPropKey(props, field.keys) || field.keys[0]);
+  const assetIdKeys = visibleKeys.filter(isAssetIdField);
   const remainingKeys = visibleKeys
     .filter((key) => !landKeys.some((landKey) => normalizeKey(landKey) === normalizeKey(key)))
+    .filter((key) => !assetIdKeys.includes(key))
     .sort((a, b) => fieldSortBucket(a) - fieldSortBucket(b));
 
-  return [...landKeys, ...remainingKeys];
+  return [...landKeys, ...remainingKeys, ...assetIdKeys];
 }
 
 function orderedKeys(props: PopupProperties, title = ''): string[] {
   const keys = Object.keys(props || {}).filter((key) => {
     const normalized = key.toLowerCase();
+    if (isLandPlanOntrackPopup(title) && (normalized === 'mapsheetno' || normalized === 'mapsheetnumber')) return false;
     return !HIDDEN_KEYS.has(normalized) && hasValue(props[key]);
   });
 
@@ -379,15 +384,17 @@ function orderedKeys(props: PopupProperties, title = ''): string[] {
     return orderedLandPopupKeys(props, keys);
   }
 
-  const priority = PRIORITY_KEYS.filter((key) => keys.includes(key));
+  const assetIdKeys = keys.filter(isAssetIdField);
+  const priority = PRIORITY_KEYS.filter((key) => keys.includes(key) && !assetIdKeys.includes(key));
   const remaining = keys
     .filter((key) => !priority.includes(key))
+    .filter((key) => !assetIdKeys.includes(key))
     .sort((a, b) => {
       const bucketDiff = fieldSortBucket(a) - fieldSortBucket(b);
       return bucketDiff || a.localeCompare(b);
     });
 
-  return [...priority, ...remaining];
+  return [...priority, ...remaining, ...assetIdKeys];
 }
 
 function resolveFieldLabel(key: string, title: string): string {
@@ -423,6 +430,29 @@ function getEntryTitle(entry: PopupEntry): string {
   return resolveTitle(entry.layerTitle, entry.properties);
 }
 
+function getEntryTypeLabel(entry: PopupEntry): string {
+  return String(entry.layerTitle || '').trim() || getEntryTitle(entry);
+}
+
+function getSwitcherLabels(entries: PopupEntry[]): string[] {
+  const typeCounts = entries.reduce((counts, entry) => {
+    const label = getEntryTypeLabel(entry);
+    counts.set(label, (counts.get(label) || 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+
+  const seen = new Map<string, number>();
+  return entries.map((entry) => {
+    const label = getEntryTypeLabel(entry);
+    const count = typeCounts.get(label) || 0;
+    if (count <= 1) return label;
+
+    const next = (seen.get(label) || 0) + 1;
+    seen.set(label, next);
+    return `${label} ${next}`;
+  });
+}
+
 function clearAssetHighlight(): void {
   highlightedElement?.classList.remove('asset-popup-highlighted');
   highlightedElement = null;
@@ -447,11 +477,57 @@ function getEntryLatLng(entry: PopupEntry): L.LatLng | null {
   return null;
 }
 
+function ensureAssetHighlightPane(map: L.Map): void {
+  if (!map.getPane(ASSET_HIGHLIGHT_PANE)) {
+    map.createPane(ASSET_HIGHLIGHT_PANE);
+  }
+  const pane = map.getPane(ASSET_HIGHLIGHT_PANE);
+  if (!pane) return;
+  pane.style.zIndex = '1200';
+  pane.style.pointerEvents = 'none';
+}
+
+function createTargetRing(latLng: L.LatLng): L.LayerGroup {
+  return L.layerGroup([
+    L.circleMarker(latLng, {
+      radius: 25,
+      color: '#ffffff',
+      weight: 8,
+      opacity: 1,
+      fillColor: '#ffffff',
+      fillOpacity: 0.34,
+      interactive: false,
+      pane: ASSET_HIGHLIGHT_PANE,
+    }),
+    L.circleMarker(latLng, {
+      radius: 17,
+      color: '#7c3aed',
+      weight: 5,
+      opacity: 1,
+      fillColor: '#a78bfa',
+      fillOpacity: 0.48,
+      interactive: false,
+      pane: ASSET_HIGHLIGHT_PANE,
+    }),
+    L.circleMarker(latLng, {
+      radius: 5,
+      color: '#ffffff',
+      weight: 2,
+      opacity: 1,
+      fillColor: '#7c3aed',
+      fillOpacity: 1,
+      interactive: false,
+      pane: ASSET_HIGHLIGHT_PANE,
+    }),
+  ]);
+}
+
 function highlightPopupEntry(popup: L.Popup, entry: PopupEntry): void {
   const map = (popup as any)._map as L.Map | undefined;
   if (!map) return;
 
   clearAssetHighlight();
+  ensureAssetHighlightPane(map);
 
   const element = entry.layer?.getElement?.();
   if (element?.classList) {
@@ -460,30 +536,80 @@ function highlightPopupEntry(popup: L.Popup, entry: PopupEntry): void {
   }
 
   const latLng = getEntryLatLng(entry) || popup.getLatLng?.();
+  const geojson = entry.layer?.toGeoJSON?.();
+  if (geojson) {
+    const highlightGroup = L.featureGroup();
+    const halo = L.geoJSON(geojson, {
+      interactive: false,
+      pane: ASSET_HIGHLIGHT_PANE,
+      pointToLayer: (_feature, latLng) => L.circleMarker(latLng, {
+        radius: 22,
+        color: '#ffffff',
+        weight: 7,
+        opacity: 0.95,
+        fillColor: '#ffffff',
+        fillOpacity: 0.28,
+        pane: ASSET_HIGHLIGHT_PANE,
+      }),
+      style: () => ({
+        color: '#ffffff',
+        weight: 9,
+        opacity: 0.95,
+        fillColor: '#ffffff',
+        fillOpacity: 0.08,
+        pane: ASSET_HIGHLIGHT_PANE,
+      }),
+    });
+    const selected = L.geoJSON(geojson, {
+      interactive: false,
+      pane: ASSET_HIGHLIGHT_PANE,
+      pointToLayer: (_feature, latLng) => L.circleMarker(latLng, {
+        radius: 17,
+        color: '#7c3aed',
+        weight: 5,
+        opacity: 1,
+        fillColor: '#a78bfa',
+        fillOpacity: 0.42,
+        pane: ASSET_HIGHLIGHT_PANE,
+      }),
+      style: () => ({
+        color: '#7c3aed',
+        weight: 5,
+        opacity: 1,
+        fillColor: '#a78bfa',
+        fillOpacity: 0.2,
+        dashArray: '10 6',
+        pane: ASSET_HIGHLIGHT_PANE,
+      }),
+    });
+
+    highlightGroup.addLayer(halo);
+    highlightGroup.addLayer(selected);
+    if (latLng) {
+      highlightGroup.addLayer(createTargetRing(latLng));
+    }
+    highlightLayer = highlightGroup.addTo(map);
+    (highlightLayer as any).bringToFront?.();
+    return;
+  }
+
   if (!latLng) return;
 
-  highlightLayer = L.circleMarker(latLng, {
-    radius: 14,
-    color: '#f59e0b',
-    weight: 2,
-    opacity: 0.95,
-    fillColor: '#fbbf24',
-    fillOpacity: 0.16,
-    interactive: false,
-    pane: 'markerPane',
-  }).addTo(map);
+  highlightLayer = createTargetRing(latLng).addTo(map);
+  (highlightLayer as any).bringToFront?.();
 }
 
 export function buildAssetPopupHtml(
   title: string,
   properties: PopupProperties,
-  options: { index?: number; total?: number; layerKey?: string } = {}
+  options: { index?: number; total?: number; layerKey?: string; switcherLabels?: string[] } = {}
 ): string {
   const props = properties || {};
   const keys = orderedKeys(props, title);
   const popupTitle = resolveTitle(title, props);
   const total = options.total || 1;
   const index = options.index || 0;
+  const switcherLabels = options.switcherLabels || [];
   const shellClass = isLandPlanUploadPopup(title) ? 'asset-popup-shell asset-popup-shell-wide' : 'asset-popup-shell';
   const uploadedPlanImages = getUploadedLandPlanImages(props);
   const uploadedPlanHtml = uploadedPlanImages.length
@@ -520,7 +646,7 @@ export function buildAssetPopupHtml(
             <div class="asset-popup-switcher">
               <button type="button" class="asset-popup-nav" data-asset-popup-action="prev" title="Previous asset" aria-label="Previous asset"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
               <select class="asset-popup-select" data-asset-popup-action="select">
-                ${Array.from({ length: total }, (_unused, i) => `<option value="${i}" ${i === index ? 'selected' : ''}>Asset ${i + 1}</option>`).join('')}
+                ${Array.from({ length: total }, (_unused, i) => `<option value="${i}" ${i === index ? 'selected' : ''}>${escapeHtml(switcherLabels[i] || `Asset ${i + 1}`)}</option>`).join('')}
               </select>
               <button type="button" class="asset-popup-nav" data-asset-popup-action="next" title="Next asset" aria-label="Next asset"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
             </div>
@@ -642,6 +768,10 @@ function schedulePopupPanIntoView(popup: L.Popup): void {
   });
 }
 
+function isEditToolFormOpen(): boolean {
+  return !!document.querySelector('#panelEdit .edit-form');
+}
+
 function positionPopupSmartly(popup: L.Popup, panIntoView = false): void {
   requestAnimationFrame(() => {
     const element = popup.getElement();
@@ -689,7 +819,7 @@ function positionPopupSmartly(popup: L.Popup, panIntoView = false): void {
     element.style.transform = `${baseTransform} translateX(${translateX}px) translateY(${translateY}px)`;
     protectPopupElement(element);
 
-    if (panIntoView) {
+    if (panIntoView && !isEditToolFormOpen()) {
       schedulePopupPanIntoView(popup);
     }
   });
@@ -749,6 +879,7 @@ function renderPopupEntry(popup: L.Popup, entries: PopupEntry[], index: number):
     index: safeIndex,
     total: entries.length,
     layerKey: entry.layerKey,
+    switcherLabels: getSwitcherLabels(entries),
   }));
   highlightPopupEntry(popup, entry);
   wirePopupSwitcher(popup, entries, safeIndex);
@@ -760,6 +891,7 @@ function zoomToEntry(popup: L.Popup, entries: PopupEntry[], index: number): void
   if (!map) return;
   const entry = entries[index];
 
+  highlightPopupEntry(popup, entry);
   keepPopupOpenAfterZoom(popup, entries, index);
 
   const layer = entry.layer;
@@ -796,6 +928,7 @@ function keepPopupOpenAfterZoom(popup: L.Popup, entries: PopupEntry[], index: nu
       index,
       total: entries.length,
       layerKey: entry.layerKey,
+      switcherLabels: getSwitcherLabels(entries),
     }));
     highlightPopupEntry(popup, entry);
     wirePopupSwitcher(popup, entries, index);
@@ -935,10 +1068,22 @@ export function bindAssetDetailsPopup(layer: any, title: string, properties: Pop
     const anchor = popup?.getLatLng?.();
     if (!popup || !map || !anchor) return;
 
+    if (activeAssetPopup && activeAssetPopup !== popup) {
+      try {
+        activeAssetPopup.remove();
+      } catch {
+        map.closePopup(activeAssetPopup);
+      }
+    }
+    activeAssetPopup = popup;
+
     const mapOptions = map.options as any;
     const previousClosePopupOnClick = mapOptions.closePopupOnClick;
     mapOptions.closePopupOnClick = false;
     popup.once?.('remove', () => {
+      if (activeAssetPopup === popup) {
+        activeAssetPopup = null;
+      }
       mapOptions.closePopupOnClick = previousClosePopupOnClick;
       clearAssetHighlight();
     });

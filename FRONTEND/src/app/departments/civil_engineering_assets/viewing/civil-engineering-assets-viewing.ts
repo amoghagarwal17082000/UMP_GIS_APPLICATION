@@ -24,12 +24,12 @@ const STATION_LEGEND: LayerLegend = defineLegend({
 
 const LANDPLAN_ONTRACK_LEGEND = defineLegend({
   type: 'polygon' as const,
-  color: '#FFA500',
+  color: '#fab83d',
   label: 'Landplan Ontrack',
   fillColor: '#fff59d',
   fillOpacity: 0.3,
-  strokeColor: '#d4a017',
-  strokeWidth: 2,
+  strokeColor: '#fab83d',
+  strokeWidth: 1.5,
   symbolKind: 'square' as const,
 });
 
@@ -47,7 +47,7 @@ const LAND_BOUNDARY_LEGEND = defineLegend({
   color: 'orange',
   label: 'Land Boundary',
   strokeColor: 'orange',
-  strokeWidth: 3,
+  strokeWidth: 4,
   symbolKind: 'line' as const,
 });
 
@@ -809,8 +809,10 @@ export class DynamicDepartmentLayer implements MapLayer {
       let score = 0;
 
       const rowObjectId = normalizeNumber(row?.objectid);
+      const rowEditId = normalizeNumber(row?.edit_id);
       const propObjectId = normalizeNumber(props?.objectid || props?.OBJECTID);
       if (rowObjectId && propObjectId && rowObjectId === propObjectId) score += 100;
+      if (rowEditId && propObjectId && rowEditId === propObjectId) score += 120;
 
       const rowGid = normalizeNumber(row?.gid);
       const propGid = normalizeNumber(props?.gid);
@@ -877,8 +879,10 @@ export class DynamicDepartmentLayer implements MapLayer {
       let score = 0;
 
       const rowObjectId = normalizeNumber(row?.objectid);
+      const rowEditId = normalizeNumber(row?.edit_id);
       const propObjectId = normalizeNumber(props?.objectid || props?.OBJECTID);
       if (rowObjectId && propObjectId && rowObjectId === propObjectId) score += 100;
+      if (rowEditId && propObjectId && rowEditId === propObjectId) score += 120;
 
       const rowGid = normalizeNumber(row?.gid);
       const propGid = normalizeNumber(props?.gid);

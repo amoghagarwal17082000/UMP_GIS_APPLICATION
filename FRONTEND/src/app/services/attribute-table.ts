@@ -39,6 +39,7 @@ export class AttributeTableService {
     'Km Post': [],
     'Railway Track': [],
   };
+  private featureSignatures: Record<LayerKey, string> = {};
 
   private _selected = new BehaviorSubject<{ layer: LayerKey; rowId: number; signature: string } | null>(null);
   selected$ = this._selected.asObservable();
@@ -50,10 +51,13 @@ export class AttributeTableService {
   clearSelection$ = this._clearSelection.asObservable();
 
   private materializeTimer: ReturnType<typeof setTimeout> | null = null;
+  private datasetsEmitTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingDatasets: Record<LayerKey, Dataset> | null = null;
 
   setTabs(tabs: LayerKey[]) {
     const uniqueTabs = Array.from(new Set(tabs.filter(Boolean)));
     const nextTabs = uniqueTabs.length ? uniqueTabs : ['Km Post', 'Railway Track'];
+    const currentTabs = this._tabs.getValue();
     const currentDatasets = this._datasets.getValue();
     const nextDatasets: Record<LayerKey, Dataset> = {};
 
@@ -62,8 +66,13 @@ export class AttributeTableService {
       this.rawFeatures[tab] = this.rawFeatures[tab] ?? [];
     });
 
-    this._tabs.next(nextTabs);
-    this._datasets.next(nextDatasets);
+    if (!this.sameArray(currentTabs, nextTabs)) {
+      this._tabs.next(nextTabs);
+    }
+
+    if (!this.sameDatasetKeys(currentDatasets, nextDatasets)) {
+      this.queueDatasets(nextDatasets);
+    }
 
     if (!nextTabs.includes(this._active.getValue())) {
       this._active.next(nextTabs[0]);
@@ -100,16 +109,22 @@ export class AttributeTableService {
       ...f,
       properties: f?.properties ?? f?.attributes ?? {},
     }));
+    const signature = this.getFeatureCollectionSignature(features);
+    const previousDataset = this._datasets.getValue()[tab];
+    if (this.featureSignatures[tab] === signature && previousDataset?.count === features.length) {
+      return;
+    }
 
     this.rawFeatures[tab] = features;
+    this.featureSignatures[tab] = signature;
 
     const next = { ...this._datasets.getValue() };
-    const previous = next[tab] ?? { ...this.emptyDataset };
+    const previous = previousDataset ?? { ...this.emptyDataset };
     next[tab] = {
       ...previous,
       count: features.length,
     };
-    this._datasets.next(next);
+    this.queueDatasets(next);
 
     if (this._open.getValue() && this._active.getValue() === tab) {
       this.scheduleMaterialize(tab);
@@ -177,7 +192,7 @@ export class AttributeTableService {
       features,
     };
 
-    this._datasets.next(next);
+    this.queueDatasets(next);
 
     const selected = this._selected.getValue();
     if (!selected || selected.layer !== tab) return;
@@ -204,5 +219,43 @@ export class AttributeTableService {
       .sort()
       .map((key) => [key, row[key] ?? null]);
     return JSON.stringify(payload);
+  }
+
+  private sameArray(a: LayerKey[], b: LayerKey[]): boolean {
+    return a.length === b.length && a.every((value, index) => value === b[index]);
+  }
+
+  private sameDatasetKeys(a: Record<LayerKey, Dataset>, b: Record<LayerKey, Dataset>): boolean {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    return this.sameArray(aKeys, bKeys);
+  }
+
+  private getFeatureCollectionSignature(features: any[]): string {
+    const parts = features.map((feature: any, index: number) => {
+      const props = feature?.properties ?? {};
+      const id =
+        feature?.id ??
+        props.objectid ??
+        props.OBJECTID ??
+        props.gid ??
+        props.asset_id ??
+        props.assetid ??
+        index;
+      const coords = JSON.stringify(feature?.geometry?.coordinates ?? null);
+      return `${id}:${coords}`;
+    });
+    return `${features.length}|${parts.join('|')}`;
+  }
+
+  private queueDatasets(next: Record<LayerKey, Dataset>): void {
+    this.pendingDatasets = next;
+    if (this.datasetsEmitTimer) return;
+    this.datasetsEmitTimer = setTimeout(() => {
+      this.datasetsEmitTimer = null;
+      const pending = this.pendingDatasets;
+      this.pendingDatasets = null;
+      if (pending) this._datasets.next(pending);
+    }, 0);
   }
 }

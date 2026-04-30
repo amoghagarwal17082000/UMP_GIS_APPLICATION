@@ -65,8 +65,44 @@ async function getNextManualId(client, qualifiedName, columnName) {
   return Number(rows[0]?.next_id || 1);
 }
 
+const FIELD_ALIASES = {
+  constituency: ['constituency', 'constituncy'],
+  constituncy: ['constituncy', 'constituency'],
+};
+
+function resolveConfiguredColumn(field, tableColumns) {
+  if (tableColumns.includes(field)) return field;
+  const aliases = FIELD_ALIASES[field] || [];
+  return aliases.find((alias) => tableColumns.includes(alias)) || null;
+}
+
+function getConfiguredFieldValue(data, configuredField, resolvedColumn) {
+  const aliases = FIELD_ALIASES[configuredField] || FIELD_ALIASES[resolvedColumn] || [configuredField];
+  for (const key of [resolvedColumn, configuredField, ...aliases]) {
+    if (key && Object.prototype.hasOwnProperty.call(data || {}, key)) {
+      return data[key];
+    }
+  }
+  return null;
+}
+
+function getAliasedRecordValue(record, column) {
+  if (Object.prototype.hasOwnProperty.call(record || {}, column)) {
+    return { found: true, value: record[column] };
+  }
+
+  const aliases = FIELD_ALIASES[column] || [];
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(record || {}, alias)) {
+      return { found: true, value: record[alias] };
+    }
+  }
+
+  return { found: false, value: undefined };
+}
+
 function getGeometryReadColumn(config) {
-  const column = String(config?.geometry?.readColumn || '').trim();
+  const column = String(config?.geometry?.readColumn || config?.geometry?.column || '').trim();
   return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column) ? column : null;
 }
 
@@ -74,6 +110,45 @@ function getMainSelectList(config) {
   const geometryColumn = getGeometryReadColumn(config);
   if (!geometryColumn) return '*';
   return `*, ST_X(${geometryColumn}) AS geom_lng, ST_Y(${geometryColumn}) AS geom_lat`;
+}
+
+function getDraftSelectList(config, draftTableColumns, alias = '') {
+  const prefix = alias ? `${alias}.` : '';
+  const configuredColumn = String(config?.geometry?.column || '').trim();
+  const configuredReadColumn = String(config?.geometry?.readColumn || '').trim();
+  const candidates = [configuredColumn, configuredReadColumn, 'shape', 'geom']
+    .filter((column) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column));
+  const geometryColumn = candidates.find((column) => draftTableColumns.includes(column));
+  if (!geometryColumn) return `${prefix}*`;
+  return `${prefix}*, ST_X(${prefix}${geometryColumn}) AS geom_lng, ST_Y(${prefix}${geometryColumn}) AS geom_lat`;
+}
+
+function getGeometryColumnExpression(config, tableColumns, alias) {
+  const configuredColumn = String(config?.geometry?.column || '').trim();
+  const configuredReadColumn = String(config?.geometry?.readColumn || '').trim();
+  const candidates = [configuredColumn, configuredReadColumn, 'shape', 'geom']
+    .filter((column) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column));
+  const geometryColumn = candidates.find((column) => tableColumns.includes(column));
+  return geometryColumn ? `${alias}.${geometryColumn}` : null;
+}
+
+function getDraftWithOriginalGeometrySelectList(config, draftTableColumns, mainTableColumns, draftAlias = 'd', mainAlias = 'm') {
+  const draftGeometry = getGeometryColumnExpression(config, draftTableColumns, draftAlias);
+  const mainGeometry = getGeometryColumnExpression(config, mainTableColumns, mainAlias);
+  if (!draftGeometry && !mainGeometry) return `${draftAlias}.*`;
+  if (draftGeometry && mainGeometry) {
+    const geometryExpression = `
+      CASE
+        WHEN ${draftGeometry} IS NOT NULL
+          AND (${mainGeometry} IS NULL OR NOT ST_Equals(${draftGeometry}, ${mainGeometry}))
+          THEN ${draftGeometry}
+        ELSE COALESCE(${mainGeometry}, ${draftGeometry})
+      END
+    `;
+    return `${draftAlias}.*, ST_X(${geometryExpression}) AS geom_lng, ST_Y(${geometryExpression}) AS geom_lat, (${draftGeometry} IS NOT NULL AND ${mainGeometry} IS NOT NULL AND NOT ST_Equals(${draftGeometry}, ${mainGeometry})) AS draft_geometry_changed`;
+  }
+  const geometryExpression = draftGeometry || mainGeometry;
+  return `${draftAlias}.*, ST_X(${geometryExpression}) AS geom_lng, ST_Y(${geometryExpression}) AS geom_lat, FALSE AS draft_geometry_changed`;
 }
 
 async function getByIdWithClient(client, config, id, division, lock = false) {
@@ -191,29 +266,69 @@ async function getAssignedCheckerUserNameForMakerUserName(client, makerUserName)
   return checkerRows[0]?.user_name ? String(checkerRows[0].user_name).trim() : assignedChecker;
 }
 
-async function updateMainStatusByObjectId(client, config, objectId, division, status) {
+function getFinalModifiedBy(record) {
+  return record?.approved_by ?? record?.modified_by ?? record?.edited_by ?? null;
+}
+
+function getFinalModifiedDate(record) {
+  return record?.approved_at ?? record?.modified_date ?? record?.edited_at ?? null;
+}
+
+async function updateMainStatusByObjectId(client, config, objectId, division, status, finalRecord = null) {
   const numericId = Number(objectId);
   if (!Number.isFinite(numericId)) return null;
+  const tableColumns = await getTableColumns(client, config.table);
+  const setClauses = [];
+  const values = [];
+
+  if (tableColumns.includes('status')) {
+    values.push(status);
+    setClauses.push(`status = $${values.length}`);
+  }
+
+  if (finalRecord && tableColumns.includes('final_modified_by')) {
+    values.push(getFinalModifiedBy(finalRecord));
+    setClauses.push(`final_modified_by = $${values.length}`);
+  }
+
+  if (finalRecord && tableColumns.includes('final_modified_date')) {
+    const finalDate = getFinalModifiedDate(finalRecord);
+    if (finalDate) {
+      values.push(finalDate);
+      setClauses.push(`final_modified_date = $${values.length}`);
+    } else {
+      setClauses.push('final_modified_date = NOW()::timestamp without time zone');
+    }
+  }
+
+  if (!setClauses.length) return null;
+
+  values.push(numericId);
+  values.push(division);
 
   const sql = `
     UPDATE ${config.table}
-    SET status = $1
-    WHERE ${config.idColumn} = $2
-      AND UPPER(division) = UPPER($3)
+    SET ${setClauses.join(', ')}
+    WHERE ${config.idColumn} = $${values.length - 1}
+      AND UPPER(division) = UPPER($${values.length})
     RETURNING *
   `;
 
-  const { rows } = await client.query(sql, [status, numericId, division]);
+  const { rows } = await client.query(sql, values);
   return rows[0] || null;
 }
 
-async function updateMainStatusFromDraft(client, config, workflow, draft, division, status) {
-  return updateMainStatusByObjectId(client, config, draft?.[workflow.editIdColumn], division, status);
+async function updateMainWorkflowStatus(client, config, id, division, status) {
+  return updateMainStatusByObjectId(client, config, id, division, status);
+}
+
+async function updateMainStatusFromDraft(client, config, workflow, draft, division, status, finalRecord = null) {
+  return updateMainStatusByObjectId(client, config, draft?.[workflow.editIdColumn], division, status, finalRecord);
 }
 
 function normalizeStationDraftPayload(data, originalRow) {
-  const lat = Number(data?.lat ?? data?.latitude ?? data?.ycoord ?? originalRow?.latitude ?? originalRow?.ycoord);
-  const lng = Number(data?.lng ?? data?.lon ?? data?.longitude ?? data?.xcoord ?? originalRow?.longitude ?? originalRow?.xcoord);
+  const lat = Number(data?.lat ?? data?.latitude ?? data?.ycoord ?? originalRow?.geom_lat ?? originalRow?.latitude ?? originalRow?.ycoord);
+  const lng = Number(data?.lng ?? data?.lon ?? data?.longitude ?? data?.xcoord ?? originalRow?.geom_lng ?? originalRow?.longitude ?? originalRow?.xcoord);
 
   return {
     ...originalRow,
@@ -227,11 +342,23 @@ function normalizeStationDraftPayload(data, originalRow) {
   };
 }
 
-function getStationBaseRecordFromDraft(config, draft, division) {
-  const lat = Number(draft?.latitude ?? draft?.ycoord ?? draft?.lat);
-  const lng = Number(draft?.longitude ?? draft?.xcoord ?? draft?.lng ?? draft?.lon);
+function getWorkflowOriginalIdValue(config, originalRow) {
+  if (!originalRow) return null;
+  return originalRow?.gis_unique_id ?? null;
+}
+
+async function getNewDraftEditId(client, config, draftTableColumns) {
+  const workflow = config.draftWorkflow;
+  if (!workflow?.editIdColumn || !draftTableColumns.includes(workflow.editIdColumn)) return undefined;
+  return getNextManualId(client, config.table, config.idColumn);
+}
+
+function getBaseRecordFromDraft(config, draft, division, finalStatus = 'Sent to Database') {
+  const lat = Number(draft?.geom_lat ?? draft?.latitude ?? draft?.ycoord ?? draft?.lat);
+  const lng = Number(draft?.geom_lng ?? draft?.longitude ?? draft?.xcoord ?? draft?.lng ?? draft?.lon);
 
   return {
+    ...draft,
     sttncode: draft?.sttncode ?? null,
     sttnname: draft?.sttnname ?? null,
     sttntype: draft?.sttntype ?? draft?.stationtype ?? null,
@@ -247,9 +374,9 @@ function getStationBaseRecordFromDraft(config, draft, division) {
     railway: draft?.railway ?? null,
     category: draft?.category ?? null,
     division,
-    status: draft?.original_id ? 'Asset Edited and Finalised' : 'Sent to Database',
-    final_modified_by: draft?.edited_by ?? null,
-    final_modified_date: draft?.edited_at ?? null,
+    status: finalStatus,
+    final_modified_by: getFinalModifiedBy(draft),
+    final_modified_date: getFinalModifiedDate(draft),
   };
 }
 
@@ -261,9 +388,10 @@ function buildStationBaseUpdate(mainTableColumns, config, record, targetObjectId
     if (column === config.idColumn) return;
     if (column === 'globalid') return;
     if (column === config.geometry?.column) return;
-    if (!Object.prototype.hasOwnProperty.call(record, column)) return;
+    const { found, value } = getAliasedRecordValue(record, column);
+    if (!found) return;
 
-    values.push(record[column]);
+    values.push(value);
     setClauses.push(`${column} = $${values.length}`);
   });
 
@@ -316,10 +444,11 @@ function buildStationBaseInsert(mainTableColumns, config, record, objectId) {
     if (column === config.idColumn) return;
     if (column === 'globalid') return;
     if (column === config.geometry?.column) return;
-    if (!Object.prototype.hasOwnProperty.call(record, column)) return;
+    const { found, value } = getAliasedRecordValue(record, column);
+    if (!found) return;
 
     insertColumns.push(column);
-    values.push(record[column]);
+    values.push(value);
     placeholders.push(`$${values.length}`);
   });
 
@@ -352,6 +481,30 @@ function buildStationBaseInsert(mainTableColumns, config, record, objectId) {
   };
 }
 
+async function copyDraftGeometryToMain(client, config, workflow, draftObjectId, mainObjectId, division) {
+  if (!config.geometry?.enabled || !config.geometry.column) return null;
+  const mainTableColumns = await getTableColumns(client, config.table);
+  const draftTableColumns = await getTableColumns(client, workflow.table);
+  const geometryColumn = config.geometry.column;
+  if (!mainTableColumns.includes(geometryColumn) || !draftTableColumns.includes(geometryColumn)) return null;
+  if (!Number.isFinite(Number(draftObjectId)) || !Number.isFinite(Number(mainObjectId))) return null;
+
+  const sql = `
+    UPDATE ${config.table} m
+    SET ${geometryColumn} = d.${geometryColumn}
+    FROM ${workflow.table} d
+    WHERE m.${config.idColumn} = $1
+      AND d.objectid = $2
+      AND UPPER(m.division) = UPPER($3)
+      AND UPPER(d.division) = UPPER($3)
+      AND d.${geometryColumn} IS NOT NULL
+    RETURNING m.*
+  `;
+
+  const { rows } = await client.query(sql, [mainObjectId, draftObjectId, division]);
+  return rows[0] || null;
+}
+
 function setWorkflowAssignmentFields(record, workflow, draftTableColumns, assignments) {
   if (workflow?.checkerColumn && draftTableColumns.includes(workflow.checkerColumn)) {
     record[workflow.checkerColumn] = assignments.checkerUserId;
@@ -381,11 +534,24 @@ async function getDraftById(config, id, division) {
     throw err;
   }
 
+  const draftTableColumns = await getTableColumns(pool, config.draftWorkflow.table);
+  const mainTableColumns = await getTableColumns(pool, config.table);
+  const idConditions = ['d.objectid = $1'];
+  if (config.draftWorkflow.editIdColumn && draftTableColumns.includes(config.draftWorkflow.editIdColumn)) {
+    idConditions.push(`d.${config.draftWorkflow.editIdColumn}::text = $1::text`);
+  }
+
+  const mainJoin = config.draftWorkflow.editIdColumn && draftTableColumns.includes(config.draftWorkflow.editIdColumn)
+    ? `LEFT JOIN ${config.table} m ON m.${config.idColumn}::text = d.${config.draftWorkflow.editIdColumn}::text AND UPPER(m.division) = UPPER($2)`
+    : '';
   const sql = `
-    SELECT *
-    FROM ${config.draftWorkflow.table}
-    WHERE objectid = $1
-      AND UPPER(division) = UPPER($2)
+    SELECT ${getDraftWithOriginalGeometrySelectList(config, draftTableColumns, mainTableColumns, 'd', 'm')}
+    FROM ${config.draftWorkflow.table} d
+    ${mainJoin}
+    WHERE (${idConditions.join(' OR ')})
+      AND UPPER(d.division) = UPPER($2)
+    ORDER BY CASE WHEN d.objectid = $1 THEN 0 ELSE 1 END
+    LIMIT 1
   `;
 
   const { rows } = await pool.query(sql, [id, division]);
@@ -421,11 +587,19 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
   try {
     await client.query('BEGIN');
 
+    const draftTableColumns = await getTableColumns(client, workflow.table);
+    const idConditions = ['objectid = $1'];
+    if (workflow.editIdColumn && draftTableColumns.includes(workflow.editIdColumn)) {
+      idConditions.push(`${workflow.editIdColumn}::text = $1::text`);
+    }
+
     const draftSql = `
       SELECT *
       FROM ${workflow.table}
-      WHERE objectid = $1
+      WHERE (${idConditions.join(' OR ')})
         AND UPPER(division) = UPPER($2)
+      ORDER BY CASE WHEN objectid = $1 THEN 0 ELSE 1 END
+      LIMIT 1
       FOR UPDATE
     `;
     const { rows: draftRows } = await client.query(draftSql, [draftObjectId, division]);
@@ -480,7 +654,6 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
       }
     }
 
-    const draftTableColumns = await getTableColumns(client, workflow.table);
     const setClauses = [`${workflow.statusColumn} = $1`];
     const params = [normalizedStatus];
 
@@ -539,6 +712,7 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
     `;
 
     const { rows } = await client.query(updateSql, params);
+    const updatedDraft = rows[0] || draft;
 
     let mainRecord = null;
     if (normalizedUserType === 'checker' && normalizedStatus === 'Sent to Approver for Deletion') {
@@ -552,7 +726,7 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
 
     if (normalizedUserType === 'approver' && normalizedStatus === 'Sent to Database') {
       const mainTableColumns = await getTableColumns(client, config.table);
-      const baseRecord = getStationBaseRecordFromDraft(config, draft, division);
+      const baseRecord = getBaseRecordFromDraft(config, { ...draft, ...updatedDraft }, division, normalizedStatus);
       const existingMainId = Number(draft?.[workflow.editIdColumn]);
 
       if (Number.isFinite(existingMainId)) {
@@ -570,15 +744,26 @@ async function updateStationDraftStatus(config, draftObjectId, division, nextSta
         const { rows: insertedMainRows } = await client.query(insertMain.sql, insertMain.values);
         mainRecord = insertedMainRows[0] || null;
       }
+
+      const approvedMainId = Number(mainRecord?.[config.idColumn]);
+      const draftGeometryMain = await copyDraftGeometryToMain(
+        client,
+        config,
+        workflow,
+        updatedDraft?.objectid ?? draft?.objectid,
+        approvedMainId,
+        division
+      );
+      if (draftGeometryMain) mainRecord = draftGeometryMain;
     }
 
     if (normalizedUserType === 'approver' && normalizedStatus === 'Asset Deleted') {
-      mainRecord = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Asset Deleted');
+      mainRecord = await updateMainStatusFromDraft(client, config, workflow, draft, division, 'Asset Deleted', updatedDraft);
     }
 
     await client.query('COMMIT');
     return {
-      draft: rows[0],
+      draft: updatedDraft,
       main: mainRecord,
     };
   } catch (err) {
@@ -625,7 +810,7 @@ async function requestStationDeletion(config, id, division, makerUserId, submitt
       div_name: draftTableColumns.includes('div_name') ? (assignments.makerDivisionName ?? division ?? null) : undefined,
       department: draftTableColumns.includes('department') ? (assignments.makerDepartment ?? null) : undefined,
       [workflow.editIdColumn]: originalRow[config.idColumn],
-      [workflow.originalIdColumn]: originalRow.gis_unique_id ?? null,
+      [workflow.originalIdColumn]: getWorkflowOriginalIdValue(config, originalRow),
       [workflow.statusColumn]: 'Sent to Checker for Deletion',
       modified_by: draftTableColumns.includes('modified_by') ? assignments.makerUserName : undefined,
       modified_date: draftTableColumns.includes('modified_date') ? '__NOW__' : undefined,
@@ -870,6 +1055,7 @@ async function create(config, data, division) {
   const insertColumns = [config.idColumn, 'globalid'];
   const placeholders = [];
   const values = [];
+  const tableColumns = await getTableColumns(pool, config.table);
 
   const nextId = config.idStrategy === 'manual'
     ? await getNextManualId(pool, config.table, config.idColumn)
@@ -882,8 +1068,10 @@ async function create(config, data, division) {
   placeholders.push(`$${values.length}`);
 
   config.insertFields.forEach((field) => {
-    insertColumns.push(field);
-    values.push(data[field] ?? null);
+    const column = resolveConfiguredColumn(field, tableColumns);
+    if (!column) return;
+    insertColumns.push(column);
+    values.push(getConfiguredFieldValue(data, field, column));
     placeholders.push(`$${values.length}`);
   });
 
@@ -922,10 +1110,13 @@ async function create(config, data, division) {
 async function update(config, id, division, data) {
   const setClauses = [];
   const params = [];
+  const tableColumns = await getTableColumns(pool, config.table);
 
-  config.updateFields.forEach((field, index) => {
-    setClauses.push(`${field} = $${index + 1}`);
-    params.push(data[field] ?? null);
+  config.updateFields.forEach((field) => {
+    const column = resolveConfiguredColumn(field, tableColumns);
+    if (!column) return;
+    params.push(getConfiguredFieldValue(data, field, column));
+    setClauses.push(`${column} = $${params.length}`);
   });
 
   if (config.modifiedDateColumn) {
@@ -1008,12 +1199,13 @@ async function getDraftTable(config, page, pageSize, q, division, status, acting
   const limit = Math.min(200, Math.max(1, Number(pageSize)));
   const offset = (Number(page) - 1) * limit;
   const draftTableColumns = await getTableColumns(pool, config.draftWorkflow.table);
+  const mainTableColumns = await getTableColumns(pool, config.table);
   const params = [division];
-  let where = `UPPER(division) = UPPER($1)`;
+  let where = `UPPER(d.division) = UPPER($1)`;
 
   if (status) {
     params.push(status);
-    where += ` AND UPPER(status) = UPPER($${params.length})`;
+    where += ` AND UPPER(d.status) = UPPER($${params.length})`;
   }
 
   const normalizedUserType = String(actingUserType || '').trim().toLowerCase();
@@ -1057,7 +1249,7 @@ async function getDraftTable(config, page, pageSize, q, division, status, acting
     params.push(`%${q}%`);
     const qIndex = params.length;
     const searchConditions = config.searchableFields
-      .map((field) => `LOWER(${field}) LIKE LOWER($${qIndex})`)
+      .map((field) => `LOWER(d.${field}) LIKE LOWER($${qIndex})`)
       .join(' OR ');
 
     where += ` AND (${searchConditions})`;
@@ -1069,11 +1261,15 @@ async function getDraftTable(config, page, pageSize, q, division, status, acting
     WHERE ${where}
   `;
 
+  const mainJoin = config.draftWorkflow.editIdColumn && draftTableColumns.includes(config.draftWorkflow.editIdColumn)
+    ? `LEFT JOIN ${config.table} m ON m.${config.idColumn}::text = d.${config.draftWorkflow.editIdColumn}::text AND UPPER(m.division) = UPPER($1)`
+    : '';
   const listSql = `
-    SELECT d.*
+    SELECT ${getDraftWithOriginalGeometrySelectList(config, draftTableColumns, mainTableColumns, 'd', 'm')}
     FROM ${config.draftWorkflow.table} d
+    ${mainJoin}
     WHERE ${where}
-    ORDER BY objectid
+    ORDER BY d.objectid
     LIMIT ${limit} OFFSET ${offset}
   `;
 
@@ -1326,8 +1522,8 @@ function buildStationDraftInsert(draftTableColumns, config, record) {
 
   draftTableColumns.forEach((column) => {
     if (column === config.geometry?.column) return;
-    if (!Object.prototype.hasOwnProperty.call(record, column)) return;
-    const value = record[column];
+    const { found, value } = getAliasedRecordValue(record, column);
+    if (!found) return;
     if (value === undefined) return;
     insertColumns.push(column);
     if (value === '__NOW__') {
@@ -1390,7 +1586,7 @@ async function sendStationEdit(config, id, division, data, makerUserId, submitti
       div_name: draftTableColumns.includes('div_name') ? (assignments.makerDivisionName ?? data?.div_name ?? division ?? null) : undefined,
       department: draftTableColumns.includes('department') ? (data?.department ?? assignments.makerDepartment ?? null) : undefined,
       [workflow.editIdColumn]: originalRow[config.idColumn],
-      [workflow.originalIdColumn]: originalRow.gis_unique_id ?? null,
+      [workflow.originalIdColumn]: getWorkflowOriginalIdValue(config, originalRow),
       [workflow.statusColumn]: workflow.draftStatusValue,
       edited_by: String(submittingUserType || '').toLowerCase() === 'maker' && draftTableColumns.includes('edited_by') ? assignments.makerUserName : undefined,
       edited_at: String(submittingUserType || '').toLowerCase() === 'maker' && draftTableColumns.includes('edited_at') ? '__NOW__' : undefined,
@@ -1415,24 +1611,12 @@ async function sendStationEdit(config, id, division, data, makerUserId, submitti
 
     const { rows } = await client.query(insertSql, values);
 
-    const updateOriginalSql = `
-      UPDATE ${config.table}
-      SET ${workflow.statusColumn} = $1
-      WHERE ${config.idColumn} = $2
-        AND UPPER(division) = UPPER($3)
-      RETURNING *
-    `;
-
-    const { rows: originalRows } = await client.query(updateOriginalSql, [
-      workflow.originalStatusValue,
-      id,
-      division,
-    ]);
+    const original = await updateMainWorkflowStatus(client, config, id, division, workflow.originalStatusValue);
 
     await client.query('COMMIT');
     return {
       draft: rows[0],
-      original: originalRows[0],
+      original,
     };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -1460,9 +1644,7 @@ async function sendNewStationEdit(config, division, data, makerUserId, submittin
     const nextDraftObjectId = draftTableColumns.includes('objectid')
       ? await getNextManualId(client, workflow.table, 'objectid')
       : undefined;
-    const nextEditId = draftTableColumns.includes(workflow.editIdColumn)
-      ? await getNextManualId(client, workflow.table, workflow.editIdColumn)
-      : undefined;
+    const nextEditId = await getNewDraftEditId(client, config, draftTableColumns);
     const isMakerSubmit = String(submittingUserType || '').toLowerCase() === 'maker';
 
     const record = {

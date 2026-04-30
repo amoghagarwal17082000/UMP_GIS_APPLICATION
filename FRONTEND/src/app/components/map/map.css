@@ -78,7 +78,7 @@
   position: absolute;
   top: 12px;
   left: 116px;
-  z-index: 5000;
+  z-index: 5100;
   width: min(320px, calc(100% - 200px));
   pointer-events: auto;
 }

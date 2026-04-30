@@ -24,6 +24,15 @@ import {
 } from './edit-layer-config';
 type MakerTabKey = 'edit' | 'rejected' | 'sent_for_deletion';
 type CheckerTabKey = 'pending' | 'approved' | 'deletion_proposed';
+const WORKFLOW_STATUS = {
+  makerRejected: 'Sent Back to Maker',
+  checkerPending: 'Sent to Checker',
+  approverPending: 'Sent to Approver',
+  checkerDeletion: 'Sent to Checker for Deletion',
+  approverDeletion: 'Sent to Approver for Deletion',
+  finalised: 'Sent to Database',
+  deleted: 'Asset Deleted',
+} as const;
 type MakerLayerOption = {
   value: string;
   label: string;
@@ -82,6 +91,15 @@ export class EditPanel implements OnInit, OnDestroy {
     label: option.label,
     supported: true,
   }));
+  private readonly allLayerOptions: MakerLayerOption[] = CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+    supported: !!getEditLayerConfig(option.value),
+  }));
+  private formFieldsCacheKey = '';
+  private formFieldsCache: EditFieldConfig[] = [];
+  private readonly emptyLocationOptions: LocationOption[] = [];
+  private locationOptionsCache = new Map<string, LocationOption[]>();
 
   rows: any[] = [];
 
@@ -195,19 +213,11 @@ export class EditPanel implements OnInit, OnDestroy {
   get layerOptions() {
     return this.isMakerEditLayerPicker()
       ? this.makerLayerOptions
-      : this.allCivilLayerOptions();
+      : this.allLayerOptions;
   }
 
   private isMakerEditLayerPicker(): boolean {
     return this.isMaker() && this.makerTab === 'edit';
-  }
-
-  private allCivilLayerOptions(): MakerLayerOption[] {
-    return CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS.map((option) => ({
-      value: option.value,
-      label: option.label,
-      supported: !!getEditLayerConfig(option.value),
-    }));
   }
 
   get layerPickerLabel(): string {
@@ -231,6 +241,31 @@ export class EditPanel implements OnInit, OnDestroy {
     return this.currentLayerSchema?.formTitle || 'Asset Details';
   }
 
+  private getCurrentLayerLabel(): string {
+    return this.currentLayerSchema?.label || 'Asset';
+  }
+
+  private getRecordDisplayName(row: any): string {
+    const value =
+      row?.sttncode ??
+      row?.sttnname ??
+      row?.asset_id ??
+      row?.assetid ??
+      row?.bridgeno ??
+      row?.rorno ??
+      row?.objectid ??
+      '';
+    return String(value || '').trim();
+  }
+
+  private deferMapZoom(target: any): void {
+    setTimeout(() => this.mapZoom.zoomTo(target), 0);
+  }
+
+  private shouldAutoZoomOnEditOpen(): boolean {
+    return true;
+  }
+
   getSendButtonLabel(): string {
     if (this.saving) return 'Saving...';
     if (this.isBridgeLayer()) return 'Send to Checker';
@@ -238,22 +273,32 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   get formFields(): EditFieldConfig[] {
-    const fields = this.currentLayerSchema?.formFields
-      ? [...this.currentLayerSchema.formFields]
-      : [];
+    const cacheKey = [
+      this.currentTableLayer || '',
+      this.mode,
+      this.makerTab,
+      this.isMakerRejectedDraftView() ? 'rejected-draft' : '',
+      this.isMakerSentForDeletionView() ? 'sent-for-deletion' : '',
+    ].join('|');
+    if (this.formFieldsCacheKey === cacheKey) return this.formFieldsCache;
+
+    let fields = this.currentLayerSchema?.formFields || [];
     if (this.isMakerRejectedDraftView()) {
+      fields = [...fields];
       fields.push({ key: 'comments', label: 'Comments', full: true });
     }
     if (this.currentTableLayer === 'stations' && this.isMakerSentForDeletionView()) {
-      return fields;
+      this.formFieldsCacheKey = cacheKey;
+      this.formFieldsCache = fields;
+      return this.formFieldsCache;
     }
-    return fields.filter((field) => field.key !== 'status');
+    this.formFieldsCacheKey = cacheKey;
+    this.formFieldsCache = fields.filter((field) => field.key !== 'status');
+    return this.formFieldsCache;
   }
 
   get activeTableColumns(): TableColumnConfig[] {
-    return this.currentLayerSchema?.tableColumns
-      ? [...this.currentLayerSchema.tableColumns]
-      : [];
+    return this.currentLayerSchema?.tableColumns || [];
   }
 
   get tableColSpan(): number {
@@ -365,19 +410,6 @@ export class EditPanel implements OnInit, OnDestroy {
     this.draft = { ...normalized };
     this.originalDraft = { ...normalized };
     this.prepareLocationDropdownsForDraft(false);
-    const bestRenderedLayer = this.getBestRenderedLayer(this.edit.draft);
-    const selectedFeatureLatLng = this.getSelectedFeatureLatLng(this.edit.draft);
-    if (selectedFeatureLatLng) {
-      this.mapZoom.zoomTo({
-        type: 'latlng',
-        lat: selectedFeatureLatLng.lat,
-        lng: selectedFeatureLatLng.lng,
-        zoom: this.getEditFocusZoom(),
-        draggable: false,
-        existingLayer: bestRenderedLayer,
-      } as any);
-    }
-    this.cdr.detectChanges();
   }
 
   isLocationSelectField(field: EditFieldConfig): boolean {
@@ -391,12 +423,18 @@ export class EditPanel implements OnInit, OnDestroy {
         ? this.districtOptions
         : field.key === 'constituency' || field.key === 'constituncy'
           ? this.constituencyOptions
-          : [];
+          : this.emptyLocationOptions;
     const current = field.key === 'constituency' || field.key === 'constituncy'
       ? this.getDraftConstituencyValue()
       : this.normalizeLocationValue(this.draft?.[field.key]);
     if (!current || options.some((option) => option.value === current)) return options;
-    return [{ value: current, label: current }, ...options];
+    const optionsSignature = options.map((option) => option.value).join('|');
+    const cacheKey = `${field.key}|${current}|${optionsSignature}`;
+    const cached = this.locationOptionsCache.get(cacheKey);
+    if (cached) return cached;
+    const nextOptions = [{ value: current, label: current }, ...options];
+    this.locationOptionsCache.set(cacheKey, nextOptions);
+    return nextOptions;
   }
 
   getLocationPlaceholder(field: EditFieldConfig): string {
@@ -447,6 +485,19 @@ export class EditPanel implements OnInit, OnDestroy {
 
   private getNormalizedBridgeAssetId(value: any = this.draft?.asset_id): string {
     return String(value || '').trim().toUpperCase();
+  }
+
+  private getOriginalBridgeAssetId(): string {
+    return this.getNormalizedBridgeAssetId(this.originalDraft?.asset_id ?? this.originalDraft?.assetid);
+  }
+
+  private isRejectedBridgeAssetIdUnchanged(): boolean {
+    if (!this.isBridgeLayer() || !this.isMaker() || !this.originalDraft) return false;
+    const status = String(this.originalDraft?.status || '').trim().toLowerCase();
+    if (status !== 'sent back to maker') return false;
+    const currentAssetId = this.getNormalizedBridgeAssetId();
+    const originalAssetId = this.getOriginalBridgeAssetId();
+    return !!currentAssetId && !!originalAssetId && currentAssetId === originalAssetId;
   }
 
   private normalizeLocationValue(value: any): string {
@@ -661,6 +712,7 @@ export class EditPanel implements OnInit, OnDestroy {
     if (!this.isBridgeLayer() || !this.isMaker()) return false;
     const assetId = this.getNormalizedBridgeAssetId();
     if (!assetId) return false;
+    if (this.isRejectedBridgeAssetIdUnchanged()) return false;
     return assetId !== this.validatedBridgeAssetId;
   }
 
@@ -834,8 +886,14 @@ export class EditPanel implements OnInit, OnDestroy {
     return this.isChecker() || this.isApprover();
   }
 
-  setMakerTab(tab: MakerTabKey) { this.makerTab = tab; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.search = ''; this.page = 1; this.error = null; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; if (tab === 'edit') { this.rejectedLayer = null; this.edit.setLayer(null as any); this.edit.editLayer = null as any; } else if (tab !== 'rejected') { this.rejectedLayer = null; } }
-  setCheckerTab(tab: CheckerTabKey) { this.checkerTab = tab; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.search = ''; this.page = 1; this.error = null; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.edit.setLayer(null as any); this.edit.editLayer = null as any; }
+  setMakerTab(tab: MakerTabKey) {
+    this.makerTab = tab; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.search = ''; this.page = 1; this.error = null; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0;
+    if (tab === 'edit') { this.rejectedLayer = null; this.edit.setLayer(null as any); this.edit.editLayer = null as any; } else if (tab !== 'rejected') { this.rejectedLayer = null; }
+    if (this.currentTableLayer && tab !== 'rejected') setTimeout(() => this.load(true), 0);
+  }
+  setCheckerTab(tab: CheckerTabKey) {
+    this.checkerTab = tab; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.search = ''; this.page = 1; this.error = null; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.edit.setLayer(null as any); this.edit.editLayer = null as any;
+  }
   isCheckerSentToApproverView(): boolean { return this.isReviewer() && this.mode === 'table' && this.checkerTab === 'approved'; }
   isCheckerDeletionProposedView(): boolean { return this.isReviewer() && this.checkerTab === 'deletion_proposed'; }
   isMakerRejectedView(): boolean { return this.isMaker() && this.mode === 'table' && this.makerTab === 'rejected'; }
@@ -845,11 +903,11 @@ export class EditPanel implements OnInit, OnDestroy {
   private getReviewerDraftStatus(): string {
     if (!this.isReviewer()) return '';
     if (this.checkerTab === 'pending') {
-      return this.isApprover() ? 'Sent to Approver' : 'Sent to Checker';
+      return this.isApprover() ? WORKFLOW_STATUS.approverPending : WORKFLOW_STATUS.checkerPending;
     }
-    if (this.checkerTab === 'approved') return 'Sent to Database';
+    if (this.checkerTab === 'approved') return WORKFLOW_STATUS.finalised;
     if (this.checkerTab === 'deletion_proposed') {
-      return this.isApprover() ? 'Sent to Approver for Deletion' : 'Sent to Checker for Deletion';
+      return this.isApprover() ? WORKFLOW_STATUS.approverDeletion : WORKFLOW_STATUS.checkerDeletion;
     }
     return '';
   }
@@ -947,7 +1005,6 @@ export class EditPanel implements OnInit, OnDestroy {
     const userType = this.getUserType();
     const status = row?.status == null ? '' : String(row.status).trim().toLowerCase();
     if (userType === 'maker') {
-      if (this.isBridgeLayer()) return true;
       return status === '';
     }
     if (userType === 'checker') return status === 'sent to checker';
@@ -960,7 +1017,7 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   private getDraftStatusForCurrentView(): string {
-    if (this.isMakerRejectedView()) return 'Sent Back to Maker';
+    if (this.isMakerRejectedView()) return WORKFLOW_STATUS.makerRejected;
     if (this.isMakerSentForDeletionView()) return '';
     if (this.isReviewer()) return this.getReviewerDraftStatus();
     return '';
@@ -1049,7 +1106,7 @@ export class EditPanel implements OnInit, OnDestroy {
         },
         error: (err) => {
           if (seq !== this.loadSeq) return;
-          console.error('getStationTable failed', err);
+          console.error('getLayerTable failed', err);
           this.allRows = []; this.filteredRows = []; this.rows = []; this.total = 0; this.filteredTotal = 0; this.loading = false; this.cdr.detectChanges();
         },
       });
@@ -1243,8 +1300,8 @@ export class EditPanel implements OnInit, OnDestroy {
     const bestRenderedLayer = this.getBestRenderedLayer(row);
     const selectedFeatureLatLng = this.getSelectedFeatureLatLng(row);
     const renderedLatLng = selectedFeatureLatLng ?? this.getRenderedLayerLatLng(row);
-    if (renderedLatLng) {
-      this.mapZoom.zoomTo({
+    if (!loadDraftDetail && renderedLatLng && this.shouldAutoZoomOnEditOpen()) {
+      this.deferMapZoom({
         type: 'latlng',
         lat: renderedLatLng.lat,
         lng: renderedLatLng.lng,
@@ -1268,24 +1325,51 @@ export class EditPanel implements OnInit, OnDestroy {
         this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
         const detailLat = Number.isFinite(n.lat) ? n.lat : null;
         const detailLng = Number.isFinite(n.lng) ? n.lng : null;
-        if (!renderedLatLng && detailLat != null && detailLng != null) {
-          this.mapZoom.zoomTo({ type: 'latlng', lat: detailLat, lng: detailLng, zoom: this.getEditFocusZoom(), draggable: false } as any);
+        if ((loadDraftDetail || !renderedLatLng) && detailLat != null && detailLng != null && this.shouldAutoZoomOnEditOpen()) {
+          this.deferMapZoom({ type: 'latlng', lat: detailLat, lng: detailLng, zoom: this.getEditFocusZoom(), draggable: false } as any);
         }
-        this.cdr.detectChanges();
       },
-      error: (err) => { console.error('getLayerById failed:', err); this.error = err?.error?.error || 'Failed to load asset details'; this.cdr.detectChanges(); },
+      error: (err) => { console.error('getLayerById failed:', err); this.error = err?.error?.error || 'Failed to load asset details'; },
     });
   }
 
   zoomToStationFromRow(row: any) {
+    const id = Number(row?.objectid);
+    const layerKey = this.getPersistenceLayerKey();
+    if (this.shouldLoadDraftTable() && Number.isFinite(id) && layerKey) {
+      this.api.getLayerDraftById(layerKey, id).subscribe({
+        next: (full) => {
+          const n = this.normalizeCurrentLayerDraft(full);
+          if (!Number.isFinite(n.lat) || !Number.isFinite(n.lng)) return;
+          this.mapZoom.zoomTo({ type: 'latlng', lat: n.lat, lng: n.lng, zoom: 17, draggable: false } as any);
+        },
+        error: (err) => { console.error('zoomToAssetFromRow/getLayerDraftById failed:', err); },
+      });
+      return;
+    }
+
+    const renderedLatLng = this.getRenderedLayerLatLng(row);
+    const bestRenderedLayer = this.getBestRenderedLayer(row);
+
+    if (renderedLatLng) {
+      this.mapZoom.zoomTo({
+        type: 'latlng',
+        lat: renderedLatLng.lat,
+        lng: renderedLatLng.lng,
+        zoom: 17,
+        draggable: false,
+        existingLayer: bestRenderedLayer,
+      } as any);
+      return;
+    }
+
     const lat = Number(row?.lat ?? row?.ycoord ?? row?.latitude);
     const lng = Number(row?.lon ?? row?.lng ?? row?.xcoord ?? row?.longitude);
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: 17, draggable: false } as any);
       return;
     }
-    const id = Number(row?.objectid); if (!Number.isFinite(id)) return;
-    const layerKey = this.getPersistenceLayerKey();
+    if (!Number.isFinite(id)) return;
     if (!layerKey) return;
     this.api.getLayerById(layerKey, id).subscribe({ next: (full) => { const n = this.normalizeCurrentLayerDraft(full); if (!Number.isFinite(n.lat) || !Number.isFinite(n.lng)) return; this.mapZoom.zoomTo({ type: 'latlng', lat: n.lat, lng: n.lng, zoom: 17, draggable: false } as any); }, error: (err) => { console.error('zoomToAssetFromRow/getLayerById failed:', err); } });
   }
@@ -1360,6 +1444,7 @@ export class EditPanel implements OnInit, OnDestroy {
     const toKey = (value: any) => String(value ?? '').trim().toLowerCase();
     const rowKeys = [
       row?.objectid,
+      row?.edit_id,
       row?.gid,
       row?.asset_id,
       row?.assetid,
@@ -1403,6 +1488,7 @@ export class EditPanel implements OnInit, OnDestroy {
     }
     const latLng = layer?.getRenderedLatLngForKey?.(
       row?.objectid,
+      row?.edit_id,
       row?.gid,
       row?.asset_id,
       row?.assetid,
@@ -1434,7 +1520,7 @@ export class EditPanel implements OnInit, OnDestroy {
     if (this.isReviewer()) return;
     if (!this.draft) return;
     const lat = Number(this.draft.lat); const lng = Number(this.draft.lng);
-    alert('Edit Geometry Mode is ON. You can now move the station point.');
+    alert('Edit Geometry Mode is ON. You can now move the asset point.');
     this.geomEditing = true;
     this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: this.getEditFocusZoom(), draggable: true });
     this.dragSub?.unsubscribe();
@@ -1496,6 +1582,9 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   isFieldReadonly(field: EditFieldConfig): boolean {
+    if (field.key === 'comments' && this.isMaker() && String(this.originalDraft?.status || '').trim().toLowerCase() === 'sent back to maker') {
+      return false;
+    }
     if (this.currentTableLayer === 'stations') {
       if (field.key === 'comments') return true;
       if (field.key === 'status') return true;
@@ -1515,7 +1604,6 @@ export class EditPanel implements OnInit, OnDestroy {
         'approved_by',
         'approved_at',
         'modified_by',
-        'comments',
         'railway',
         'division',
       ]);
@@ -1532,7 +1620,6 @@ export class EditPanel implements OnInit, OnDestroy {
       'approved_by',
       'approved_at',
       'modified_by',
-      'comments',
     ]);
     if (genericReadonlyKeys.has(field.key)) return true;
     return this.isReviewer() || this.isMakerSentForDeletionView();
@@ -1744,9 +1831,17 @@ export class EditPanel implements OnInit, OnDestroy {
       alert('Please enter Asset ID');
       return;
     }
+    if (this.isRejectedBridgeAssetIdUnchanged()) {
+      this.validatedBridgeAssetId = assetId;
+      alert('Asset ID is unchanged for this rejected record, so validation is not required.');
+      return;
+    }
 
     this.validating = true;
-    this.api.validateAssetId(layerKey, assetId, Number.isFinite(objectId) ? objectId : null).subscribe({
+    const validationObjectId = this.isMaker() && String(this.originalDraft?.status || '').trim().toLowerCase() === 'sent back to maker'
+      ? Number(this.draft?.edit_id ?? this.originalDraft?.edit_id ?? objectId)
+      : objectId;
+    this.api.validateAssetId(layerKey, assetId, Number.isFinite(validationObjectId) ? validationObjectId : null).subscribe({
       next: (res: any) => {
         this.validating = false;
         this.applyValidatedBridgeAsset(res?.row || {});
@@ -1826,13 +1921,15 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   deleteRow(row: any) {
-    if (!confirm(`Delete station "${row?.sttncode || ''}"?`)) return;
+    const name = this.getRecordDisplayName(row);
+    if (!confirm(`Delete ${this.getCurrentLayerLabel()}${name ? ` "${name}"` : ''}?`)) return;
     this.requestDeletionFromMain(row);
   }
 
   deleteDraft() {
     if (!this.draft?.objectid) return;
-    if (!confirm(`Delete station "${this.draft?.sttncode || ''}"?`)) return;
+    const name = this.getRecordDisplayName(this.draft);
+    if (!confirm(`Delete ${this.getCurrentLayerLabel()}${name ? ` "${name}"` : ''}?`)) return;
     const isRejectedDraft = this.isMaker() && this.makerTab === 'rejected';
     if (isRejectedDraft) {
       this.requestDeletionFromDraft(this.draft);
@@ -1842,16 +1939,47 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   previewRejectedRow(row: any) { this.editRow(row); }
-  sendForwardRejected(row: any) { alert(`Send Forward clicked for station ${row?.sttncode || ''}.`); }
+  sendForwardRejected(row: any) {
+    const id = Number(row?.objectid);
+    if (!Number.isFinite(id)) return;
+    const layerKey = this.getPersistenceLayerKey();
+    if (!layerKey) return;
+
+    const payload = {
+      ...this.normalizeCurrentLayerDraft(row),
+      railway: row?.railway ?? this.getRailwayCode(),
+      zone_name: row?.zone_name ?? this.getRailwayName(),
+      fname: row?.fname ?? row?.zone_name ?? this.getRailwayName(),
+      div_name: row?.div_name ?? (localStorage.getItem('division') || this.currentUser.getSnapshot()?.division || ''),
+      department: row?.department ?? (localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || ''),
+    };
+
+    this.saving = true;
+    this.error = null;
+    this.api.resendLayerDraft(layerKey, id, payload).subscribe({
+      next: () => {
+        this.saving = false;
+        alert('Message sent successfully to checker');
+        setTimeout(() => this.load(false), 0);
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        this.saving = false;
+        this.error = err?.error?.message || err?.error?.error || 'Failed to send record to checker';
+        this.cdr.detectChanges();
+      },
+    });
+  }
   deleteRejectedRow(row: any) {
-    if (!confirm(`Delete station "${row?.sttncode || ''}"?`)) return;
+    const name = this.getRecordDisplayName(row);
+    if (!confirm(`Delete ${this.getCurrentLayerLabel()}${name ? ` "${name}"` : ''}?`)) return;
     this.requestDeletionFromDraft(row);
   }
   acceptDeletionRow(row: any) {
-    const status = this.isApprover() ? 'Asset Deleted' : 'Sent to Approver for Deletion';
+    const status = this.isApprover() ? WORKFLOW_STATUS.deleted : WORKFLOW_STATUS.approverDeletion;
     this.updateReviewerDraftStatus(row, status);
   }
-  rejectDeletionRow(row: any) { this.updateReviewerDraftStatus(row, 'Sent Back to Maker'); }
+  rejectDeletionRow(row: any) { this.updateReviewerDraftStatus(row, WORKFLOW_STATUS.makerRejected); }
   acceptDeletionDraft() { if (!this.draft) return; this.acceptDeletionRow(this.draft); }
   rejectDeletionDraft() { if (!this.draft) return; this.rejectDeletionRow(this.draft); }
 

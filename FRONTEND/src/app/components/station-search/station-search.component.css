@@ -1,6 +1,7 @@
 .station-search-wrapper {
   position: relative;
   width: 288px;
+  z-index: 1;
 }
 
 .search-input-wrapper {
@@ -66,7 +67,7 @@
   border-radius: 8px;
   max-height: 400px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 2;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 

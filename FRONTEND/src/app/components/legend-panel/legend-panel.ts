@@ -27,6 +27,24 @@ const CUTTING_END_ICON = 'assets/images/cutting_end.png';
 
 export function inferCivilLegendFromTitle(title: string, type: 'point' | 'line' | 'polygon', matchSource?: string): LayerLegend {
   const normalized = String(matchSource || title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const compact = normalized.replace(/[^a-z0-9]/g, '');
+
+  if (
+    compact.includes('landplanontrack')
+    || compact.includes('landplansontrack')
+    || (compact.includes('landplan') && !compact.includes('offtrack'))
+  ) {
+    return defineLegend({
+      type: 'polygon' as const,
+      color: '#fab83d',
+      label: title,
+      fillColor: '#fff59d',
+      fillOpacity: 0.3,
+      strokeColor: '#fab83d',
+      strokeWidth: 1.5,
+      symbolKind: 'square' as const,
+    });
+  }
 
   const entries: Array<{ match: string[]; legend: LayerLegend }> = [
     { match: ['railway track', 'track'], legend: defineLegend({ type: 'line' as const, color: '#111827', label: title, strokeColor: '#111827', strokeWidth: 2, symbolKind: 'track' as const }) },
@@ -53,12 +71,14 @@ export function inferCivilLegendFromTitle(title: string, type: 'point' | 'line' 
     { match: ['bridge'], legend: defineLegend({ type: 'point' as const, color: '#66bb6a', label: title, fillColor: '#9be59d', strokeColor: '#66bb6a', strokeWidth: 2, radius: 7, symbolText: 'B', textColor: '#ffffff', symbolKind: 'circle' as const }) },
     { match: ['land boundary'], legend: defineLegend({ type: 'line' as const, color: '#f59e0b', label: title, strokeColor: '#f59e0b', strokeWidth: 3, symbolKind: 'line' as const }) },
     { match: ['land offset'], legend: defineLegend({ type: 'line' as const, color: '#111827', label: title, strokeColor: '#111827', strokeWidth: 2, symbolKind: 'line' as const }) },
-    { match: ['landplan ontrack', 'land plan ontrack', 'land plans (on-track)', 'land plans on-track'], legend: defineLegend({ type: 'polygon' as const, color: '#FFA500', label: title, fillColor: '#FFA500', fillOpacity: 0.15, strokeColor: '#FFA500', strokeWidth: 3, symbolKind: 'square' as const }) },
+    { match: ['landplan ontrack', 'land plan ontrack', 'land plan on track', 'land_plan_on_track', 'landplan_ontrack', 'land plans (on-track)', 'land plans on-track'], legend: defineLegend({ type: 'polygon' as const, color: '#fab83d', label: title, fillColor: '#fff59d', fillOpacity: 0.3, strokeColor: '#fab83d', strokeWidth: 1.5, symbolKind: 'square' as const }) },
     { match: ['land plans (off-track)', 'land plans off-track', 'land plan offtrack', 'landplan offtrack'], legend: defineLegend({ type: 'polygon' as const, color: '#f59e0b', label: title, fillColor: '#f59e0b', fillOpacity: 0.15, strokeColor: '#f59e0b', strokeWidth: 2, symbolKind: 'square' as const }) },
     { match: ['land parcels', 'land parcel'], legend: defineLegend({ type: 'polygon' as const, color: '#818cf8', label: title, fillColor: '#818cf8', fillOpacity: 0.15, strokeColor: '#818cf8', strokeWidth: 2, symbolKind: 'square' as const }) },
   ];
 
-  const matched = entries.find((entry) => entry.match.some((token) => normalized.includes(token)));
+  const matched = entries.find((entry) =>
+    entry.match.some((token) => normalized.includes(token) || compact.includes(token.replace(/[^a-z0-9]/g, '')))
+  );
   if (matched) return matched.legend;
 
   if (type === 'point') {
