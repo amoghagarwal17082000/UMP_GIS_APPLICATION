@@ -1,0 +1,18 @@
+[1m[31m[2m5:33:06 PM[22m[1m [31m[1m[vite][22m[1m[31m [31mhttp proxy error: /ump_gis/api/auth/me[31m
+Error: connect ECONNREFUSED 127.0.0.1:4000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)[39m[22m
+[1m[31m[2m5:33:06 PM[22m[1m [31m[1m[vite][22m[1m[31m [31mhttp proxy error: /ump_gis/api/auth/captcha/new[31m
+Error: connect ECONNREFUSED 127.0.0.1:4000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)[39m[22m
+[1m[31m[2m5:33:07 PM[22m[1m [31m[1m[vite][22m[1m[31m [31mhttp proxy error: /ump_gis/api/auth/captcha/new[31m
+Error: connect ECONNREFUSED 127.0.0.1:4000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)[39m[22m
+[1m[31m[2m5:33:08 PM[22m[1m [31m[1m[vite][22m[1m[31m [31mhttp proxy error: /ump_gis/api/auth/captcha/new[31m
+Error: connect ECONNREFUSED 127.0.0.1:4000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)[39m[22m
+[1m[31m[2m5:33:09 PM[22m[1m [31m[1m[vite][22m[1m[31m [31mhttp proxy error: /ump_gis/api/auth/captcha/new[31m
+Error: connect ECONNREFUSED 127.0.0.1:4000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)[39m[22m
+[1m[31m[2m5:33:09 PM[22m[1m [31m[1m[vite][22m[1m[31m [31mhttp proxy error: /ump_gis/api/auth/captcha/new[31m
+Error: connect ECONNREFUSED 127.0.0.1:4000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)[39m[22m
