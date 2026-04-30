@@ -55,41 +55,6 @@ async function hasDivisionColumn(tableName) {
   return !!rows[0]?.exists;
 }
 
-async function getTableColumns(tableName) {
-  const sql = `
-    SELECT column_name, data_type, udt_name
-    FROM information_schema.columns
-    WHERE table_schema = 'sde'
-      AND table_name = $1
-    ORDER BY ordinal_position
-  `;
-  const { rows } = await pool.query(sql, [tableName]);
-  return rows.map((row) => ({
-    columnName: String(row.column_name || '').trim(),
-    dataType: String(row.data_type || '').trim().toLowerCase(),
-    udtName: String(row.udt_name || '').trim().toLowerCase(),
-  }));
-}
-
-function pickFirstMatchingColumn(columns, candidates) {
-  for (const candidate of candidates) {
-    const match = columns.find((column) => column.columnName.toLowerCase() === candidate);
-    if (match) return match.columnName;
-  }
-  return null;
-}
-
-function resolveGeometryColumn(columns) {
-  const preferred = pickFirstMatchingColumn(columns, ['shape', 'geom', 'geometry', 'wkb_geometry']);
-  if (preferred) return preferred;
-  const typedGeometry = columns.find((column) => column.udtName === 'geometry');
-  return typedGeometry?.columnName || null;
-}
-
-function resolveIdColumn(columns) {
-  return pickFirstMatchingColumn(columns, ['objectid', 'gid', 'id']) || 'objectid';
-}
-
 function resolveTableName(layerName, availableTables) {
   const normalized = normalizeLayerKey(layerName);
   const candidates = [
@@ -136,38 +101,8 @@ async function getDepartmentLayerCatalog(departmentRef) {
   return layers;
 }
 
-async function resolveDepartmentLayerConfig(departmentRef, layerKey) {
-  const catalog = await getDepartmentLayerCatalog(departmentRef);
-  const match = catalog.find((layer) => layer.layerKey === normalizeLayerKey(layerKey));
-
-  if (!match?.tableName) {
-    const err = new Error('Department layer not found');
-    err.status = 404;
-    throw err;
-  }
-
-  const columns = await getTableColumns(match.tableName);
-  const geometryColumn = resolveGeometryColumn(columns);
-  if (!geometryColumn) {
-    const err = new Error(`No geometry column found for layer "${match.layerName}"`);
-    err.status = 500;
-    throw err;
-  }
-
-  return {
-    meta: match,
-    layerConfig: {
-      table: `sde.${match.tableName}`,
-      idColumn: resolveIdColumn(columns),
-      geometryColumn,
-      hasDivision: await hasDivisionColumn(match.tableName),
-    },
-  };
-}
-
-async function getLayerGeoJSON(layerConfig, whereSql, params, division, limit = 20000) {
+async function getLayerGeoJSON(layerConfig, whereSql, params, division) {
   let divisionSql = '';
-  const rowLimit = Math.min(20000, Math.max(1, Number(limit) || 20000));
 
   if (division && layerConfig.hasDivision !== false) {
     params.push(division);
@@ -193,7 +128,7 @@ async function getLayerGeoJSON(layerConfig, whereSql, params, division, limit = 
       SELECT *
       FROM ${layerConfig.table}
       WHERE ${whereSql} ${divisionSql}
-      LIMIT ${rowLimit}
+      LIMIT 20000
     ) t;
   `;
 
@@ -202,11 +137,26 @@ async function getLayerGeoJSON(layerConfig, whereSql, params, division, limit = 
 }
 
 async function getDepartmentLayerGeoJSON(departmentRef, layerKey, whereSql, params, division) {
-  const { meta, layerConfig } = await resolveDepartmentLayerConfig(departmentRef, layerKey);
+  const catalog = await getDepartmentLayerCatalog(departmentRef);
+  const match = catalog.find((layer) => layer.layerKey === normalizeLayerKey(layerKey));
+
+  if (!match?.tableName) {
+    const err = new Error('Department layer not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const layerConfig = {
+    table: `sde.${match.tableName}`,
+    idColumn: 'objectid',
+    geometryColumn: 'shape',
+    hasDivision: await hasDivisionColumn(match.tableName),
+  };
+
   const geojson = await getLayerGeoJSON(layerConfig, whereSql, params, division);
   return {
     geojson,
-    meta,
+    meta: match,
   };
 }
 
@@ -214,7 +164,6 @@ module.exports = {
   getLayerGeoJSON,
   getDepartmentLayerCatalog,
   getDepartmentLayerGeoJSON,
-  resolveDepartmentLayerConfig,
   normalizeLayerKey,
 };
 

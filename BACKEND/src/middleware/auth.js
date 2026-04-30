@@ -57,6 +57,11 @@ async function authenticateToken(req, res, next) {
       return res.status(401).json({ success: false, message: 'Session expired due to inactivity. Please login again.' });
     }
 
+    const tokenHash = authModel.hashToken(token);
+    if (String(session.token || '') !== tokenHash) {
+      return res.status(401).json({ success: false, message: 'Session replaced. Please login again.' });
+    }
+
     await authModel.touchSession(userId);
     req.user = decoded;
     req.authToken = token;

@@ -97,6 +97,18 @@ export class CivilEngineeringAssetsEditingApi {
       }
     );
   }
+  uploadLayerAttachments(layer: string, id: number, files: File[]) {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file, file.name));
+
+    return this.http.post<any>(
+      `${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}/attachments`,
+      formData,
+      {
+        params: { division: getDivision() },
+      }
+    );
+  }
 
   getStationByCode(code: string): Observable<any> {
     const c = String(code || '').trim().toUpperCase();

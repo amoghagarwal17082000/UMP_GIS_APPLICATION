@@ -2,15 +2,15 @@ const express = require("express");
 const cors = require("cors");
 const compression = require("compression");
 const morgan = require("morgan");
+const path = require("path");
 
 
 const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
 const authenticateToken = require("./middleware/auth");
 const authRoutes = require("./modules/auth/auth.routes");
-const commonLocationRoutes = require("./modules/common/location/location.routes");
+const { configuration } = require("./config/configuration.ts");
 const commonLayersRoutes = require("./modules/common/view/layers/layers.routes");
-const commonPreviewRoutes = require("./modules/common/view/preview/preview.routes");
 const ceaViewRoutes = require("./modules/departments/civilEngineeringAssets/view/layers/layers.routes");
 const ceaDashboardRoutes = require("./modules/departments/civilEngineeringAssets/view/dashboard/dashboard.routes");
 const ceaEditRoutes = require("./modules/departments/civilEngineeringAssets/edit/edit.routes");
@@ -19,9 +19,14 @@ const ratingRoutes = require("./modules/rating/rating.routes");
 const feedbackRoutes = require("./modules/feedback/feedback.routes");
 const superAdminUsersRoutes = require("./modules/super-admin/super-admin-users.routes");
 const profileRoutes= require('./modules/profile/profile.routes');
+const uploadRouter = require('./routes/upload.router');
 
 
 const app = express();
+const config = configuration();
+const uploadsStorageDir =
+  config.UPLOADS.STORAGE_DIR ||
+  path.join(__dirname, "..", "storage", "uploads");
 
 function formatIstTimestamp(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -78,6 +83,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 app.set("trust proxy", 1);
+app.use(
+  "/uploads",
+  express.static(uploadsStorageDir, {
+    index: "index.html",
+  }),
+);
 
 /* ---------- Health ---------- */
 app.get("/__health", (req, res) => {
@@ -89,12 +100,6 @@ const apiPrefixes = ["/api", "/ump_gis/api"];
 
 for (const prefix of apiPrefixes) {
   app.use(`${prefix}/auth`, authRoutes);
-  app.use(`${prefix}/common/view/preview`, commonPreviewRoutes);
-  app.use(
-    `${prefix}/common/location`,
-    authenticateToken,
-    commonLocationRoutes,
-  );
   app.use(
     `${prefix}/common/view/layers`,
     authenticateToken,
@@ -130,6 +135,7 @@ for (const prefix of apiPrefixes) {
   );
 
   app.use(`${prefix}/update`, authenticateToken, profileRoutes);
+  app.use(`${prefix}/upload`, uploadRouter);
 
 }
 

@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AuthApi } from './auth/auth.api';
 import { CommonDashboardApi } from './common/dashboard/dashboard.api';
-import { CommonLocationApi } from './common/location/location.api';
 import { CommonViewingApi } from './common/viewing/common-viewing.api';
 import { CivilEngineeringAssetsViewingApi } from './civil_engineering_assets/viewing/viewing.api';
 import { CivilEngineeringAssetsEditingApi } from './civil_engineering_assets/editing/editing.api';
@@ -16,7 +15,6 @@ import { SuperAdminUserManagementApi } from './super_admin/super-admin-user-mana
 export class Api {
   constructor(
     private authApi: AuthApi,
-    private commonLocationApi: CommonLocationApi,
     private commonViewingApi: CommonViewingApi,
     private commonDashboardApi: CommonDashboardApi,
     private ceaViewingApi: CivilEngineeringAssetsViewingApi,
@@ -41,18 +39,6 @@ export class Api {
     return this.commonViewingApi.getIndiaBoundary(bbox);
   }
 
-  getStates() {
-    return this.commonLocationApi.getStates();
-  }
-
-  getDistricts(filters: { state?: string; state_lgd?: number | string } = {}) {
-    return this.commonLocationApi.getDistricts(filters);
-  }
-
-  getParliamentaryConstituencies(filters: { state?: string; q?: string; search?: string } = {}) {
-    return this.commonLocationApi.getParliamentaryConstituencies(filters);
-  }
-
   getDivisionBuffer() {
     return this.commonViewingApi.getDivisionBuffer();
   }
@@ -62,8 +48,8 @@ export class Api {
   getDepartmentLayerCatalog(departmentRef: string) {
     return this.commonViewingApi.getDepartmentLayerCatalog(departmentRef);
   }
-  getDepartmentLayerData(departmentRef: string, layerKey: string, bbox: string, limit?: number) {
-    return this.commonViewingApi.getDepartmentLayerData(departmentRef, layerKey, bbox, limit);
+  getDepartmentLayerData(departmentRef: string, layerKey: string, bbox: string) {
+    return this.commonViewingApi.getDepartmentLayerData(departmentRef, layerKey, bbox);
   }
   getlandboundary(bbox: string) {
     return this.ceaViewingApi.getLandBoundary(bbox);
@@ -180,6 +166,9 @@ export class Api {
   updateLayerDraftStatus(layer: string, id: number, status: string) {
     return this.ceaEditingApi.updateLayerDraftStatus(layer, id, status);
   }
+   uploadLayerAttachments(layer: string, id: number, files: File[]) {
+    return this.ceaEditingApi.uploadLayerAttachments(layer, id, files);
+  }
   getStationByCode(code: string) {
     return this.ceaEditingApi.getStationByCode(code);
   }
@@ -209,35 +198,35 @@ export class Api {
     return this.authApi.login(username, password);
   }
 
-  getStationCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getStationCount(type, allIndia);
+  getStationCount(type: string) {
+    return this.commonDashboardApi.getStationCount(type);
   }
-  getBridgeStartCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeStartCount(type, allIndia);
+  getBridgeStartCount(type: string) {
+    return this.commonDashboardApi.getBridgeStartCount(type);
   }
-  getBridgeStopCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeStopCount(type, allIndia);
+  getBridgeStopCount(type: string) {
+    return this.commonDashboardApi.getBridgeStopCount(type);
   }
-  getBridgeMinorCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeMinorCount(type, allIndia);
+  getBridgeMinorCount(type: string) {
+    return this.commonDashboardApi.getBridgeMinorCount(type);
   }
-  getLevelXingCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getLevelXingCount(type, allIndia);
+  getLevelXingCount(type: string) {
+    return this.commonDashboardApi.getLevelXingCount(type);
   }
-  getRoadOverBridgeCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRoadOverBridgeCount(type, allIndia);
+  getRoadOverBridgeCount(type: string) {
+    return this.commonDashboardApi.getRoadOverBridgeCount(type);
   }
-  getRubLhsCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRubLhsCount(type, allIndia);
+  getRubLhsCount(type: string) {
+    return this.commonDashboardApi.getRubLhsCount(type);
   }
-  getRorCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRorCount(type, allIndia);
+  getRorCount(type: string) {
+    return this.commonDashboardApi.getRorCount(type);
   }
-  getKmPostCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getKmPostCount(type, allIndia);
+  getKmPostCount(type: string) {
+    return this.commonDashboardApi.getKmPostCount(type);
   }
-  getLandPlanCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getLandPlanCount(type, allIndia);
+  getLandPlanCount(type: string) {
+    return this.commonDashboardApi.getLandPlanCount(type);
   }
 
   rating(obj: any) {
@@ -309,22 +298,6 @@ export class Api {
 
   getSuperAdminUsers() {
     return this.superAdminUserManagementApi.getAllUsers();
-  }
-
-  getSuperAdminUserDetails(objectid: number | string) {
-    return this.superAdminUserManagementApi.getUser(objectid);
-  }
-
-  createSuperAdminUser(data: any) {
-    return this.superAdminUserManagementApi.createUser(data);
-  }
-
-  updateSuperAdminUser(objectid: number | string, data: any) {
-    return this.superAdminUserManagementApi.updateUser(objectid, data);
-  }
-
-  deleteSuperAdminUser(objectid: number | string) {
-    return this.superAdminUserManagementApi.deleteUser(objectid);
   }
 }
 

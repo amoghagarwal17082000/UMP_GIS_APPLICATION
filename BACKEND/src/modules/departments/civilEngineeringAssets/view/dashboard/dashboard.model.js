@@ -1,33 +1,30 @@
 const pool = require('../../../../../config/postgres');
 
-async function getCount(tableName, division, type, allIndia = false) {
+async function getCount(tableName, division, type) {
   let statusCondition = '';
-  const params = [];
-
-  if (!allIndia) {
-    params.push(division);
-  }
+  const params = [division];   // ✅ division always first param
 
   if (type === 'MAKER') {
+    // ✅ Maker = status IS NULL but still within division
     statusCondition = 'AND status IS NULL';
-  } else if (type === 'CHECKER') {
+  } 
+  else if (type === 'CHECKER') {
     params.push('Sent to Checker');
-    statusCondition = `AND UPPER(status) = UPPER($${params.length})`;
-  } else if (type === 'APPROVER') {
+    statusCondition = 'AND UPPER(status) = UPPER($2)';
+  } 
+  else if (type === 'APPROVER') {
     params.push('Sent to Approver');
-    statusCondition = `AND UPPER(status) = UPPER($${params.length})`;
-  } else if (type === 'FINALIZED') {
+    statusCondition = 'AND UPPER(status) = UPPER($2)';
+  } 
+  else if (type === 'FINALIZED') {
     params.push('Sent to Database');
-    statusCondition = `AND UPPER(status) = UPPER($${params.length})`;
+    statusCondition = 'AND UPPER(status) = UPPER($2)';
   }
-
-  const divisionCondition = allIndia ? '' : 'AND UPPER(division) = UPPER($1)';
 
   const sql = `
     SELECT COUNT(*)::int AS count
     FROM ${tableName}
-    WHERE 1 = 1
-    ${divisionCondition}
+    WHERE UPPER(division) = UPPER($1)
     ${statusCondition};
   `;
 

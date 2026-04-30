@@ -112,11 +112,9 @@ body::before {
   position: relative;
   width: 580px;
   max-width: 94vw;
-  min-height: 850px;
-  height: 92vh;
-  max-height: 940px;
-  display: flex;
-  flex-direction: column;
+  min-height: 790px;
+  height: 86vh;
+  max-height: 860px;
   border-radius: 22px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -190,7 +188,6 @@ body::before {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 0;
   justify-content: space-between;
 }
 
@@ -465,9 +462,9 @@ body::before {
 
   .portal-card {
     width: 540px;
-    min-height: 800px;
-    height: 90vh;
-    max-height: 900px;
+    min-height: 740px;
+    height: 82vh;
+    max-height: 820px;
   }
 
   .portal-header {
@@ -531,9 +528,9 @@ body::before {
 
   .portal-card {
     width: 500px;
-    min-height: 740px;
-    height: 88vh;
-    max-height: 840px;
+    min-height: 680px;
+    height: 78vh;
+    max-height: 760px;
     border-radius: 20px;
   }
 
@@ -639,7 +636,7 @@ body::before {
   .portal-card {
     width: 100%;
     border-radius: 18px;
-    min-height: 740px;
+    min-height: 680px;
     height: auto;
     max-height: none;
   }

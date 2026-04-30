@@ -9,27 +9,4 @@ export class SuperAdminUserManagementApi {
   getAllUsers() {
     return this.http.get<any>(`${BASE_URL}/api/super-admin/users`);
   }
-
-  getUser(objectid: number | string) {
-    return this.http.get<any>(
-      `${BASE_URL}/api/super-admin/users/${encodeURIComponent(String(objectid))}`,
-    );
-  }
-
-  createUser(data: any) {
-    return this.http.post<any>(`${BASE_URL}/api/super-admin/users`, data);
-  }
-
-  updateUser(objectid: number | string, data: any) {
-    return this.http.put<any>(
-      `${BASE_URL}/api/super-admin/users/${encodeURIComponent(String(objectid))}`,
-      data,
-    );
-  }
-
-  deleteUser(objectid: number | string) {
-    return this.http.delete<any>(
-      `${BASE_URL}/api/super-admin/users/${encodeURIComponent(String(objectid))}`,
-    );
-  }
 }

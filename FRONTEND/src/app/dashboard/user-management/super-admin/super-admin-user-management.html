@@ -1,36 +1,4 @@
 <div class="container-fluid super-admin-page dashboard-page-shell">
-  <div class="user-toast-overlay" *ngIf="showToast">
-    <div class="user-toast" [ngClass]="'toast-' + toastType">
-      <div class="user-toast-icon">
-        <i
-          class="bi"
-          [ngClass]="{
-            'bi-check2-circle': toastType === 'success',
-            'bi-x-circle': toastType === 'error',
-            'bi-exclamation-circle': toastType === 'warning'
-          }"
-        ></i>
-      </div>
-
-      <div class="user-toast-content">
-        <div class="user-toast-title">
-          {{
-            toastType === 'success'
-              ? 'Success'
-              : toastType === 'error'
-                ? 'Something Went Wrong'
-                : 'Attention'
-          }}
-        </div>
-        <div class="user-toast-message">{{ toastMessage }}</div>
-      </div>
-
-      <button class="user-toast-close" (click)="closeToast()" aria-label="Close notification">
-        <i class="bi bi-x-lg"></i>
-      </button>
-    </div>
-  </div>
-
   <div class="row g-3 h-100">
     <div class="col-12 col-xl-3 d-flex">
       <div class="super-admin-sidebar w-100">
@@ -60,13 +28,7 @@
 
         <div class="summary-group-list">
           <div class="summary-group-card" *ngFor="let card of summaryCards">
-            <div class="summary-group-header">
-              <div class="summary-group-title-wrap">
-                <span class="summary-group-accent"></span>
-                <div class="summary-group-title">{{ card.label }}</div>
-              </div>
-              <div class="summary-group-chip">{{ card.counts.length }} Roles</div>
-            </div>
+            <div class="summary-group-title">{{ card.label }}</div>
 
             <div class="summary-group-grid">
               <div class="summary-group-item" *ngFor="let count of card.counts">
@@ -86,7 +48,9 @@
             <h4 class="super-admin-title">User List</h4>
           </div>
 
-          <button class="create-user-btn" type="button" (click)="openCreateUserModal()">+ Create New User</button>
+          <button class="create-user-btn" type="button">
+            + Create New User
+          </button>
         </div>
 
         <ul class="super-admin-tabs">
@@ -178,29 +142,13 @@
                   <td>{{ user.designation || '--' }}</td>
                   <td>
                     <div class="table-actions">
-                      <button
-                        type="button"
-                        class="btn-action btn-view"
-                        title="View User"
-                        (click)="openViewModal(user)"
-                      >
+                      <button type="button" class="btn-action btn-view" title="View User">
                         <i class="bi bi-person-vcard-fill"></i>
                       </button>
-                      <button
-                        type="button"
-                        class="btn-action btn-edit"
-                        title="Edit User"
-                        (click)="openEditUserModal(user)"
-                      >
+                      <button type="button" class="btn-action btn-edit" title="Edit User">
                         <i class="bi bi-pencil-fill"></i>
                       </button>
-                      <button
-                        type="button"
-                        class="btn-action btn-delete"
-                        title="Delete User"
-                        [disabled]="isCurrentUser(user)"
-                        (click)="openDeleteConfirmModal(user)"
-                      >
+                      <button type="button" class="btn-action btn-delete" title="Delete User">
                         <i class="bi bi-trash-fill"></i>
                       </button>
                     </div>
@@ -208,7 +156,9 @@
                 </tr>
 
                 <tr *ngIf="paginatedUsers.length === 0">
-                  <td colspan="11" class="empty-row">No users found for the selected filter.</td>
+                  <td colspan="11" class="empty-row">
+                    No users found for the selected filter.
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -217,7 +167,7 @@
           <div class="table-pager">
             <small>
               Showing
-              {{ filteredUsers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1 }}
+              {{ filteredUsers.length === 0 ? 0 : ((currentPage - 1) * pageSize + 1) }}
               -
               {{ (currentPage - 1) * pageSize + paginatedUsers.length }}
               of {{ filteredUsers.length }} entries
@@ -253,233 +203,4 @@
       </div>
     </div>
   </div>
-
-  <div
-  class="modal-backdrop-custom"
-  *ngIf="showCreateUserModal"
->
-  <div class="create-user-modal">
-    <div class="create-user-header">
-      <h3>{{ isEditUserMode ? 'Edit User' : 'Add New User' }}</h3>
-      <button class="create-user-close" (click)="closeCreateUserModal()">×</button>
-    </div>
-
-    <hr />
-
-    <div class="create-user-form">
-      <div class="create-form-group full-width">
-        <label>User Name <span class="required-star">*</span></label>
-        <input type="text" class="form-control" [(ngModel)]="createUserForm.user_name" />
-      </div>
-
-      <div class="create-form-group full-width">
-        <label>User ID <span class="required-star">*</span></label>
-        <input type="text" class="form-control" [(ngModel)]="createUserForm.user_id" />
-      </div>
-
-      <div class="create-form-group full-width">
-        <label>
-          Password
-          <span class="required-star">*</span>
-        </label>
-        <div class="password-input-wrap">
-          <input
-            [type]="showCreatePassword ? 'text' : 'password'"
-            class="form-control"
-            [(ngModel)]="createUserForm.password"
-            required
-          />
-          <button type="button" class="password-toggle-btn" (click)="toggleCreatePasswordVisibility()">
-            <i class="bi" [ngClass]="showCreatePassword ? 'bi-eye-slash' : 'bi-eye'"></i>
-          </button>
-        </div>
-      </div>
-
-      <div class="create-form-group">
-        <label>User Type</label>
-        <select class="form-select" [(ngModel)]="createUserForm.user_type" (change)="onCreateUserTypeChange()">
-          <option *ngFor="let userType of createUserTypeOptions" [ngValue]="userType">
-            {{ userType }}
-          </option>
-        </select>
-      </div>
-
-      <div class="create-form-group">
-        <label>Unit Type</label>
-        <select class="form-select" [(ngModel)]="createUserForm.unit_type" (change)="onCreateUnitTypeChange()">
-          <option *ngFor="let unitType of createUserUnitTypeOptions" [ngValue]="unitType">
-            {{ unitType }}
-          </option>
-        </select>
-      </div>
-
-      <ng-container *ngIf="createUserUsesPuField">
-        <div class="create-form-group">
-          <label>PUs</label>
-          <select class="form-select" [(ngModel)]="createUserForm.unit_name">
-            <option *ngFor="let pu of createPuOptions" [ngValue]="pu">
-              {{ pu }}
-            </option>
-          </select>
-        </div>
-
-        <div class="create-form-group">
-          <label>Department</label>
-          <select class="form-select" [(ngModel)]="createUserForm.department">
-            <option *ngFor="let department of createDepartmentOptions" [ngValue]="department">
-              {{ department }}
-            </option>
-          </select>
-        </div>
-      </ng-container>
-
-      <ng-container
-        *ngIf="
-          createUserRequiresOrgFields &&
-          !createUserUsesPuField &&
-          !createUserUsesMetroMinimalFields
-        "
-      >
-        <div class="create-form-group">
-          <label>Zone</label>
-          <select class="form-select" [(ngModel)]="createUserForm.zone" (change)="onCreateZoneChange()">
-            <option *ngFor="let zone of createZoneOptions" [ngValue]="zone">
-              {{ zone }}
-            </option>
-          </select>
-        </div>
-
-        <div class="create-form-group">
-          <label>Division</label>
-          <select class="form-select" [(ngModel)]="createUserForm.division">
-            <option *ngFor="let division of createDivisionOptions" [ngValue]="division">
-              {{ division }}
-            </option>
-          </select>
-        </div>
-
-        <div class="create-form-group create-form-group-department">
-          <label>Department</label>
-          <select class="form-select" [(ngModel)]="createUserForm.department">
-            <option *ngFor="let department of createDepartmentOptions" [ngValue]="department">
-              {{ department }}
-            </option>
-          </select>
-        </div>
-      </ng-container>
-    </div>
-
-    <div class="create-user-actions">
-      <button class="btn create-submit-btn" [disabled]="creatingUser" (click)="submitCreateUser()">
-        {{ creatingUser ? (isEditUserMode ? 'Updating...' : 'Submitting...') : (isEditUserMode ? 'Update' : 'Submit') }}
-      </button>
-
-      <button class="btn create-cancel-btn" [disabled]="creatingUser" (click)="closeCreateUserModal()">
-        Cancel
-      </button>
-    </div>
-  </div>
-</div>
-
-  <div
-  class="modal-backdrop-custom"
-  *ngIf="showViewModal"
->
-  <div class="user-info-modal">
-    <div class="user-info-header">
-      <h3>User Details</h3>
-      <button class="user-info-close" (click)="closeViewModal()">×</button>
-    </div>
-
-    <div class="user-info-body">
-      <div class="user-info-left">
-        <div class="user-avatar-card">
-          <i class="bi bi-person-circle user-avatar-icon"></i>
-        </div>
-      </div>
-
-      <div class="user-info-right">
-        <div class="user-info-grid">
-          <div class="info-item">
-            <label>User Name :</label>
-            <div>{{ selectedUser?.user_name || '--' }}</div>
-          </div>
-
-          <div class="info-item">
-            <label>User Type :</label>
-            <div>{{ selectedUser?.user_type || '--' }}</div>
-          </div>
-
-          <div class="info-item">
-            <label>Unit Type :</label>
-            <div>{{ selectedUser?.unit_type || '--' }}</div>
-          </div>
-
-          <div class="info-item">
-            <label>Department :</label>
-            <div>{{ selectedUser?.department_id || '--' }}</div>
-          </div>
-
-          <div class="info-item">
-            <label>Zone :</label>
-            <div>{{ selectedUser?.zone || '--' }}</div>
-          </div>
-
-          <div class="info-item">
-            <label>Division :</label>
-            <div>{{ selectedUser?.division || '--' }}</div>
-          </div>
-
-          <div class="info-item">
-            <label>User ID :</label>
-            <div>{{ selectedUser?.user_id || '--' }}</div>
-          </div>
-
-          <div class="info-item">
-            <label>Password :</label>
-            <div>{{ selectedUser?.password || '--' }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal-backdrop-custom" *ngIf="showDeleteConfirmModal">
-  <div class="delete-confirm-modal">
-    <div class="delete-icon-wrap">
-      <i class="bi bi-trash-fill"></i>
-    </div>
-
-    <div class="delete-confirm-text">
-      Please Confirm to Delete<br />
-      {{ selectedDeleteUser?.user_name || 'Selected User' }}
-    </div>
-
-    <div class="delete-user-meta" *ngIf="selectedDeleteUser">
-      User ID: {{ selectedDeleteUser.user_id || '--' }}
-    </div>
-
-    <div class="delete-error" *ngIf="deleteError">
-      {{ deleteError }}
-    </div>
-
-    <hr />
-
-    <div class="delete-confirm-actions">
-      <button
-        class="btn delete-confirm-btn"
-        [disabled]="deletingUser || !selectedDeleteUser || isCurrentUser(selectedDeleteUser)"
-        (click)="deleteSelectedUser()"
-      >
-        {{ deletingUser ? 'Deleting...' : 'Delete' }}
-      </button>
-
-      <button class="btn delete-cancel-btn" [disabled]="deletingUser" (click)="closeDeleteConfirmModal()">
-        Cancel
-      </button>
-    </div>
-  </div>
-</div>
-
 </div>

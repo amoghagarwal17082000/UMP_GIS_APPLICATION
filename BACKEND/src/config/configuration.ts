@@ -37,6 +37,12 @@ const configuration = () =>
     SESSION: Object.freeze({
       SECRET: readString(process.env.SESSION_SECRET),
       TTL_MS: toNumber(process.env.SESSION_TTL_MS, 28800000),
+      }),
+      UPLOADS: Object.freeze({
+      TEMP_DIR: readString(process.env.UPLOAD_TEMP_DIR),
+      STORAGE_DIR: readString(process.env.FILE_STORAGE_DIR),
+      PUBLIC_BASE_URL: readString(process.env.PUBLIC_FILE_BASE_URL),
+      DEFAULT_SCHEMA: readString(process.env.UPLOAD_TARGET_SCHEMA, 'sde'),
     }),
   });
 

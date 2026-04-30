@@ -50,7 +50,8 @@ module.exports = {
       'xcoord',
       'ycoord',
       'railway',
-      'category'
+      'category',
+      'attachment_bundle_url'
     ],
 
     updateFields: [
@@ -61,7 +62,8 @@ module.exports = {
       'constituncy',
       'sttnname',
       'category',
-      'sttntype'
+      'sttntype',
+      'attachment_bundle_url'
     ],
 
     searchableFields: [
@@ -128,8 +130,9 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituency',
-      'gis_unique_id'
+      'constituncy',
+      'gis_unique_id',
+      'attachment_bundle_url'
     ],
     updateFields: [
       'gid',
@@ -168,8 +171,9 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituency',
-      'gis_unique_id'
+      'constituncy',
+      'gis_unique_id',
+      'attachment_bundle_url'
     ],
     searchableFields: [
       'bridgeno',
@@ -198,7 +202,6 @@ module.exports = {
       enabled: true,
       type: 'Point',
       column: 'shape',
-      readColumn: 'geom',
       xField: 'xcoord',
       yField: 'ycoord'
     },
@@ -239,8 +242,9 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituency',
-      'gis_unique_id'
+      'constituncy',
+      'gis_unique_id',
+      'attachment_bundle_url'
     ],
     updateFields: [
       'gid',
@@ -279,8 +283,9 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituency',
-      'gis_unique_id'
+      'constituncy',
+      'gis_unique_id',
+      'attachment_bundle_url'
     ],
     searchableFields: [
       'bridgeno',
@@ -309,7 +314,6 @@ module.exports = {
       enabled: true,
       type: 'Point',
       column: 'shape',
-      readColumn: 'geom',
       xField: 'xcoord',
       yField: 'ycoord'
     },
@@ -350,8 +354,9 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituency',
-      'gis_unique_id'
+      'constituncy',
+      'gis_unique_id',
+      'attachment_bundle_url'
     ],
     updateFields: [
       'gid',
@@ -390,8 +395,9 @@ module.exports = {
       'created_by',
       'bridgetype',
       'spanconf',
-      'constituency',
-      'gis_unique_id'
+      'constituncy',
+      'gis_unique_id',
+      'attachment_bundle_url'
     ],
     searchableFields: [
       'bridgeno',

@@ -65,20 +65,9 @@ async function getNextManualId(client, qualifiedName, columnName) {
   return Number(rows[0]?.next_id || 1);
 }
 
-function getGeometryReadColumn(config) {
-  const column = String(config?.geometry?.readColumn || '').trim();
-  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column) ? column : null;
-}
-
-function getMainSelectList(config) {
-  const geometryColumn = getGeometryReadColumn(config);
-  if (!geometryColumn) return '*';
-  return `*, ST_X(${geometryColumn}) AS geom_lng, ST_Y(${geometryColumn}) AS geom_lat`;
-}
-
 async function getByIdWithClient(client, config, id, division, lock = false) {
   const sql = `
-    SELECT ${getMainSelectList(config)}
+    SELECT *
     FROM ${config.table}
     WHERE ${config.idColumn} = $1
       AND UPPER(division) = UPPER($2)
@@ -219,7 +208,7 @@ function normalizeStationDraftPayload(data, originalRow) {
     ...originalRow,
     ...data,
     sttntype: data?.sttntype ?? data?.stationtype ?? originalRow?.sttntype,
-    constituncy: data?.constituncy ?? data?.constituency ?? originalRow?.constituncy ?? originalRow?.constituency,
+    constituncy: data?.constituncy ?? data?.constituency ?? originalRow?.constituncy,
     latitude: Number.isFinite(lat) ? lat : originalRow?.latitude ?? null,
     longitude: Number.isFinite(lng) ? lng : originalRow?.longitude ?? null,
     ycoord: Number.isFinite(lat) ? lat : originalRow?.ycoord ?? null,
@@ -364,7 +353,7 @@ function setWorkflowAssignmentFields(record, workflow, draftTableColumns, assign
 
 async function getById(config, id, division) {
   const sql = `
-    SELECT ${getMainSelectList(config)}
+    SELECT *
     FROM ${config.table}
     WHERE ${config.idColumn} = $1
       AND UPPER(division) = UPPER($2)
@@ -982,7 +971,7 @@ async function getTable(config, page, pageSize, q, division) {
   `;
 
   const listSql = `
-    SELECT ${getMainSelectList(config)}
+    SELECT *
     FROM ${config.table}
     WHERE ${where}
     ORDER BY ${config.idColumn}
@@ -996,6 +985,31 @@ async function getTable(config, page, pageSize, q, division) {
     rows,
     total: totalRows[0]?.total || 0,
   };
+}
+
+async function ensureAttachmentColumn(client, qualifiedName) {
+  const columns = await getTableColumns(client, qualifiedName);
+  if (columns.includes('attachment_bundle_url')) return;
+
+  const { schema, table } = splitQualifiedName(qualifiedName);
+  await client.query(
+    `ALTER TABLE "${schema}"."${table}" ADD COLUMN IF NOT EXISTS attachment_bundle_url text`,
+  );
+}
+
+async function updateRecordAttachmentUrl(config, id, division, attachmentUrl) {
+  await ensureAttachmentColumn(pool, config.table);
+
+  const sql = `
+    UPDATE ${config.table}
+    SET attachment_bundle_url = $1
+    WHERE ${config.idColumn} = $2
+      AND UPPER(division) = UPPER($3)
+    RETURNING *
+  `;
+
+  const { rows } = await pool.query(sql, [attachmentUrl, id, division]);
+  return rows[0] || null;
 }
 
 async function getDraftTable(config, page, pageSize, q, division, status, actingUserId, actingUserType) {
@@ -1256,7 +1270,7 @@ function normalizeValidatedAssetResult(result) {
     state: pickResultValue(result, ['state']),
     district: pickResultValue(result, ['district']),
     bridgeno: pickResultValue(result, ['bridgeno', 'bridge_no', 'bridgeid']),
-    constituency: pickResultValue(result, ['constituency', 'constituncy']),
+    constituncy: pickResultValue(result, ['constituncy', 'constituency']),
     bridgetype: pickResultValue(result, ['bridgetype', 'bridge_type']),
     spanconf: pickResultValue(result, ['spanconf', 'span_configuration']),
     raw: result,
@@ -1271,27 +1285,25 @@ async function validateAssetId(config, layer, division, assetId, objectId = null
     throw err;
   }
 
-  if (config?.table && config?.idColumn) {
-    const duplicateParams = [trimmedAssetId];
-    let duplicateSql = `
-      SELECT ${config.idColumn}
-      FROM ${config.table}
-      WHERE TRIM(COALESCE(asset_id::text, '')) = TRIM($1)
-    `;
+  const duplicateParams = [trimmedAssetId];
+  let duplicateSql = `
+    SELECT ${config.idColumn}
+    FROM ${config.table}
+    WHERE TRIM(COALESCE(asset_id::text, '')) = TRIM($1)
+  `;
 
-    if (Number.isFinite(Number(objectId))) {
-      duplicateParams.push(Number(objectId));
-      duplicateSql += ` AND ${config.idColumn} <> $2`;
-    }
+  if (Number.isFinite(Number(objectId))) {
+    duplicateParams.push(Number(objectId));
+    duplicateSql += ` AND ${config.idColumn} <> $2`;
+  }
 
-    duplicateSql += ' LIMIT 1';
+  duplicateSql += ' LIMIT 1';
 
-    const { rows: existingRows } = await pool.query(duplicateSql, duplicateParams);
-    if (existingRows.length > 0) {
-      const err = new Error('Asset ID already exists. Please enter a different Asset ID.');
-      err.status = 409;
-      throw err;
-    }
+  const { rows: existingRows } = await pool.query(duplicateSql, duplicateParams);
+  if (existingRows.length > 0) {
+    const err = new Error('Asset ID already exists. Please enter a different Asset ID.');
+    err.status = 409;
+    throw err;
   }
 
   const validationParam = getAssetValidationParam(layer);
@@ -1516,6 +1528,7 @@ async function sendNewStationEdit(config, division, data, makerUserId, submittin
 module.exports = {
   getById,
   getDraftById,
+  ensureAttachmentColumn,
   updateStationDraftStatus,
   requestStationDeletion,
   requestStationDraftDeletion,
@@ -1525,6 +1538,7 @@ module.exports = {
   remove,
   getTable,
   getDraftTable,
+  updateRecordAttachmentUrl,
   validateStation,
   validateAssetId,
   sendStationEdit,

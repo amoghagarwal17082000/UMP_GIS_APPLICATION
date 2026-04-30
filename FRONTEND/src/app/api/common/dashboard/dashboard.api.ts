@@ -6,40 +6,40 @@ import { BASE_URL, getDivision } from '../../shared/api-utils';
 export class CommonDashboardApi {
   constructor(private http: HttpClient) {}
 
-  private getDashboardCount(asset: string, type: string, allIndia = false) {
+  private getDashboardCount(asset: string, type: string) {
     return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/view/dashboard/${asset}/count`, {
-      params: allIndia ? { allIndia: 'true', type } : { division: getDivision(), type },
+      params: { division: getDivision(), type },
     });
   }
 
-  getStationCount(type: string, allIndia = false) {
-    return this.getDashboardCount('station', type, allIndia);
+  getStationCount(type: string) {
+    return this.getDashboardCount('station', type);
   }
-  getBridgeStartCount(type: string, allIndia = false) {
-    return this.getDashboardCount('bridgeStart', type, allIndia);
+  getBridgeStartCount(type: string) {
+    return this.getDashboardCount('bridgeStart', type);
   }
-  getBridgeStopCount(type: string, allIndia = false) {
-    return this.getDashboardCount('bridgeEnd', type, allIndia);
+  getBridgeStopCount(type: string) {
+    return this.getDashboardCount('bridgeEnd', type);
   }
-  getBridgeMinorCount(type: string, allIndia = false) {
-    return this.getDashboardCount('bridgeMinor', type, allIndia);
+  getBridgeMinorCount(type: string) {
+    return this.getDashboardCount('bridgeMinor', type);
   }
-  getLevelXingCount(type: string, allIndia = false) {
-    return this.getDashboardCount('levelXing', type, allIndia);
+  getLevelXingCount(type: string) {
+    return this.getDashboardCount('levelXing', type);
   }
-  getRoadOverBridgeCount(type: string, allIndia = false) {
-    return this.getDashboardCount('roadOverBridge', type, allIndia);
+  getRoadOverBridgeCount(type: string) {
+    return this.getDashboardCount('roadOverBridge', type);
   }
-  getRubLhsCount(type: string, allIndia = false) {
-    return this.getDashboardCount('rubLhs', type, allIndia);
+  getRubLhsCount(type: string) {
+    return this.getDashboardCount('rubLhs', type);
   }
-  getRorCount(type: string, allIndia = false) {
-    return this.getDashboardCount('ror', type, allIndia);
+  getRorCount(type: string) {
+    return this.getDashboardCount('ror', type);
   }
-  getKmPostCount(type: string, allIndia = false) {
-    return this.getDashboardCount('kmPost', type, allIndia);
+  getKmPostCount(type: string) {
+    return this.getDashboardCount('kmPost', type);
   }
-  getLandPlanCount(type: string, allIndia = false) {
-    return this.getDashboardCount('landPlan', type, allIndia);
+  getLandPlanCount(type: string) {
+    return this.getDashboardCount('landPlan', type);
   }
 }
