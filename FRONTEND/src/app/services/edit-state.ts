@@ -9,7 +9,6 @@ export class EditState {
   editLayer: EditableLayer = null;
 
   selectedFeatureId: number | null = null;
-  selectedFeature: any = null;
   draft: any = null;
   creatingStation = false;
 
@@ -40,7 +39,6 @@ export class EditState {
   startCreateStation() {
     this.creatingStation = true;
     this.selectedFeatureId = null;
-    this.selectedFeature = null;
     this.draft = null;
     this.notify();
   }
@@ -77,7 +75,6 @@ export class EditState {
 
   resetSelection() {
     this.selectedFeatureId = null;
-    this.selectedFeature = null;
     this.draft = null;
     this.creatingStation = false;
   }
@@ -85,7 +82,6 @@ export class EditState {
   reset() {
     this.editLayer = null;
     this.selectedFeatureId = null;
-    this.selectedFeature = null;
     this.draft = null;
     this.creatingStation = false;
   }
@@ -93,7 +89,6 @@ export class EditState {
   select(feature: any) {
     const id = feature?.id ?? feature?.properties?.objectid ?? null;
     this.selectedFeatureId = id;
-    this.selectedFeature = feature ?? null;
     this.draft = { ...(feature.properties || {}) };
     this.creatingStation = false;
     this.notify();

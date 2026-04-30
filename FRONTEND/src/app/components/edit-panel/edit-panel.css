@@ -550,13 +550,6 @@
   color: #334155;
 }
 
-#panelEdit .field-input:disabled{
-  background: #f1f5f9;
-  color: #64748b;
-  cursor: not-allowed;
-  opacity: 1;
-}
-
 /* ✅ Station code row: input left + validate right (SAME LINE) */
 #panelEdit .field-inline{
   display: flex;
@@ -676,6 +669,79 @@
   background: #142b69;
 }
 
+#panelEdit .attachment-input{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+#panelEdit .attachment-input input[type="file"]{
+  flex: 1 1 auto;
+  min-width: 160px;
+  color: #334155;
+  cursor: pointer;
+}
+
+#panelEdit .attachment-input button{
+  height: 44px;
+}
+
+#panelEdit .attachment-meta{
+  margin-top: 12px;
+}
+
+#panelEdit .file-list{
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#panelEdit .file-item{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  margin-top: 8px;
+}
+
+#panelEdit .file-name{
+  font-size: 13px;
+  color: #1f2937;
+  word-break: break-word;
+  flex: 1 1 auto;
+}
+
+#panelEdit .attachment-link{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+#panelEdit .attachment-link:hover{
+  text-decoration: underline;
+}
+
+#panelEdit .btn-remove{
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.16s ease;
+}
+
+#panelEdit .btn-remove:hover{
+  background: rgba(220, 38, 38, 0.1);
+}
+
 #panelEdit .attachment-clear-btn{
   flex: 0 0 auto;
   height: 44px;
@@ -764,8 +830,8 @@
 /* Icon base */
 #panelEdit .tbl td:last-child button.action-btn::before{
   content: "";
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
 
   background-size: contain;
   background-repeat: no-repeat;
@@ -788,8 +854,8 @@
 
 #panelEdit .tbl td:last-child button.maker-delete-btn::before{
   background-image: url("../../../assets/images/delete.png");
-  width: 300px;
-  height: 300px;
+  width: 60px;
+  height: 60px;
 }
 
 /* Hover effects */
@@ -1084,17 +1150,4 @@
   gap: 6px;
   white-space: nowrap;
   transform: none;
-}
-
-/* Final maker delete icon override.
-   The generic action-btn::before rule below the main delete block was shrinking it back down. */
-#panelEdit .tbl td:last-child button.maker-delete-btn{
-  width: 42px;
-  height: 42px;
-}
-
-#panelEdit .tbl td:last-child button.maker-delete-btn::before{
-  width: 30px;
-  height: 30px;
-  background-size: contain;
 }

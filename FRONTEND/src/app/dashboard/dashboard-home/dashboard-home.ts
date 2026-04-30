@@ -76,10 +76,6 @@ export class DashboardHome implements OnInit {
     return null;
   }
 
-  get isSuperAdminDashboard(): boolean {
-    return (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase() === 'super admin';
-  }
-
   onSubCardClick(card: SubCard): void {
     if (card.layerKey !== 'stations') return;
 
@@ -103,7 +99,6 @@ export class DashboardHome implements OnInit {
 
   private loadDashboard(): void {
     const types: CardType[] = ['TOTAL', 'MAKER', 'CHECKER', 'APPROVER', 'FINALIZED'];
-    const allIndia = this.isSuperAdminDashboard;
 
     const stationCalls: any = {};
     const bridgeStartCalls: any = {};
@@ -117,16 +112,16 @@ export class DashboardHome implements OnInit {
     const landPlanCalls: any = {};
 
     types.forEach((type) => {
-      stationCalls[type] = this.api.getStationCount(type, allIndia);
-      bridgeStartCalls[type] = this.api.getBridgeStartCount(type, allIndia);
-      bridgeStopCalls[type] = this.api.getBridgeStopCount(type, allIndia);
-      bridgeMinorCalls[type] = this.api.getBridgeMinorCount(type, allIndia);
-      levelXingCalls[type] = this.api.getLevelXingCount(type, allIndia);
-      robCalls[type] = this.api.getRoadOverBridgeCount(type, allIndia);
-      rubLhsCalls[type] = this.api.getRubLhsCount(type, allIndia);
-      rorCalls[type] = this.api.getRorCount(type, allIndia);
-      kmPostCalls[type] = this.api.getKmPostCount(type, allIndia);
-      landPlanCalls[type] = this.api.getLandPlanCount(type, allIndia);
+      stationCalls[type] = this.api.getStationCount(type);
+      bridgeStartCalls[type] = this.api.getBridgeStartCount(type);
+      bridgeStopCalls[type] = this.api.getBridgeStopCount(type);
+      bridgeMinorCalls[type] = this.api.getBridgeMinorCount(type);
+      levelXingCalls[type] = this.api.getLevelXingCount(type);
+      robCalls[type] = this.api.getRoadOverBridgeCount(type);
+      rubLhsCalls[type] = this.api.getRubLhsCount(type);
+      rorCalls[type] = this.api.getRorCount(type);
+      kmPostCalls[type] = this.api.getKmPostCount(type);
+      landPlanCalls[type] = this.api.getLandPlanCount(type);
     });
 
     forkJoin({

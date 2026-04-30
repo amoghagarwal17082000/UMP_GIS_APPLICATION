@@ -5,7 +5,7 @@ import { Auth } from './auth';
 
 @Injectable({ providedIn: 'root' })
 export class IdleTimeoutService implements OnDestroy {
-  private readonly timeoutMs = 4 * 60 * 60 * 1000;
+  private readonly timeoutMs = 3 * 60 * 60 * 1000;
   private readonly events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
   private timer: ReturnType<typeof setTimeout> | null = null;
   private started = false;

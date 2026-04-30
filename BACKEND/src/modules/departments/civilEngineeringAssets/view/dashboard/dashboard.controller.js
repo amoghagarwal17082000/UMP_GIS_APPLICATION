@@ -3,27 +3,12 @@
 const config = require('./dashboard.config');
 const model = require('./dashboard.model');
 
-function normalizeText(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function isSuperAdmin(req) {
-  return normalizeText(req?.user?.user_type) === 'super admin';
-}
-
 async function getAssetCount(req, res, next) {
   try {
     const { asset } = req.params;
-    const { division, type = 'TOTAL', allIndia } = req.query;
-    const wantsAllIndia = String(allIndia || '').trim().toLowerCase() === 'true';
+    const { division, type = 'TOTAL' } = req.query;
 
-    if (wantsAllIndia && !isSuperAdmin(req)) {
-      const err = new Error('Only Super Admin can view all-India dashboard counts');
-      err.status = 403;
-      throw err;
-    }
-
-    if (!wantsAllIndia && !division) {
+    if (!division) {
       const err = new Error('division is required');
       err.status = 400;
       throw err;
@@ -39,9 +24,8 @@ async function getAssetCount(req, res, next) {
 
     const count = await model.getCount(
       tableName,
-      String(division || '').trim(),
-      String(type).toUpperCase(),
-      wantsAllIndia
+      division.trim(),
+      String(type).toUpperCase()
     );
 
     res.json({ count });

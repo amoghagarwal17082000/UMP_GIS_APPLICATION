@@ -14,7 +14,6 @@ module.exports = {
 
   railwayTrack: {
     table: 'sde.dli_track_1',
-    allIndiaTable: 'sde.india_railway_track',
     idColumn: 'objectid',
     geometryColumn: 'shape'
   },
