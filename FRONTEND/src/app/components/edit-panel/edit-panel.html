@@ -6,64 +6,35 @@
 
   <div class="panel-body">
     <div class="maker-navbar" *ngIf="mode === 'table' && isMaker()">
-      <button
-        type="button"
-        class="maker-nav-item"
-        [class.active]="makerTab === 'edit'"
-        (click)="setMakerTab('edit')"
-      >
+      <button type="button" class="maker-nav-item" [class.active]="makerTab === 'edit'" (click)="setMakerTab('edit')">
         Edit
       </button>
-      <button
-        type="button"
-        class="maker-nav-item"
-        [class.active]="makerTab === 'rejected'"
-        (click)="setMakerTab('rejected')"
-      >
+      <button type="button" class="maker-nav-item" [class.active]="makerTab === 'rejected'"
+        (click)="setMakerTab('rejected')">
         Rejected Records
       </button>
-      <button
-        type="button"
-        class="maker-nav-item"
-        [class.active]="makerTab === 'sent_for_deletion'"
-        (click)="setMakerTab('sent_for_deletion')"
-      >
+      <button type="button" class="maker-nav-item" [class.active]="makerTab === 'sent_for_deletion'"
+        (click)="setMakerTab('sent_for_deletion')">
         Sent for Deletion
       </button>
     </div>
 
     <div class="maker-navbar" *ngIf="mode === 'table' && isReviewer()">
-      <button
-        type="button"
-        class="maker-nav-item"
-        [class.active]="checkerTab === 'pending'"
-        (click)="setCheckerTab('pending')"
-      >
+      <button type="button" class="maker-nav-item" [class.active]="checkerTab === 'pending'"
+        (click)="setCheckerTab('pending')">
         Pending
       </button>
-      <button
-        type="button"
-        class="maker-nav-item"
-        [class.active]="checkerTab === 'approved'"
-        (click)="setCheckerTab('approved')"
-      >
+      <button type="button" class="maker-nav-item" [class.active]="checkerTab === 'approved'"
+        (click)="setCheckerTab('approved')">
         Approved
       </button>
-      <button
-        type="button"
-        class="maker-nav-item"
-        [class.active]="checkerTab === 'deletion_proposed'"
-        (click)="setCheckerTab('deletion_proposed')"
-      >
+      <button type="button" class="maker-nav-item" [class.active]="checkerTab === 'deletion_proposed'"
+        (click)="setCheckerTab('deletion_proposed')">
         Deletion Proposed
       </button>
     </div>
 
-    <div
-      class="layer-picker"
-      *ngIf="mode === 'table' && !isMakerRejectedView()"
-      style="margin-bottom: 8px;"
-    >
+    <div class="layer-picker" *ngIf="mode === 'table' && !isMakerRejectedView()" style="margin-bottom: 8px;">
       <label>
         {{ layerPickerLabel }}
         <select [(ngModel)]="edit.editLayer" (change)="onLayerChange()">
@@ -80,11 +51,7 @@
       layer yet.
     </div>
 
-    <div
-      class="layer-picker rejected-picker"
-      *ngIf="isMakerRejectedView()"
-      style="margin-bottom: 8px;"
-    >
+    <div class="layer-picker rejected-picker" *ngIf="isMakerRejectedView()" style="margin-bottom: 8px;">
       <label>
         {{ rejectedLayerPickerLabel }}
         <select [(ngModel)]="rejectedLayer" (change)="onRejectedLayerChange()">
@@ -108,29 +75,18 @@
       </div>
 
       <div class="toolbar" *ngIf="supportsCurrentLayerListing()">
-        <button
-          class="add-btn"
-          *ngIf="isMaker() && makerTab === 'edit' && currentTableLayer"
-          (click)="startAddRecord()"
-        >
+        <button class="add-btn" *ngIf="isMaker() && makerTab === 'edit' && currentTableLayer"
+          (click)="startAddRecord()">
           Add New Record
         </button>
-        <button
-          class="btn danger"
-          *ngIf="isMaker() && makerTab === 'edit' && currentTableLayer && edit.creatingStation"
-          type="button"
-          (click)="cancelAddNewRecordDrawing()"
-        >
+        <button class="btn danger" *ngIf="isMaker() && makerTab === 'edit' && currentTableLayer && edit.creatingStation"
+          type="button" (click)="cancelAddNewRecordDrawing()">
           Cancel Add New Record
         </button>
         <div class="spacer"></div>
         <label class="search">Search:</label>
-        <input
-          type="search"
-          placeholder="code / state / district"
-          [(ngModel)]="search"
-          (ngModelChange)="onSearchChange()"
-        />
+        <input type="search" placeholder="code / state / district" [(ngModel)]="search"
+          (ngModelChange)="onSearchChange()" />
       </div>
 
       <div class="add-record-modal-backdrop" *ngIf="showAddRecordModal" (click)="closeAddRecordModal()">
@@ -140,12 +96,7 @@
               <h4>Create New Record</h4>
               <p>Choose how you want to create the new asset record.</p>
             </div>
-            <button
-              class="add-record-modal-close"
-              type="button"
-              (click)="closeAddRecordModal()"
-              aria-label="Close"
-            >
+            <button class="add-record-modal-close" type="button" (click)="closeAddRecordModal()" aria-label="Close">
               x
             </button>
           </div>
@@ -156,13 +107,8 @@
               <div class="add-record-option-text">
                 Create a new record by uploading a `.shp` file.
               </div>
-              <input
-                id="add-record-shapefile-input"
-                type="file"
-                class="add-record-shapefile-input"
-                accept=".shp"
-                (change)="onAddRecordShapefileSelected($event)"
-              />
+              <input id="add-record-shapefile-input" type="file" class="add-record-shapefile-input" accept=".shp"
+                (change)="onAddRecordShapefileSelected($event)" />
               <div class="add-record-option-meta" *ngIf="addRecordShapefileName">
                 Selected: {{ addRecordShapefileName }}
               </div>
@@ -173,11 +119,7 @@
               <div class="add-record-option-text">
                 Create a new record using the current drawing-based workflow.
               </div>
-              <button
-                class="btn primary add-record-option-btn"
-                type="button"
-                (click)="startAddRecordWithDrawingTool()"
-              >
+              <button class="btn primary add-record-option-btn" type="button" (click)="startAddRecordWithDrawingTool()">
                 Continue With Drawing Tool
               </button>
             </div>
@@ -207,13 +149,8 @@
               <tr *ngFor="let r of rows">
                 <td *ngFor="let col of activeTableColumns">
                   <ng-container *ngIf="col.stationLink; else plainCell">
-                    <button
-                      type="button"
-                      class="sttn-link"
-                      (click)="zoomToStationFromRow(r)"
-                      [disabled]="!getCellValue(r, col.key)"
-                      [title]="'Zoom to ' + formatCell(r, col.key)"
-                    >
+                    <button type="button" class="sttn-link" (click)="zoomToStationFromRow(r)"
+                      [disabled]="!getCellValue(r, col.key)" [title]="'Zoom to ' + formatCell(r, col.key)">
                       {{ formatCell(r, col.key) }}
                     </button>
                   </ng-container>
@@ -223,88 +160,51 @@
                 <td class="actions-cell">
                   <div class="actions-wrap">
                     <ng-container *ngIf="isMakerRejectedView(); else regularActions">
-                      <button
-                        class="action-btn preview-btn"
-                        (click)="previewRejectedRow(r)"
-                        title="Preview"
-                        aria-label="Preview"
-                      >
+                      <button class="action-btn preview-btn" (click)="previewRejectedRow(r)" title="Preview"
+                        aria-label="Preview">
                         <i class="bi bi-pencil-fill"></i>
                       </button>
-                      <button
-                        class="action-btn accept-btn"
-                        (click)="sendForwardRejected(r)"
-                        title="Send Forward"
-                        aria-label="Send Forward"
-                      >
+                      <button class="action-btn accept-btn" (click)="sendForwardRejected(r)" title="Send Forward"
+                        aria-label="Send Forward">
                         <i class="bi bi-check2"></i>
                       </button>
-                      <button
-                        class="action-btn reject-btn"
-                        (click)="deleteRejectedRow(r)"
-                        title="Delete"
-                        aria-label="Delete"
-                      >
+                      <button class="action-btn reject-btn" (click)="deleteRejectedRow(r)" title="Delete"
+                        aria-label="Delete">
                         <i class="bi bi-trash3-fill"></i>
                       </button>
                     </ng-container>
 
                     <ng-template #regularActions>
                       <ng-container *ngIf="isReviewer(); else nonCheckerActions">
-                        <ng-container
-                          *ngIf="isCheckerDeletionProposedView(); else checkerDefaultActions"
-                        >
-                          <button
-                            class="action-btn accept-btn"
-                            (click)="acceptDeletionRow(r)"
-                            title="Accept Deletion"
-                            aria-label="Accept Deletion"
-                          >
+                        <ng-container *ngIf="isCheckerDeletionProposedView(); else checkerDefaultActions">
+                          <button class="action-btn accept-btn" (click)="acceptDeletionRow(r)" title="Accept Deletion"
+                            aria-label="Accept Deletion">
                             <i class="bi bi-check2"></i>
                           </button>
-                          <button
-                            class="action-btn reject-btn"
-                            (click)="rejectDeletionRow(r)"
-                            title="Reject Deletion"
-                            aria-label="Reject Deletion"
-                          >
+                          <button class="action-btn reject-btn" (click)="rejectDeletionRow(r)" title="Reject Deletion"
+                            aria-label="Reject Deletion">
                             <i class="bi bi-x-lg"></i>
                           </button>
-                          <button
-                            class="action-btn checker-edit-btn"
-                            (click)="editRow(r)"
-                            title="Preview"
-                            aria-label="Preview"
-                          >
+                          <button class="action-btn checker-edit-btn" (click)="editRow(r)" title="Preview"
+                            aria-label="Preview">
                             <i class="bi bi-eye-fill"></i>
                           </button>
                         </ng-container>
 
                         <ng-template #checkerDefaultActions>
-                          <button
-                            class="action-btn checker-edit-btn"
-                            (click)="editRow(r)"
-                            title="Preview"
-                            aria-label="Preview"
-                          >
+                          <button class="action-btn checker-edit-btn" (click)="editRow(r)" title="Preview"
+                            aria-label="Preview">
                             <i class="bi bi-eye-fill"></i>
                           </button>
-                          <button
-                            class="action-btn accept-btn"
-                            (click)="acceptRow(r)"
+                          <button class="action-btn accept-btn" (click)="acceptRow(r)"
                             [title]="isApprover() ? 'Finalised' : 'Forward'"
                             [attr.aria-label]="isApprover() ? 'Finalised' : 'Forward'"
-                            *ngIf="(isChecker() || isApprover()) && !isCheckerSentToApproverView()"
-                          >
+                            *ngIf="(isChecker() || isApprover()) && !isCheckerSentToApproverView()">
                             <i class="bi bi-check2"></i>
                           </button>
-                          <button
-                            class="action-btn reject-btn"
-                            (click)="rejectRow(r)"
-                            title="Sent Back"
+                          <button class="action-btn reject-btn" (click)="rejectRow(r)" title="Sent Back"
                             aria-label="Sent Back"
-                            *ngIf="(isChecker() || isApprover()) && !isCheckerSentToApproverView()"
-                          >
+                            *ngIf="(isChecker() || isApprover()) && !isCheckerSentToApproverView()">
                             <i class="bi bi-x-lg"></i>
                           </button>
                         </ng-template>
@@ -312,23 +212,15 @@
 
                       <ng-template #nonCheckerActions>
                         <ng-container *ngIf="isMakerSentForDeletionView(); else makerDefaultActions">
-                          <button
-                            class="action-btn preview-btn"
-                            (click)="editRow(r)"
-                            title="Preview"
-                            aria-label="Preview"
-                          >
+                          <button class="action-btn preview-btn" (click)="editRow(r)" title="Preview"
+                            aria-label="Preview">
                             <i class="bi bi-eye-fill"></i>
                           </button>
                         </ng-container>
 
                         <ng-template #makerDefaultActions>
                           <button class="action-btn maker-edit-btn" (click)="editRow(r)">Edit</button>
-                          <button
-                            class="action-btn maker-delete-btn"
-                            (click)="deleteRow(r)"
-                            [disabled]="deleting"
-                          >
+                          <button class="action-btn maker-delete-btn" (click)="deleteRow(r)" [disabled]="deleting">
                             Delete
                           </button>
                         </ng-template>
@@ -375,60 +267,75 @@
           </label>
 
           <div class="field-inline" *ngIf="showValidateButton(field); else standardField">
-            <input
-              class="field-input"
-              [type]="field.type || 'text'"
-              [(ngModel)]="draft[field.key]"
-              [readonly]="isFieldReadonly(field)"
-              [disabled]="isFieldDisabled(field)"
-            />
-            <button
-              class="btn secondary"
-              type="button"
-              (click)="onValidateField(field)"
-              [disabled]="validating"
-            >
+            <input class="field-input" [type]="field.type || 'text'" [(ngModel)]="draft[field.key]"
+              [readonly]="isFieldReadonly(field)" [disabled]="isFieldDisabled(field)" />
+            <button class="btn secondary" type="button" (click)="onValidateField(field)" [disabled]="validating">
               {{ validating ? 'Validating...' : 'Validate' }}
             </button>
           </div>
 
           <ng-template #standardField>
-            <select
-              *ngIf="isLocationSelectField(field); else freeformField"
-              class="field-input"
-              [ngModel]="getLocationFieldValue(field)"
-              [disabled]="isFieldDisabled(field) || isFieldReadonly(field)"
-              (ngModelChange)="onLocationFieldValueChange(field, $event)"
-            >
-              <option value="">{{ getLocationPlaceholder(field) }}</option>
-              <option *ngFor="let option of getLocationOptions(field)" [value]="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+            <ng-container *ngIf="field.key === 'attachment_bundle_url'; else regularField">
+              <div class="attachment-input">
+                <input #attachmentInput type="file" accept=".png,.jpg,.jpeg,.gif,.bmp,.pdf"
+                  (change)="onAttachmentFilesSelected($event)" [disabled]="isReviewer() || isMakerSentForDeletionView()"
+                  multiple />
+                <button type="button" class="btn secondary" (click)="uploadAttachmentFiles()"
+                  [disabled]="attachmentFiles.length === 0 || uploadingAttachments || isReviewer() || isMakerSentForDeletionView()">
+                  {{ uploadingAttachments ? 'Uploading...' : 'Upload Files' }}
+                </button>
+                <button type="button" class="btn secondary" (click)="clearSelectedFiles()"
+                  [disabled]="attachmentFiles.length === 0 || uploadingAttachments || isReviewer() || isMakerSentForDeletionView()">
+                  Clear All
+                </button>
+              </div>
 
-            <ng-template #freeformField>
-              <ng-container [ngSwitch]="field.control || 'input'">
-              <textarea
-                *ngSwitchCase="'textarea'"
-                class="field-input"
-                [(ngModel)]="draft[field.key]"
-                [readonly]="isFieldReadonly(field)"
-                [disabled]="isFieldDisabled(field)"
-              ></textarea>
-              <input
-                *ngSwitchDefault
-                class="field-input"
-                [type]="field.type || 'text'"
-                [(ngModel)]="draft[field.key]"
-                [readonly]="isFieldReadonly(field)"
-                [disabled]="isFieldDisabled(field)"
-              />
-              </ng-container>
+              <div class="attachment-meta" *ngIf="attachmentFiles.length > 0">
+                <strong>{{ attachmentFiles.length }} file(s) selected:</strong>
+                <ul class="file-list">
+                  <li *ngFor="let file of attachmentFiles; let i = index" class="file-item">
+                    <span class="file-name">{{ file.name }}</span>
+                    <button type="button" class="btn-remove" (click)="removeSelectedFile(i)"
+                      [disabled]="uploadingAttachments" title="Remove file">
+                      x
+                    </button>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="attachment-meta error-text" *ngIf="attachmentUploadError">
+                {{ attachmentUploadError }}
+              </div>
+
+              <div class="attachment-meta" *ngIf="draft[field.key]">
+                <a [href]="draft[field.key]" target="_blank" rel="noreferrer" class="attachment-link">
+                  View uploaded files
+                </a>
+              </div>
+            </ng-container>
+
+            <ng-template #regularField>
+              <select *ngIf="isLocationSelectField(field); else freeformField" class="field-input"
+                [ngModel]="getLocationFieldValue(field)" [disabled]="isFieldDisabled(field) || isFieldReadonly(field)"
+                (ngModelChange)="onLocationFieldValueChange(field, $event)">
+                <option value="">{{ getLocationPlaceholder(field) }}</option>
+                <option *ngFor="let option of getLocationOptions(field)" [value]="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+
+              <ng-template #freeformField>
+                <ng-container [ngSwitch]="field.control || 'input'">
+                  <textarea *ngSwitchCase="'textarea'" class="field-input" [(ngModel)]="draft[field.key]"
+                    [readonly]="isFieldReadonly(field)" [disabled]="isFieldDisabled(field)"></textarea>
+                  <input *ngSwitchDefault class="field-input" [type]="field.type || 'text'" [(ngModel)]="draft[field.key]"
+                    [readonly]="isFieldReadonly(field)" [disabled]="isFieldDisabled(field)" />
+                </ng-container>
+              </ng-template>
             </ng-template>
           </ng-template>
         </div>
       </div>
-
       <div class="attachment-field" *ngIf="shouldShowAttachmentField()">
         <div class="attachment-head">
           <div class="attachment-head-copy">
@@ -441,21 +348,11 @@
         </div>
 
         <div class="attachment-row">
-          <input
-            #attachmentInput
-            id="edit-attachment-input"
-            type="file"
-            class="attachment-input"
-            accept=".pdf,.jpg,.jpeg"
-            (change)="onAttachmentSelected($event, 'other')"
-            [disabled]="isReviewer() || isMakerSentForDeletionView()"
-          />
-          <button
-            *ngIf="selectedAttachmentFile"
-            class="btn ghost attachment-clear-btn"
-            type="button"
-            (click)="clearAttachmentSelection()"
-          >
+          <input #attachmentInput id="edit-attachment-input" type="file" class="attachment-input"
+            accept=".pdf,.jpg,.jpeg" (change)="onAttachmentSelected($event, 'other')"
+            [disabled]="isReviewer() || isMakerSentForDeletionView()" />
+          <button *ngIf="selectedAttachmentFile" class="btn ghost attachment-clear-btn" type="button"
+            (click)="clearAttachmentSelection()">
             Clear
           </button>
         </div>
@@ -468,7 +365,6 @@
           Type: Document / image upload
         </div>
       </div>
-
       <div class="form-actions" *ngIf="!isMakerSentForDeletionView()">
         <ng-container *ngIf="mode === 'edit' && isCheckerDeletionProposedView()">
           <button class="btn primary" type="button" (click)="acceptDeletionDraft()">
@@ -479,9 +375,7 @@
           </button>
         </ng-container>
 
-        <ng-container
-          *ngIf="isReviewer() && supportsCurrentLayerPersistence() && !isCheckerDeletionProposedView()"
-        >
+        <ng-container *ngIf="isReviewer() && supportsCurrentLayerPersistence() && !isCheckerDeletionProposedView()">
           <button class="btn primary" type="button" (click)="sendToApproverDraft()" [disabled]="saving">
             {{ isApprover() ? 'Finalised' : 'Sent to Approver' }}
           </button>
@@ -499,12 +393,7 @@
             Edit Geometry
           </button>
 
-          <button
-            class="btn primary"
-            type="button"
-            (click)="saveGeometry()"
-            [disabled]="!geomEditing"
-          >
+          <button class="btn primary" type="button" (click)="saveGeometry()" [disabled]="!geomEditing">
             Save Geometry
           </button>
 
@@ -514,9 +403,7 @@
         </ng-container>
       </div>
 
-      <div class="error" *ngIf="error">
-        {{ error }}
-      </div>
+      <div class="error" *ngIf="error"> {{ error }}</div>
 
       <p class="note">
         {{ currentLayerSchema?.note || '* Layer form fields are configuration-driven.' }}

@@ -1189,6 +1189,31 @@ async function getTable(config, page, pageSize, q, division) {
   };
 }
 
+async function ensureAttachmentColumn(client, qualifiedName) {
+  const columns = await getTableColumns(client, qualifiedName);
+  if (columns.includes('attachment_bundle_url')) return;
+
+  const { schema, table } = splitQualifiedName(qualifiedName);
+  await client.query(
+    `ALTER TABLE "${schema}"."${table}" ADD COLUMN IF NOT EXISTS attachment_bundle_url text`,
+  );
+}
+
+async function updateRecordAttachmentUrl(config, id, division, attachmentUrl) {
+  await ensureAttachmentColumn(pool, config.table);
+
+  const sql = `
+    UPDATE ${config.table}
+    SET attachment_bundle_url = $1
+    WHERE ${config.idColumn} = $2
+      AND UPPER(division) = UPPER($3)
+    RETURNING *
+  `;
+
+  const { rows } = await pool.query(sql, [attachmentUrl, id, division]);
+  return rows[0] || null;
+}
+
 async function getDraftTable(config, page, pageSize, q, division, status, actingUserId, actingUserType) {
   if (!config.draftWorkflow) {
     const err = new Error('Draft workflow config not found for layer');
@@ -1609,6 +1634,23 @@ async function sendStationEdit(config, id, division, data, makerUserId, submitti
       RETURNING *
     `;
 
+
+
+    // const updateOriginalSql = `
+    //   UPDATE ${config.table}
+    //   SET ${workflow.statusColumn} = $1
+    //   WHERE ${config.idColumn} = $2
+    //     AND UPPER(division) = UPPER($3)
+    //   RETURNING *
+    // `;
+
+    // const { rows: originalRows } = await client.query(updateOriginalSql, [
+    //   workflow.originalStatusValue,
+    //   id,
+    //   division,
+    // ]);
+
+
     const { rows } = await client.query(insertSql, values);
 
     const original = await updateMainWorkflowStatus(client, config, id, division, workflow.originalStatusValue);
@@ -1644,7 +1686,9 @@ async function sendNewStationEdit(config, division, data, makerUserId, submittin
     const nextDraftObjectId = draftTableColumns.includes('objectid')
       ? await getNextManualId(client, workflow.table, 'objectid')
       : undefined;
-    const nextEditId = await getNewDraftEditId(client, config, draftTableColumns);
+    const nextEditId = draftTableColumns.includes(workflow.editIdColumn)
+      ? await getNextManualId(client, workflow.table, workflow.editIdColumn)
+      : undefined;
     const isMakerSubmit = String(submittingUserType || '').toLowerCase() === 'maker';
 
     const record = {
@@ -1698,6 +1742,7 @@ async function sendNewStationEdit(config, division, data, makerUserId, submittin
 module.exports = {
   getById,
   getDraftById,
+  ensureAttachmentColumn,
   updateStationDraftStatus,
   requestStationDeletion,
   requestStationDraftDeletion,
@@ -1707,6 +1752,7 @@ module.exports = {
   remove,
   getTable,
   getDraftTable,
+  updateRecordAttachmentUrl,
   validateStation,
   validateAssetId,
   sendStationEdit,

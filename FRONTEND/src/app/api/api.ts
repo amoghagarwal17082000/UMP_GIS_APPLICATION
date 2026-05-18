@@ -120,6 +120,9 @@ export class Api {
   updateLayer(layer: string, id: number, payload: any) {
     return this.ceaEditingApi.updateLayer(layer, id, payload);
   }
+  uploadLayerAttachments(layer: string, id: number, files: File[]) {
+    return this.ceaEditingApi.uploadLayerAttachments(layer, id, files);
+  }
   sendStationEdit(id: number, payload: any) {
     return this.ceaEditingApi.sendStationEdit(id, payload);
   }

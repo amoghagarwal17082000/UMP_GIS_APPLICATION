@@ -19,6 +19,7 @@ const ratingRoutes = require("./modules/rating/rating.routes");
 const feedbackRoutes = require("./modules/feedback/feedback.routes");
 const superAdminUsersRoutes = require("./modules/super-admin/super-admin-users.routes");
 const profileRoutes= require('./modules/profile/profile.routes');
+const uploadRoutes = require("./modules/Upload/upload.router");
 
 
 const app = express();
@@ -89,6 +90,7 @@ const apiPrefixes = ["/api", "/ump_gis/api"];
 
 for (const prefix of apiPrefixes) {
   app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/upload`, authenticateToken, uploadRoutes);
   app.use(`${prefix}/common/view/preview`, commonPreviewRoutes);
   app.use(
     `${prefix}/common/location`,

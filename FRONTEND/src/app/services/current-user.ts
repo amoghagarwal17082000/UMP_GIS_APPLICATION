@@ -25,7 +25,12 @@ export class CurrentUserService {
 
   private normalizeDivision(value: any): string {
     const raw = String(value || '').trim();
-    if (raw.toLowerCase() === 'centre for railway information systems') {
+    const normalized = raw.toLowerCase();
+    if (
+      normalized === 'centre for railway information systems' ||
+      normalized === 'delhi' ||
+      normalized === 'delhi division'
+    ) {
       return 'DLI';
     }
     return raw;

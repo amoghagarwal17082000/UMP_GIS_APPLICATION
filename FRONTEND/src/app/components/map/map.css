@@ -64,6 +64,18 @@
   z-index: 600;
 }
 
+:host ::ng-deep .leaflet-popup-pane {
+  z-index: 700;
+}
+
+:host ::ng-deep .leaflet-marker-pane {
+  z-index: 760;
+}
+
+:host ::ng-deep .leaflet-tooltip-pane {
+  z-index: 770;
+}
+
 :host ::ng-deep .leaflet-container {
   background: #e5e7eb;
 }
@@ -87,7 +99,7 @@
   position: absolute;
   top: 62px;
   left: 116px;
-  z-index: 5000;
+  z-index: 590;
   width: min(400px, calc(100% - 200px));
   pointer-events: auto;
 }
@@ -142,6 +154,7 @@
 
 :host ::ng-deep .create-point-hint-label {
   min-width: 190px;
+  transform: translate(16px, -26px);
   padding: 6px 8px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;

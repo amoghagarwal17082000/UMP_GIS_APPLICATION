@@ -1,7 +1,7 @@
 import * as L from 'leaflet';
 import { Api } from '../../api/api';
 import { bindAssetDetailsPopup } from '../../components/asset-popup/asset-popup';
-import { defineLegend, MapLayer, pointLayerFromLegend } from '../../services/interface';
+import { defineLegend, MapLayer } from '../../services/interface';
 
 const KM_POST_PANE = 'KmPostPane';
 
@@ -39,6 +39,7 @@ export class KmPostLayer implements MapLayer {
   private layer: L.FeatureGroup;
   private lastBbox = '';
   private isLoading = false;
+  private pendingReload = false;
   private isOnMap = false;
   private requestSeq = 0;
   private onMoveStartHandler?: () => void;
@@ -134,6 +135,10 @@ export class KmPostLayer implements MapLayer {
 
   private updateLabels(map: L.Map) {
     const show = map.getZoom() >= this.LABEL_ZOOM;
+    if (!show) {
+      this.layer.eachLayer((l: any) => l.getTooltip?.() && l.closeTooltip());
+      return;
+    }
     const bounds = map.getBounds();
     const occupied: Array<{ x: number; y: number }> = [];
     const minDistancePx = 54;
@@ -163,14 +168,19 @@ export class KmPostLayer implements MapLayer {
 
     const z = map.getZoom();
     const b = map.getBounds();
-    const bbox = `${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}`;
+    const bbox = `${b.getWest().toFixed(2)},${b.getSouth().toFixed(2)},${b.getEast().toFixed(2)},${b.getNorth().toFixed(2)}`;
 
-    if (bbox === this.lastBbox || this.isLoading) {
+    if (bbox === this.lastBbox) {
       if (z < this.MIN_ZOOM) {
         this.layer.clearLayers();
       } else {
         this.addTo(map);
       }
+      return;
+    }
+
+    if (this.isLoading) {
+      this.pendingReload = true;
       return;
     }
 
@@ -205,10 +215,18 @@ export class KmPostLayer implements MapLayer {
 
         this.scheduleLabelUpdate(map);
         this.isLoading = false;
+        if (this.pendingReload) {
+          this.pendingReload = false;
+          setTimeout(() => this.loadForMap(map), 0);
+        }
       },
       error: (err: any) => {
         console.error('KM post layer error', err);
         this.isLoading = false;
+        if (this.pendingReload) {
+          this.pendingReload = false;
+          setTimeout(() => this.loadForMap(map), 0);
+        }
       },
     });
   }

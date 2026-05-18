@@ -13,7 +13,12 @@ function normalizeApiBase(url: string): string {
 
 function normalizeDivision(value: string): string {
   const raw = String(value || '').trim();
-  if (raw.toLowerCase() === 'centre for railway information systems') {
+  const normalized = raw.toLowerCase();
+  if (
+    normalized === 'centre for railway information systems' ||
+    normalized === 'delhi' ||
+    normalized === 'delhi division'
+  ) {
     return 'DLI';
   }
   return raw;
@@ -21,7 +26,13 @@ function normalizeDivision(value: string): string {
 
 
 export function getDivision(): string {
-  return normalizeDivision(getCurrentUserSnapshot()?.division || localStorage.getItem('asset_division') || '');
+  return normalizeDivision(
+    localStorage.getItem('asset_division') ||
+    getCurrentUserSnapshot()?.actualDivision ||
+    getCurrentUserSnapshot()?.division ||
+    localStorage.getItem('division') ||
+    ''
+  );
 }
 
 export function hasDivision(): boolean {

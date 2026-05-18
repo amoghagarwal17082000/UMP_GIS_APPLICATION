@@ -1,9 +1,9 @@
 <button
-  *ngIf="!isOpen"
   type="button"
   class="measure-collapsed-btn"
+  [class.active]="isOpen"
   title="Measurement"
-  (click)="isOpen = true; $event.stopPropagation()"
+  (click)="togglePanel($event)"
 >
 </button>
 

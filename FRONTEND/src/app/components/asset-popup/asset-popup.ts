@@ -790,6 +790,10 @@ function positionPopupSmartly(popup: L.Popup, panIntoView = false): void {
     const spaceBottom = mapSize.y - anchorPoint.y;
     const spaceLeft = anchorPoint.x;
     const spaceRight = mapSize.x - anchorPoint.x;
+    const sideOffset = (width / 2) + gap + clearance;
+    const canPlaceRight = spaceRight >= width + gap + clearance + edgePad;
+    const canPlaceLeft = spaceLeft >= width + gap + clearance + edgePad;
+    const canPlaceSide = canPlaceRight || canPlaceLeft;
 
     element.classList.remove('asset-popup-place-above', 'asset-popup-place-below', 'asset-popup-place-side');
 
@@ -804,14 +808,16 @@ function positionPopupSmartly(popup: L.Popup, panIntoView = false): void {
     if (spaceBottom < height + gap + edgePad) {
       placement = 'above';
       translateY = -clearance;
+    } else if (spaceTop < height + gap + edgePad && canPlaceSide) {
+      placement = 'side';
+      translateX = canPlaceRight ? sideOffset : -sideOffset;
+      translateY = height + gap + Math.round(clearance / 2);
     } else if (spaceTop < height + gap + edgePad) {
       placement = 'below';
       translateY = height + gap + clearance;
     } else {
       placement = 'side';
-      translateX = spaceRight >= spaceLeft
-        ? (width / 2) + gap + clearance
-        : -((width / 2) + gap + clearance);
+      translateX = canPlaceRight || spaceRight >= spaceLeft ? sideOffset : -sideOffset;
       translateY = height + gap + Math.round(clearance / 2);
     }
 

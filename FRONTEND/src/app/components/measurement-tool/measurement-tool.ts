@@ -18,7 +18,7 @@ type CoordinateUnit = 'degree' | 'dms';
 export class MeasurementToolComponent implements OnDestroy {
   mode: MeasureMode = null;
   distanceUnit: DistanceUnit = 'm';
-  areaUnit: AreaUnit = 'acre';
+  areaUnit: AreaUnit = 'sqm';
   coordinateUnit: CoordinateUnit = 'degree';
   points: L.LatLng[] = [];
   result = '';
@@ -66,6 +66,15 @@ export class MeasurementToolComponent implements OnDestroy {
     this.stop();
     this.clearMeasurement();
     this.isOpen = false;
+  }
+
+  togglePanel(event?: Event): void {
+    event?.stopPropagation();
+    if (this.isOpen) {
+      this.close();
+      return;
+    }
+    this.isOpen = true;
   }
 
   resetMeasurement(): void {

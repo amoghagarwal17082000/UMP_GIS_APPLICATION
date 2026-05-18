@@ -1,5 +1,14 @@
 const configMap = require('./edit.config');
 const model = require('./edit.model');
+const { randomUUID } = require('crypto');
+const {
+  cleanupFiles,
+  persistUploadBundle,
+  removeBundleDirectory,
+  saveUploadBundleRecord,
+} = require('../../../../services/UploadFile/file.service');
+const { pool } = require('../../../../db/pool');
+
 
 function resolveConfig(layer) {
   const config = configMap[layer];
@@ -777,6 +786,90 @@ async function resendLayerDraft(req, res, next) {
       ...result,
     });
   } catch (err) {
+    next(err);
+  }
+}
+
+async function uploadLayerAttachment(req, res, next) {
+  const files = req.files;
+
+  try {
+    const { layer, id } = req.params;
+    const division = String(req.query.division || '').trim();
+
+    if (!division) {
+      const err = new Error('division is required');
+      err.status = 400;
+      throw err;
+    }
+
+    if (!files || files.length === 0) {
+      const err = new Error('No files uploaded');
+      err.status = 400;
+      throw err;
+    }
+
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) {
+      const err = new Error(`Invalid ${layer} id`);
+      err.status = 400;
+      throw err;
+    }
+
+    const config = resolveConfig(layer);
+    const existingRecord = await model.getById(config, numericId, division);
+    if (!existingRecord) {
+      const err = new Error('Record not found');
+      err.status = 404;
+      throw err;
+    }
+
+    const uploadId = randomUUID();
+    const bundle = await persistUploadBundle(files, {
+      uploadId,
+      layerName: layer,
+      req,
+    });
+
+    try {
+      const updatedRecord = await model.updateRecordAttachmentUrl(
+        config,
+        numericId,
+        division,
+        bundle.bundleUrl,
+      );
+
+      await saveUploadBundleRecord({
+        uploadId,
+        originalName: files[0].originalname,
+        uploadType: 'record_attachment',
+        layerName: layer,
+        fileCount: bundle.files.length,
+        bundleUrl: bundle.bundleUrl,
+        relativeBundlePath: bundle.relativeBundlePath,
+        targetSchema: String(config.table || '').split('.')[0] || null,
+        targetTable: String(config.table || '').split('.')[1] || String(config.table || ''),
+        targetRecordId: numericId,
+        files: bundle.files,
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Attachment files uploaded successfully',
+        uploadId,
+        layer,
+        recordId: numericId,
+        bundleUrl: bundle.bundleUrl,
+        record: updatedRecord,
+      });
+    } catch (error) {
+      removeBundleDirectory(bundle.bundleDir);
+      await pool.query('DELETE FROM upload_files WHERE upload_id = $1', [uploadId]).catch(() => {});
+      await pool.query('DELETE FROM uploads WHERE id = $1', [uploadId]).catch(() => {});
+      throw error;
+    }
+  } catch (err) {
+    cleanupFiles(files);
     next(err);
   }
 }

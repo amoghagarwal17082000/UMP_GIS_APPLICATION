@@ -10,7 +10,14 @@
     </ng-container>
 
     <ng-template #treeNode let-node let-level="level">
-      <div class="tree-row" [style.padding-left.px]="12 + level * 18">
+      <div
+        class="tree-row"
+        [class.layer-visible]="node.kind === 'layer' && node.checked"
+        [class.layer-hidden]="node.kind === 'layer' && !node.checked"
+        [class.group-active]="node.kind === 'group' && node.checked"
+        [class.group-inactive]="node.kind === 'group' && !node.checked"
+        [style.padding-left.px]="12 + level * 18"
+      >
         <button *ngIf="node.kind === 'group'" class="expand-btn" (click)="toggleExpanded(node)" type="button">
           <span class="expand-icon" [class.expanded]="node.expanded"></span>
         </button>
@@ -22,7 +29,7 @@
             [ngModel]="node.checked"
             (ngModelChange)="toggleNode(node, $event)"
           />
-          <span [class.group-title]="node.kind === 'group'">{{ node.title }}</span>
+          <span class="node-title" [class.group-title]="node.kind === 'group'">{{ node.title }}</span>
         </label>
 
         <button

@@ -48,4 +48,19 @@ async function getLayer(req, res, next) {
   }
 }
 
-module.exports = { getLayer };
+async function getCurrentDivisionBuffer(req, res, next) {
+  try {
+    const { division, allIndia } = req.query;
+    const useAllIndia = isTruthy(allIndia);
+    const effectiveDivision = useAllIndia ? '' : String(division || req?.user?.division || '').trim();
+    const geojson = await model.getDivisionBufferGeoJSON(effectiveDivision);
+
+    res.json(
+      geojson || { type: 'FeatureCollection', features: [] }
+    );
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getLayer, getCurrentDivisionBuffer };

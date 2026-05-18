@@ -3,7 +3,7 @@ import * as L from 'leaflet';
 import 'leaflet-polylinedecorator';
 import { NgZone } from '@angular/core';
 import { Api } from '../../../api/api';
-import { LayerLegend, defineLegend, MapLayer, pathStyleFromLegend, pointLayerFromLegend } from '../../../services/interface';
+import { LayerLegend, buildClusteredPointLayers, defineLegend, MapLayer, pathStyleFromLegend, pointLayerFromLegend } from '../../../services/interface';
 import { inferCivilLegendFromFeatureCollection } from '../../../components/legend-panel/legend-panel';
 import { bindAssetDetailsPopup } from '../../../components/asset-popup/asset-popup';
 
@@ -67,7 +67,7 @@ const DEPARTMENT_POLYGON_PANE = 'DepartmentPolygonPane';
 const DEPARTMENT_LINE_PANE = 'DepartmentLinePane';
 const DEPARTMENT_DECORATOR_PANE = 'DepartmentDecoratorPane';
 const DEPARTMENT_POINT_PANE = 'DepartmentPointPane';
-const TOWN_LEVEL_MIN_ZOOM = 10;
+const TOWN_LEVEL_MIN_ZOOM = 9;
 
 function paneZIndex(paneName: string): number {
   if (paneName === DEPARTMENT_POLYGON_PANE) return 390;
@@ -759,13 +759,14 @@ export class DynamicDepartmentLayer implements MapLayer {
     this.layer = L.geoJSON(null, {
       style: () => pathStyleFromLegend(this.legend),
       interactive: this.isInteractive(),
+      renderer: L.canvas({ padding: 0.5 }),
       pointToLayer: (_feature: any, latlng: L.LatLng) =>
         pointLayerFromLegend(this.legend, latlng, paneNameForLegend(this.legend)),
       onEachFeature: (feature: any, layer: any) => {
         bindAssetPopup(feature, layer, this.title, this.layerKey);
         this.onFeatureReady(feature, layer);
       },
-    });
+    } as any);
   }
 
   private isBridgeMinorLayer(): boolean {
@@ -994,17 +995,14 @@ export class DynamicDepartmentLayer implements MapLayer {
           return;
         }
 
-        this.layer.clearLayers();
-        this.layer.addData(geojson);
-        this.layer.eachLayer((featureLayer: any) => {
-          const feature = featureLayer?.feature;
+        const indexPointFeature = (feature: any, featureLayer?: any, includeFeature = true) => {
           const props = feature?.properties ?? {};
           const coords = Array.isArray(feature?.geometry?.coordinates) ? feature.geometry.coordinates : null;
           const lng = Number(coords?.[0]);
           const lat = Number(coords?.[1]);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
           const latLng = L.latLng(lat, lng);
-          this.renderedPointFeatures.push({ props, latLng, layer: featureLayer });
+          if (includeFeature) this.renderedPointFeatures.push({ props, latLng, layer: featureLayer });
           const candidateKeys = [
             props?.objectid,
             props?.OBJECTID,
@@ -1018,7 +1016,41 @@ export class DynamicDepartmentLayer implements MapLayer {
             if (!normalized) return;
             this.renderedPointIndex.set(normalized, latLng);
           });
-        });
+          return latLng;
+        };
+
+        this.layer.clearLayers();
+        const features = Array.isArray(geojson?.features) ? geojson.features : [];
+        const isPointLayer = this.legend.type === 'point';
+
+        if (isPointLayer) {
+          features.forEach((feature: any) => indexPointFeature(feature, undefined, false));
+          const pointLayers = buildClusteredPointLayers({
+            map,
+            features,
+            legend: this.legend,
+            disableClusteringZoom: 15,
+            minClusterCount: 80,
+            pointFactory: (feature: any, latLng: L.LatLng) => {
+              const featureLayer: any = pointLayerFromLegend(this.legend, latLng, paneNameForLegend(this.legend));
+              featureLayer.feature = feature;
+              bindAssetPopup(feature, featureLayer, this.title, this.layerKey);
+              this.onFeatureReady(feature, featureLayer);
+              indexPointFeature(feature, featureLayer);
+              return featureLayer;
+            },
+          });
+          pointLayers.forEach((pointLayer) => this.layer.addLayer(pointLayer));
+        } else {
+          this.layer.addData(geojson);
+        }
+
+        if (!isPointLayer) {
+          this.layer.eachLayer((featureLayer: any) => {
+            const feature = featureLayer?.feature;
+            indexPointFeature(feature, featureLayer);
+          });
+        }
         if (this.legend.type !== 'polygon') {
           this.layer.bringToFront();
         }

@@ -36,6 +36,19 @@ export class CivilEngineeringAssetsEditingApi {
     });
   }
 
+  uploadLayerAttachments(layer: string, id: number, files: File[]) {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file, file.name));
+
+    return this.http.post<any>(
+      `${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}/attachments`,
+      formData,
+      {
+        params: { division: getDivision() },
+      }
+    );
+  }
+
   sendLayerEdit(layer: string, id: number, payload: any) {
     return this.http.post(`${BASE_URL}/api/civil_engineering_assets/edit/${encodeURIComponent(layer)}/${id}/send`, payload, {
       params: { division: getDivision() },

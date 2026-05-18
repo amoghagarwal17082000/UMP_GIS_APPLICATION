@@ -49,7 +49,7 @@ export class CommonViewingApi {
   getDivisionBuffer() {
     const allIndia = isPortalAdminUser();
     if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
-    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/view/layers/divisionBuffer`, {
+    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/view/layers/division-buffer/current`, {
       params: allIndia ? withAllIndia({}) : withDivision({}),
     });
   }

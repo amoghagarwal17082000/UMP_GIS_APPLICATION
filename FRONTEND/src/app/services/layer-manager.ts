@@ -13,6 +13,7 @@ export class LayerManager {
   private layers: MapLayer[] = [];
   private activeDepartmentLabel = 'Department Layers';
   private groupedLayers: LayerGroupView[] = [];
+  private loadFrame: number | null = null;
 
   // ✅ use only for quick tests; prefer registerOnce
   register(layer: MapLayer) {
@@ -98,13 +99,7 @@ export class LayerManager {
 
     // ✅ wait for renderer/panes to exist
     map.whenReady(() => {
-      this.layers.forEach(layer => {
-        try {
-          layer.loadForMap(map);
-        } catch (e) {
-          console.error(`Layer loadForMap failed: ${layer.id}`, e);
-        }
-      });
+      this.loadLayersSmoothly(map, this.layers, 'loadForMap');
     });
   }
 
@@ -166,15 +161,47 @@ export class LayerManager {
     if (!map) return;
 
     map.whenReady(() => {
-      this.layers.forEach(layer => {
-        if (!layer.visible) return;
-        try {
-          layer.loadForMap(map);
-        } catch (e) {
-          console.error(`Layer reloadVisible failed: ${layer.id}`, e);
-        }
-      });
+      this.loadLayersSmoothly(map, this.layers.filter((layer) => layer.visible), 'reloadVisible');
     });
+  }
+
+  private loadLayersSmoothly(map: L.Map, layers: MapLayer[], label: string) {
+    if (this.loadFrame !== null) {
+      cancelAnimationFrame(this.loadFrame);
+      this.loadFrame = null;
+    }
+
+    const priorityLayers = layers.filter((layer) => layer.layerGroup === 'common' || layer.id === 'division_buffer');
+    const deferredLayers = layers.filter((layer) => !priorityLayers.includes(layer));
+
+    priorityLayers.forEach((layer) => {
+      try {
+        layer.loadForMap(map);
+      } catch (e) {
+        console.error(`Layer ${label} failed: ${layer.id}`, e);
+      }
+    });
+
+    let index = 0;
+    const runNext = () => {
+      this.loadFrame = null;
+      if (!map || index >= deferredLayers.length) return;
+
+      const layer = deferredLayers[index++];
+      try {
+        layer.loadForMap(map);
+      } catch (e) {
+        console.error(`Layer ${label} failed: ${layer.id}`, e);
+      }
+
+      if (index < deferredLayers.length) {
+        this.loadFrame = requestAnimationFrame(runNext);
+      }
+    };
+
+    if (deferredLayers.length) {
+      this.loadFrame = requestAnimationFrame(runNext);
+    }
   }
 
   // add these methods at bottom of LayerManager class

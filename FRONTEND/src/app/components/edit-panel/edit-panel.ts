@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -142,6 +142,13 @@ export class EditPanel implements OnInit, OnDestroy {
   constituencyOptions: LocationOption[] = [];
   private allDistrictOptions: Array<LocationOption & { state?: string }> = [];
   private allConstituencyOptions: Array<LocationOption & { state?: string }> = [];
+
+  @ViewChild('attachmentInput') attachmentInput?: ElementRef<HTMLInputElement>;
+  attachmentFiles: File[] = [];
+  uploadingAttachments = false;
+  attachmentUploadError: string | null = null;
+  // ────────────────────────────────────────────────────────────
+
 
   constructor(
     public ui: UiState,
@@ -367,6 +374,13 @@ export class EditPanel implements OnInit, OnDestroy {
     this.originalDraft = null;
     this.stationValidated = false;
     this.validatedBridgeAssetId = null;
+
+        // ── reset attachment state (File 1 logic) ──
+    this.attachmentFiles = [];
+    this.uploadingAttachments = false;
+    this.attachmentUploadError = null;
+    // ───────────────────────────────────────────
+
     this.selectedAttachmentFile = null;
     this.selectedAttachmentName = '';
     this.selectedAttachmentKind = null;
@@ -402,6 +416,11 @@ export class EditPanel implements OnInit, OnDestroy {
     this.selectedAttachmentFile = null;
     this.selectedAttachmentName = this.getExistingAttachmentName(this.edit.draft);
     this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
+        // ── reset attachment state (File 1 logic) ──
+    this.attachmentFiles = [];
+    this.uploadingAttachments = false;
+    this.attachmentUploadError = null;
+    // ───────────────────────────────────────────
     this.geomEditing = false;
     this.dragSub?.unsubscribe();
     this.dragSub = undefined;
@@ -1137,6 +1156,7 @@ export class EditPanel implements OnInit, OnDestroy {
   nextPage() { if (this.page >= this.totalPages) return; this.page++; this.applyPagination(); this.cdr.detectChanges(); }
   prevPage() { if (this.page <= 1) return; this.page--; this.applyPagination(); this.cdr.detectChanges(); }
 
+  // ── Add Record Modal (File 2) ────────────────────────────────
   startAddRecord() {
     if (!this.currentTableLayer) return;
     this.showAddRecordModal = true;
@@ -1189,6 +1209,7 @@ export class EditPanel implements OnInit, OnDestroy {
     alert(`Selected shapefile: ${file.name}. Shapefile-based record creation UI is ready, but backend upload handling is not wired yet.`);
     this.cdr.detectChanges();
   }
+    // ────────────────────────────────────────────────────────────
 
   private beginStationCreationDraft(lat: number, lng: number) {
     const railway = this.getRailwayName();
@@ -1281,10 +1302,24 @@ export class EditPanel implements OnInit, OnDestroy {
   editRow(row: any) {
     const loadDraftDetail = this.isReviewer() || this.isMakerRejectedView() || this.isMakerSentForDeletionView();
 
-    this.mode = 'edit'; this.error = null; this.draft = { ...row }; this.originalDraft = { ...row }; this.stationValidated = false; this.validatedBridgeAssetId = null; this.selectedAttachmentFile = null; this.selectedAttachmentName = this.getExistingAttachmentName(row); this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
+    this.mode = 'edit';
+    this.error = null;
+    this.draft = { ...row };
+    this.originalDraft = { ...row };
+    this.stationValidated = false;
+    this.validatedBridgeAssetId = null;
+    this.selectedAttachmentFile = null;
+    this.selectedAttachmentName = this.getExistingAttachmentName(row);
+    this.selectedAttachmentKind = this.selectedAttachmentName ? 'other' : null;
     this.ensureLocationOptionsLoaded();
     this.prepareLocationDropdownsForDraft(false);
-    this.validating = false; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.clearHighlight();
+    this.validating = false;
+    this.saving = false;
+    this.deleting = false;
+    this.geomEditing = false;
+    this.dragSub?.unsubscribe();
+    this.dragSub = undefined;
+    this.mapZoom.clearHighlight();
 
     const id = Number(row?.objectid); if (!Number.isFinite(id)) return;
     const layerKey = this.getPersistenceLayerKey();
@@ -1669,6 +1704,16 @@ export class EditPanel implements OnInit, OnDestroy {
     return this.mode === 'edit' && !!this.draft;
   }
 
+  private getExistingAttachmentName(source: any): string {
+    return String(
+      source?.attachment_name ??
+      source?.attachment ??
+      source?.file_name ??
+      source?.filename ??
+      ''
+    ).trim();
+  }
+
   onAttachmentSelected(event: Event, kind: 'other'): void {
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0] || null;
@@ -1684,14 +1729,119 @@ export class EditPanel implements OnInit, OnDestroy {
     if (input) input.value = '';
   }
 
-  private getExistingAttachmentName(source: any): string {
-    return String(
-      source?.attachment_name ??
-      source?.attachment ??
-      source?.file_name ??
-      source?.filename ??
-      ''
-    ).trim();
+// ── Attachment logic (from File 1) ──────────────────────────
+
+  onAttachmentFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.attachmentFiles = input?.files ? Array.from(input.files) : [];
+    this.attachmentUploadError = null;
+    this.cdr.detectChanges();
+  }
+
+  removeSelectedFile(index: number): void {
+    if (index >= 0 && index < this.attachmentFiles.length) {
+      this.attachmentFiles.splice(index, 1);
+      this.cdr.detectChanges();
+    }
+  }
+
+  clearSelectedFiles(): void {
+    this.attachmentFiles = [];
+    if (this.attachmentInput?.nativeElement) {
+      this.attachmentInput.nativeElement.value = '';
+    }
+    this.cdr.detectChanges();
+  }
+
+  uploadAttachmentFiles(): void {
+    if (!this.draft?.objectid || !Number.isFinite(Number(this.draft.objectid))) {
+      this.error = 'Please save the record before uploading attachments.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const layerKey = this.getPersistenceLayerKey();
+    if (!layerKey) { this.error = 'Layer workflow is not available.'; this.cdr.detectChanges(); return; }
+    if (this.attachmentFiles.length === 0) return;
+
+    this.uploadingAttachments = true;
+    this.error = null;
+
+    this.api.uploadLayerAttachments(layerKey, Number(this.draft.objectid), this.attachmentFiles).subscribe({
+      next: (result: any) => {
+        this.uploadingAttachments = false;
+        this.attachmentFiles = [];
+        if (this.attachmentInput?.nativeElement) {
+          this.attachmentInput.nativeElement.value = '';
+        }
+        this.draft = {
+          ...this.draft,
+          attachment_bundle_url: result?.bundleUrl || result?.bundle_url || this.draft?.attachment_bundle_url,
+        };
+        this.error = null;
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        this.uploadingAttachments = false;
+        this.error = err?.error?.message || err?.error?.error || 'Failed to upload attachments';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private uploadAttachmentsAfterSave(layerKey: string, recordId: number): void {
+    this.uploadingAttachments = true;
+    this.attachmentUploadError = null;
+
+    this.api.uploadLayerAttachments(layerKey, recordId, this.attachmentFiles).subscribe({
+      next: (result: any) => {
+        this.uploadingAttachments = false;
+        this.attachmentFiles = [];
+        if (this.attachmentInput?.nativeElement) {
+          this.attachmentInput.nativeElement.value = '';
+        }
+        this.draft = {
+          ...this.draft,
+          attachment_bundle_url: result?.bundleUrl || result?.bundle_url || this.draft?.attachment_bundle_url,
+        };
+        this.finishSave();
+      },
+      error: (err: any) => {
+        this.uploadingAttachments = false;
+        this.error = err?.error?.message || err?.error?.error || 'Failed to upload attachments';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+  // ────────────────────────────────────────────────────────────
+
+
+  private finishSave(): void {
+    this.saving = false;
+    this.uploadingAttachments = false;
+    this.attachmentUploadError = null;
+    this.attachmentFiles = [];
+    if (this.attachmentInput?.nativeElement) {
+      this.attachmentInput.nativeElement.value = '';
+    }
+    this.edit.cancelCreateStation();
+    this.mode = 'table';
+    this.draft = null;
+    this.originalDraft = null;
+    this.stationValidated = false;
+    this.validatedBridgeAssetId = null;
+    this.showAddRecordModal = false;
+    this.addRecordShapefileName = '';
+    this.selectedAttachmentFile = null;
+    this.selectedAttachmentName = '';
+    this.selectedAttachmentKind = null;
+    this.geomEditing = false;
+    this.dragSub?.unsubscribe();
+    this.dragSub = undefined;
+    this.mapZoom.zoomHome();
+    this.mapZoom.clearHighlight();
+    setTimeout(() => this.load(false), 0);
+    this.cdr.detectChanges();
   }
 
   cancelEdit() {
@@ -1764,26 +1914,20 @@ export class EditPanel implements OnInit, OnDestroy {
           ? this.api.sendLayerEdit(layerKey, this.draft.objectid, payload)
           : this.api.updateLayer(layerKey, this.draft.objectid, payload);
     request$.subscribe({
-      next: () => {
-        this.saving = false;
-        this.edit.cancelCreateStation();
-        this.mode = 'table';
-        this.draft = null;
-        this.originalDraft = null;
-        this.stationValidated = false;
-        this.validatedBridgeAssetId = null;
-        this.showAddRecordModal = false;
-        this.addRecordShapefileName = '';
-        this.selectedAttachmentFile = null;
-        this.selectedAttachmentName = '';
-        this.selectedAttachmentKind = null;
-        this.geomEditing = false;
-        this.dragSub?.unsubscribe();
-        this.dragSub = undefined;
-        this.mapZoom.zoomHome();
-        this.mapZoom.clearHighlight();
-        setTimeout(() => this.load(false), 0);
-        this.cdr.detectChanges();
+      next: (response: any) => {
+        const savedId = Number(
+          response?.objectid ??
+          response?.id ??
+          response?.row?.objectid ??
+          response?.row?.id ??
+          this.draft?.objectid
+        );
+        if (this.attachmentFiles.length > 0 && Number.isFinite(savedId)) {
+          this.uploadAttachmentsAfterSave(layerKey, savedId);
+          return;
+        }
+        // ────────────────────────────────────────────────────────────────
+        this.finishSave();
       },
       error: (err: any) => {
         this.saving = false;

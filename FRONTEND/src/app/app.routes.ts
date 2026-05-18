@@ -10,7 +10,7 @@ import { Feedback } from './dashboard/feedback/feedback';
 
 import { superAdminGuard } from './guards/super-admin-guard';
 import { SuperAdminUserManagementComponent } from './dashboard/user-management/super-admin/super-admin-user-management';
-
+import { FileUploadComponent } from './dashboard/file-upload/file-upload';
 
 import { ProfileComponent } from './dashboard/profile/profile';
 
@@ -56,6 +56,15 @@ export const routes: Routes = [
         component: ProfileComponent,
         data: { title: 'Profile' },
       },
+      {
+        path: 'file-upload',
+        component: FileUploadComponent,
+        data: { title: 'Add Attachments' },
+      },
+      {
+        path: 'add-shapefile',
+        redirectTo: 'file-upload',
+      }
     ],
   },
   { path: '**', redirectTo: 'login' },

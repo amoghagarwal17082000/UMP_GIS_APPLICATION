@@ -1,0 +1,314 @@
+<div class="upload-page">
+  <div class="page-content">
+    <div class="upload-workspace">
+      <section class="upload-panel shapefile-panel">
+        <div class="panel-heading-row">
+          <div>
+            <h2 class="panel-title">Upload SHP File</h2>
+          </div>
+          <span class="panel-status active">Live</span>
+        </div>
+
+        <div class="step-indicator">
+          <div class="step" [class.active]="currentView === 'layer-select'" [class.done]="currentView === 'shapefile'">
+            <div class="step-dot">
+              <svg *ngIf="currentView !== 'shapefile'" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5">
+                <polyline points="22 2 13 21 11 13 3 11 22 2"></polyline>
+              </svg>
+              <svg *ngIf="currentView === 'shapefile'" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <span class="step-label">Select Layer</span>
+          </div>
+          <div class="step-line" [class.done]="currentView === 'shapefile'"></div>
+          <div class="step" [class.active]="currentView === 'shapefile'">
+            <div class="step-dot">2</div>
+            <span class="step-label">Upload Shapefile</span>
+          </div>
+        </div>
+
+        <div *ngIf="currentView === 'layer-select'" class="panel-view">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.8">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-heading">Choose a Layer</h2>
+                <p class="card-desc">Select the GIS table to append your shapefile into</p>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="search-wrapper">
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" class="search-input" placeholder="Search by layer name or table..."
+                  (input)="filterLayers($event)" />
+              </div>
+
+              <div class="layer-grid">
+                <div *ngIf="filteredLayerOptions.length === 0" class="no-layers">
+                  <div class="no-layers-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="1.8">
+                      <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path>
+                      <path d="M9 3v15"></path>
+                      <path d="M15 6v15"></path>
+                    </svg>
+                  </div>
+                  <p>No layers match your search</p>
+                </div>
+
+                <button *ngFor="let layer of filteredLayerOptions" class="layer-card"
+                  [class.selected]="selectedLayer === layer.value" (click)="selectedLayer = layer.value">
+                  <div class="layer-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="1.8">
+                      <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                    </svg>
+                  </div>
+                  <div class="layer-info">
+                    <span class="layer-name">{{ layer.label }}</span>
+                    <span class="layer-meta">{{ layer.value }}</span>
+                  </div>
+                  <div class="layer-check">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                </button>
+              </div>
+
+              <div class="selected-banner" *ngIf="selectedLayer">
+                <div class="banner-icon" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <div>
+                  <span class="banner-label">Selected Layer</span>
+                  <span class="banner-value">{{ getLayerLabel(selectedLayer) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <button class="btn-primary" [disabled]="!selectedLayer" (click)="selectLayer()">
+                Continue
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="currentView === 'shapefile'" class="panel-view">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.8">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-heading">Upload Shapefile</h2>
+                <p class="card-desc">Appending into <strong>{{ getLayerLabel(selectedLayer) }}</strong></p>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="meta-row">
+                <div class="meta-chip">
+                  <span class="meta-chip-label">Selected Layer</span>
+                  <span class="meta-chip-value">{{ getLayerLabel(selectedLayer) }}</span>
+                </div>
+                <div class="meta-chip">
+                  <span class="meta-chip-label">Target Table</span>
+                  <span class="meta-chip-value">{{ getSelectedLayerTableName() }}</span>
+                </div>
+              </div>
+
+              <div class="alert alert-error" *ngIf="uploadError">
+                <span class="alert-icon" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.4">
+                    <path d="M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z"></path>
+                    <path d="M12 9v4"></path>
+                    <path d="M12 17h.01"></path>
+                  </svg>
+                </span>
+                <span>{{ uploadError }}</span>
+              </div>
+
+              <div class="alert alert-success" *ngIf="uploadSuccess">
+                <span class="alert-icon" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5">
+                    <path d="M20 6 9 17l-5-5"></path>
+                  </svg>
+                </span>
+                <span>Shapefile uploaded successfully. Redirecting...</span>
+              </div>
+
+              <div class="drop-zone" [class.drag-active]="shapefileDragOver" (dragover)="onDragOver($event)"
+                (dragleave)="onDragLeave()" (drop)="onDrop($event)">
+                <input #shapefileInput type="file" multiple class="drop-file-input" (change)="onFileSelect($event)"
+                  accept=".shp,.shx,.dbf,.prj,.cpg,.qpj,.sbn,.sbx" />
+                <div class="drop-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.6">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                </div>
+                <h3 class="drop-title">Drop shapefile parts here</h3>
+                <p class="drop-subtitle">or click to browse your files</p>
+                <div class="file-chips">
+                  <span class="ext-chip">.shp</span>
+                  <span class="ext-chip">.shx</span>
+                  <span class="ext-chip">.dbf</span>
+                  <span class="ext-chip">.prj</span>
+                  <span class="ext-chip">.cpg</span>
+                </div>
+              </div>
+
+              <div class="files-section" *ngIf="shapeFiles.length > 0">
+                <div class="files-header">
+                  <h4 class="files-heading">Selected Files</h4>
+                  <span class="files-count">{{ shapeFiles.length }} file{{ shapeFiles.length !== 1 ? 's' : '' }}</span>
+                </div>
+                <ul class="files-list">
+                  <li *ngFor="let file of shapeFiles" class="file-item">
+                    <span class="file-ext-badge"
+                      [ngClass]="'ext-' + (file.name.split('.').pop()?.toLowerCase() || 'other')">
+                      .{{ file.name.split('.').pop()?.toLowerCase() }}
+                    </span>
+                    <span class="file-name">{{ file.name }}</span>
+                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                    <button class="file-remove" (click)="removeFile(file)" title="Remove" aria-label="Remove file">x</button>
+                  </li>
+                </ul>
+
+                <div class="progress-wrap" *ngIf="isUploading">
+                  <div class="progress-label">
+                    <span>Uploading...</span>
+                    <span>{{ uploadProgress }}%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-bar" [style.width.%]="uploadProgress"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="desc-field">
+                <label class="desc-label" for="fileDesc">
+                  Description <span class="optional-label">(Optional)</span>
+                </label>
+                <textarea id="fileDesc" class="desc-textarea" [(ngModel)]="fileDescription"
+                  placeholder="Describe this shapefile upload..."></textarea>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <button class="btn-ghost" (click)="goBackToLayers()" [disabled]="isUploading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                  <path d="M19 12H5"></path>
+                  <path d="m12 19-7-7 7-7"></path>
+                </svg>
+                Back
+              </button>
+              <button class="btn-success" [disabled]="shapeFiles.length === 0 || isUploading" (click)="uploadShapefile()">
+                <svg *ngIf="!isUploading" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>{{ isUploading ? 'Uploading... ' + uploadProgress + '%' : 'Upload Shapefile' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="upload-panel document-panel">
+        <div class="panel-heading-row">
+          <div>
+            <h2 class="panel-title">Upload PDF / KML File</h2>
+          </div>
+          <span class="panel-status planned">Frontend only</span>
+        </div>
+
+        <div class="document-drop-stack">
+          <div class="document-drop-card">
+            <div class="document-icon pdf-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <path d="M14 2v6h6"></path>
+                <path d="M8 15h8"></path>
+                <path d="M8 18h5"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 class="document-title">PDF Documents</h3>
+              <p class="document-copy">Use this area for drawings, approvals, inspection notes, or supporting files.</p>
+            </div>
+            <div class="document-chip-row">
+              <span class="document-chip">.pdf</span>
+            </div>
+            <button class="document-drop-button" type="button" disabled>
+              Select PDF
+            </button>
+          </div>
+
+          <div class="document-drop-card">
+            <div class="document-icon kml-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7">
+                <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path>
+                <path d="M9 3v15"></path>
+                <path d="M15 6v15"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 class="document-title">KML Layers</h3>
+              <p class="document-copy">Keep KML/KMZ upload visually separate from shapefile import until backend wiring is ready.</p>
+            </div>
+            <div class="document-chip-row">
+              <span class="document-chip">.kml</span>
+              <span class="document-chip">.kmz</span>
+            </div>
+            <button class="document-drop-button" type="button" disabled>
+              Select KML
+            </button>
+          </div>
+        </div>
+
+        <div class="document-note">
+          <span class="document-note-dot"></span>
+          Backend integration for PDF/KML is intentionally not connected yet.
+        </div>
+      </section>
+    </div>
+  </div>
+</div>

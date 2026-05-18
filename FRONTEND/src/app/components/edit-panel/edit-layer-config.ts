@@ -50,6 +50,7 @@ const COLUMN_LIBRARY: Record<string, TableColumnConfig> = {
   disttom: { key: 'disttom', label: 'To M' },
   agency_name: { key: 'agency_name', label: 'Agency' },
   assetid: { key: 'assetid', label: 'Asset ID' },
+  attachment_bundle_url: { key: 'attachment_bundle_url', label: 'Attachments' },
 };
 
 const FIELD_LIBRARY: Record<string, EditFieldConfig> = {
@@ -99,6 +100,8 @@ const FIELD_LIBRARY: Record<string, EditFieldConfig> = {
   spanconf: { key: 'spanconf', label: 'Span Configuration', required: true, full: true },
 
   assetid: { key: 'assetid', label: 'Asset ID' },
+  attachment_bundle_url: { key: 'attachment_bundle_url', label: 'Attachments', full: true },
+
 };
 
 const GENERIC_STATUS_COLUMN_KEYS = ['objectid', 'status', 'modified_by'];
@@ -192,7 +195,7 @@ export const EDIT_LAYER_CONFIG: Record<string, LayerFormConfig> = {
     includeGenericStatusColumns: false,
     includeGenericStatusFields: false,
     tableColumnKeys: ['sttncode', 'sttnname', 'distkm', 'distm', 'state', 'district'],
-    formFieldKeys: ['sttncode', 'sttnname', 'stationtype', 'distkm', 'distm', 'state', 'district', 'category', 'constituncy', 'status'],
+    formFieldKeys: ['sttncode', 'sttnname', 'stationtype', 'distkm', 'distm', 'state', 'district', 'category', 'constituency','attachment_bundle_url', 'status'],
   }),
 
   landplan: buildLayerConfig({
@@ -240,11 +243,78 @@ export const EDIT_LAYER_CONFIG: Record<string, LayerFormConfig> = {
     formFieldKeys: ['distfromkm', 'distfromm', 'disttokm', 'disttom'],
   }),
 
-  bridge_start: buildBridgeLayerConfig('bridge_start', 'Bridge Start'),
+    bridge_start: buildLayerConfig({
+    id: 'bridge_start',
+    label: 'Bridge Start',
+    formTitle: 'Bridge Details',
+    note: '* Fill all mandatory bridge fields before sending the record to checker.',
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['asset_id', 'bridgeno', 'distkm', 'distm', 'state', 'district', 'constituncy'],
+    formFieldKeys: [
+      'asset_id',
+      'distkm',
+      'distm',
+      'railway',
+      'division',
+      'state',
+      'district',
+      'bridgeno',
+      'constituncy',
+      'bridgetype',
+      'spanconf',
+      'attachment_bundle_url',
+    ],
+  }),
 
-  bridge_end: buildBridgeLayerConfig('bridge_end', 'Bridge End'),
+  bridge_end: buildLayerConfig({
+    id: 'bridge_end',
+    label: 'Bridge End',
+    formTitle: 'Bridge Details',
+    note: '* Fill all mandatory bridge fields before sending the record to checker.',
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['asset_id', 'bridgeno', 'distkm', 'distm', 'state', 'district', 'constituncy'],
+    formFieldKeys: [
+      'asset_id',
+      'distkm',
+      'distm',
+      'railway',
+      'division',
+      'state',
+      'district',
+      'bridgeno',
+      'constituncy',
+      'bridgetype',
+      'spanconf',
+      'attachment_bundle_url',
+    ],
+  }),
 
-  bridge_minor: buildBridgeLayerConfig('bridge_minor', 'Bridge Minor'),
+  bridge_minor: buildLayerConfig({
+    id: 'bridge_minor',
+    label: 'Bridge Minor',
+    formTitle: 'Bridge Details',
+    note: '* Fill all mandatory bridge fields before sending the record to checker.',
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['asset_id', 'bridgeno', 'distkm', 'distm', 'state', 'district', 'constituncy'],
+    formFieldKeys: [
+      'asset_id',
+      'distkm',
+      'distm',
+      'railway',
+      'division',
+      'state',
+      'district',
+      'bridgeno',
+      'constituncy',
+      'bridgetype',
+      'spanconf',
+      'attachment_bundle_url',
+    ],
+  }),
+  
 
   levelxing: buildLayerConfig({
     id: 'levelxing',
