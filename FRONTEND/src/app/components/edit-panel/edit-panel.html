@@ -105,14 +105,45 @@
                 Create a new record by uploading a <code>.shp</code> file.
               </div>
               <input
+                #addRecordShapefileInput
                 id="add-record-shapefile-input"
                 type="file"
                 class="add-record-shapefile-input"
-                accept=".shp"
+                accept=".shp,.shx,.dbf,.prj,.cpg,.qpj,.sbn,.sbx"
+                multiple
+                [disabled]="addRecordShapefileUploading"
                 (change)="onAddRecordShapefileSelected($event)"
               />
-              <div class="add-record-option-meta" *ngIf="addRecordShapefileName">
-                Selected: {{ addRecordShapefileName }}
+              <div class="add-record-option-meta" *ngIf="addRecordShapefileFiles.length">
+                <strong>{{ addRecordShapefileFiles.length }} file(s) selected</strong>
+                <ul class="add-record-file-list">
+                  <li *ngFor="let file of addRecordShapefileFiles; let i = index">
+                    <span>{{ file.name }}</span>
+                    <button
+                      type="button"
+                      (click)="removeAddRecordShapefile(i)"
+                      [disabled]="addRecordShapefileUploading"
+                      aria-label="Remove file"
+                    >
+                      Ã—
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              <button
+                class="btn secondary add-record-option-btn"
+                type="button"
+                *ngIf="addRecordShapefileFiles.length"
+                (click)="uploadAddRecordShapefile()"
+                [disabled]="addRecordShapefileUploading"
+              >
+                {{ addRecordShapefileUploading ? 'Uploading...' : 'Upload File' }}
+              </button>
+              <div class="add-record-upload-progress" *ngIf="addRecordShapefileUploading">
+                Uploading {{ addRecordShapefileProgress }}%
+              </div>
+              <div class="add-record-upload-error" *ngIf="addRecordShapefileError">
+                {{ addRecordShapefileError }}
               </div>
             </div>
 

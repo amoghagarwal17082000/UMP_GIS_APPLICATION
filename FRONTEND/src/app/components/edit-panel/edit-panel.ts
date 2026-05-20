@@ -8,6 +8,7 @@ import { Api } from 'src/app/api/api';
 import { UiState } from '../../services/ui-state';
 import { MapZoomService } from 'src/app/services/map-zoom';
 import { CurrentUserService } from 'src/app/services/current-user';
+import { FileUploadService } from 'src/app/services/file-upload.service';
 import {
   CIVIL_ENGINEERING_ASSET_LAYER_OPTIONS,
   getCivilEngineeringAssetLayerDisplayName,
@@ -106,12 +107,17 @@ export class EditPanel implements OnInit, OnDestroy {
   geomEditing = false;
   showAddRecordModal = false;
   addRecordShapefileName = '';
+  addRecordShapefileFiles: File[] = [];
+  addRecordShapefileUploading = false;
+  addRecordShapefileProgress = 0;
+  addRecordShapefileError: string | null = null;
   private dragSub?: Subscription;
   private stateSub?: Subscription;
   private createPointSub?: Subscription;
   private loadSeq = 0;
 
   // ── Attachment logic (from File 1) ──────────────────────────
+  @ViewChild('addRecordShapefileInput') addRecordShapefileInput?: ElementRef<HTMLInputElement>;
   @ViewChild('attachmentInput') attachmentInput?: ElementRef<HTMLInputElement>;
   attachmentFiles: File[] = [];
   uploadingAttachments = false;
@@ -125,6 +131,7 @@ export class EditPanel implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private mapZoom: MapZoomService,
     private currentUser: CurrentUserService,
+    private fileUploadService: FileUploadService,
   ) {}
 
   ngOnInit(): void {
@@ -730,12 +737,13 @@ export class EditPanel implements OnInit, OnDestroy {
   startAddRecord() {
     if (!this.currentTableLayer) return;
     this.showAddRecordModal = true;
-    this.addRecordShapefileName = '';
+    this.resetAddRecordShapefileState();
     this.cdr.detectChanges();
   }
 
   closeAddRecordModal(): void {
     this.showAddRecordModal = false;
+    this.resetAddRecordShapefileState();
   }
 
   startAddRecordWithDrawingTool(): void {
@@ -770,12 +778,136 @@ export class EditPanel implements OnInit, OnDestroy {
 
   onAddRecordShapefileSelected(event: Event): void {
     const input = event.target as HTMLInputElement | null;
-    const file = input?.files?.[0] || null;
-    this.addRecordShapefileName = file?.name || '';
-    if (!file) return;
-    this.showAddRecordModal = false;
-    alert(`Selected shapefile: ${file.name}. Shapefile-based record creation UI is ready, but backend upload handling is not wired yet.`);
+    const selectedFiles = input?.files ? Array.from(input.files) : [];
+    const allowedExtensions = this.getAllowedShapefileExtensions();
+    const validFiles = selectedFiles.filter((file) => allowedExtensions.includes(this.getFileExtension(file)));
+    const skippedCount = selectedFiles.length - validFiles.length;
+
+    this.addRecordShapefileFiles = validFiles;
+    this.addRecordShapefileName = validFiles.map((file) => file.name).join(', ');
+    this.addRecordShapefileProgress = 0;
+    this.addRecordShapefileError = skippedCount
+      ? `${skippedCount} file(s) skipped. Only shapefile parts are allowed.`
+      : null;
     this.cdr.detectChanges();
+  }
+
+  removeAddRecordShapefile(index: number): void {
+    if (index < 0 || index >= this.addRecordShapefileFiles.length) return;
+    this.addRecordShapefileFiles.splice(index, 1);
+    this.addRecordShapefileName = this.addRecordShapefileFiles.map((file) => file.name).join(', ');
+    this.addRecordShapefileError = null;
+    if (!this.addRecordShapefileFiles.length) this.clearAddRecordShapefileInput();
+    this.cdr.detectChanges();
+  }
+
+  async uploadAddRecordShapefile(): Promise<void> {
+    if (this.addRecordShapefileUploading) return;
+
+    const targetLayerName = this.getAddRecordShapefileTargetLayer();
+    if (!targetLayerName) {
+      this.addRecordShapefileError = 'Please select an assigned layer before uploading.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    if (!this.addRecordShapefileFiles.length) {
+      this.addRecordShapefileError = 'Please choose shapefile parts before uploading.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const validationError = this.getMissingAddRecordShapefilePartsError();
+    if (validationError) {
+      this.addRecordShapefileError = validationError;
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.addRecordShapefileUploading = true;
+    this.addRecordShapefileProgress = 0;
+    this.addRecordShapefileError = null;
+    this.error = null;
+    this.cdr.detectChanges();
+
+    try {
+      const result = await this.fileUploadService.uploadShapefiles(
+        this.addRecordShapefileFiles,
+        'Created from edit tool add record workflow',
+        'add-record',
+        targetLayerName,
+        (progress) => {
+          this.addRecordShapefileProgress = progress;
+          this.cdr.detectChanges();
+        },
+      );
+
+      alert(result?.message || 'Shapefile uploaded and appended successfully');
+      this.showAddRecordModal = false;
+      this.resetAddRecordShapefileState();
+      this.load(true);
+    } catch (err: any) {
+      this.addRecordShapefileError = err?.message || 'Failed to upload shapefile';
+    } finally {
+      this.addRecordShapefileUploading = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  private getAddRecordShapefileTargetLayer(): string {
+    return String(this.currentTableLayer || '').trim().toLowerCase();
+  }
+
+  private getAllowedShapefileExtensions(): string[] {
+    return ['.shp', '.shx', '.dbf', '.prj', '.cpg', '.qpj', '.sbn', '.sbx'];
+  }
+
+  private getRequiredShapefileExtensions(): string[] {
+    return ['.shp', '.shx', '.dbf'];
+  }
+
+  private getFileExtension(file: File): string {
+    const name = String(file?.name || '').toLowerCase();
+    const dotIndex = name.lastIndexOf('.');
+    return dotIndex >= 0 ? name.slice(dotIndex) : '';
+  }
+
+  private getMissingAddRecordShapefilePartsError(): string | null {
+    const requiredExtensions = this.getRequiredShapefileExtensions();
+    const grouped = this.addRecordShapefileFiles.reduce((acc, file) => {
+      const ext = this.getFileExtension(file);
+      if (!requiredExtensions.includes(ext)) return acc;
+
+      const base = file.name.slice(0, file.name.length - ext.length).trim().toLowerCase();
+      if (!acc[base]) acc[base] = new Set<string>();
+      acc[base].add(ext);
+      return acc;
+    }, {} as Record<string, Set<string>>);
+
+    const hasValidBundle = Object.values(grouped).some((exts) =>
+      requiredExtensions.every((ext) => exts.has(ext)),
+    );
+    if (hasValidBundle) return null;
+
+    const missing = requiredExtensions.filter(
+      (ext) => !this.addRecordShapefileFiles.some((file) => this.getFileExtension(file) === ext),
+    );
+    return `Shapefile upload requires .shp, .shx and .dbf files. Missing: ${missing.join(', ') || 'required file parts'}.`;
+  }
+
+  private resetAddRecordShapefileState(): void {
+    this.addRecordShapefileFiles = [];
+    this.addRecordShapefileName = '';
+    this.addRecordShapefileProgress = 0;
+    this.addRecordShapefileError = null;
+    this.addRecordShapefileUploading = false;
+    this.clearAddRecordShapefileInput();
+  }
+
+  private clearAddRecordShapefileInput(): void {
+    if (this.addRecordShapefileInput?.nativeElement) {
+      this.addRecordShapefileInput.nativeElement.value = '';
+    }
   }
   // ────────────────────────────────────────────────────────────
 

@@ -1,6 +1,9 @@
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+
+
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = require.extensions['.js'];

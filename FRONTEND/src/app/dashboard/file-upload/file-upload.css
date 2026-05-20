@@ -482,6 +482,88 @@
 }
 
 /* ── Drop Zone ──────────────────────────────────────────────────── */
+.format-section {
+    margin-bottom: 20px;
+}
+
+.format-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.format-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.format-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 64px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    color: #374151;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.format-option:hover:not(:disabled) {
+    background: #fff;
+    border-color: #bfdbfe;
+}
+
+.format-option.selected {
+    background: #eff6ff;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
+}
+
+.format-option:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.format-option-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: #fff;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.format-option.selected .format-option-icon {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.format-option-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.format-option-desc {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: #6b7280;
+    line-height: 1.25;
+}
+
 .drop-zone {
     border: 1.5px dashed #d1d5db;
     border-radius: 10px;
@@ -646,6 +728,12 @@
     color: #9d174d;
 }
 
+.ext-kml,
+.ext-kmz {
+    background: #ccfbf1;
+    color: #0f766e;
+}
+
 .ext-other {
     background: #f3f4f6;
     color: #6b7280;
@@ -782,4 +870,11 @@
 .alert-icon {
     font-size: 14px;
     flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .format-options,
+    .meta-row {
+        grid-template-columns: 1fr;
+    }
 }

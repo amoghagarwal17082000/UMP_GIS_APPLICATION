@@ -7,7 +7,7 @@
         <span class="header-eyebrow-dot"></span>
         GIS Data Management
       </div>
-      <h1 class="page-title">Shapefile Upload</h1>
+      <h1 class="page-title">File Upload</h1>
       <p class="page-subtitle">Append spatial data directly into your GIS layer tables</p>
     </div>
 
@@ -29,13 +29,11 @@
       <div class="step-line" [class.done]="currentView === 'shapefile'"></div>
       <div class="step" [class.active]="currentView === 'shapefile'">
         <div class="step-dot">2</div>
-        <span class="step-label">Upload Shapefile</span>
+        <span class="step-label">Upload File</span>
       </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- VIEW 1 — Layer Select                                   -->
-    <!-- ═══════════════════════════════════════════════════════ -->
+
     <div *ngIf="currentView === 'layer-select'">
       <div class="card">
 
@@ -48,7 +46,7 @@
           </div>
           <div>
             <h2 class="card-heading">Choose a Layer</h2>
-            <p class="card-desc">Select the GIS table to append your shapefile into</p>
+            <p class="card-desc">Select the GIS table to append your file into</p>
           </div>
         </div>
 
@@ -118,9 +116,7 @@
       </div><!-- /card -->
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- VIEW 2 — Shapefile Upload                               -->
-    <!-- ═══════════════════════════════════════════════════════ -->
+
     <div *ngIf="currentView === 'shapefile'">
       <div class="card">
 
@@ -134,7 +130,7 @@
             </svg>
           </div>
           <div>
-            <h2 class="card-heading">Upload Shapefile</h2>
+            <h2 class="card-heading">Upload {{ uploadFormatLabel }}</h2>
             <p class="card-desc">Appending into <strong>{{ getLayerLabel(selectedLayer) }}</strong></p>
           </div>
         </div>
@@ -153,6 +149,42 @@
             </div>
           </div>
 
+          <!-- Upload format -->
+          <div class="format-section">
+            <label class="format-label">Upload Type</label>
+            <div class="format-options">
+              <button type="button" class="format-option" [class.selected]="selectedUploadFormat === 'shapefile'"
+                (click)="selectUploadFormat('shapefile')" [disabled]="isUploading">
+                <span class="format-option-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                </span>
+                <span>
+                  <span class="format-option-title">Shapefile</span>
+                  <span class="format-option-desc">Upload .shp, .shx, .dbf parts</span>
+                </span>
+              </button>
+
+              <button type="button" class="format-option" [class.selected]="selectedUploadFormat === 'kml'"
+                (click)="selectUploadFormat('kml')" [disabled]="isUploading">
+                <span class="format-option-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 1 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                </span>
+                <span>
+                  <span class="format-option-title">KML/KMZ</span>
+                  <span class="format-option-desc">Upload one .kml or .kmz file</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
           <!-- Error / Success alerts -->
           <div class="alert alert-error" *ngIf="uploadError">
             <span class="alert-icon">⚠️</span>
@@ -161,14 +193,14 @@
 
           <div class="alert alert-success" *ngIf="uploadSuccess">
             <span class="alert-icon">✅</span>
-            <span>Shapefile uploaded successfully! Redirecting…</span>
+            <span>{{ successMessage }}</span>
           </div>
 
           <!-- Drop Zone -->
           <div class="drop-zone" [class.drag-active]="shapefileDragOver" (dragover)="onDragOver($event)"
             (dragleave)="onDragLeave()" (drop)="onDrop($event)">
-            <input #shapefileInput type="file" multiple class="drop-file-input" (change)="onFileSelect($event)"
-              accept=".shp,.shx,.dbf,.prj,.cpg,.qpj,.sbn,.sbx" />
+            <input #shapefileInput type="file" class="drop-file-input" (change)="onFileSelect($event)"
+              [attr.multiple]="selectedUploadFormat === 'shapefile' ? '' : null" [accept]="dropZoneAccept" />
             <div class="drop-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="1.6">
@@ -177,14 +209,10 @@
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
             </div>
-            <h3 class="drop-title">Drop shapefile parts here</h3>
+            <h3 class="drop-title">{{ dropZoneTitle }}</h3>
             <p class="drop-subtitle">or click to browse your files</p>
             <div class="file-chips">
-              <span class="ext-chip">.shp</span>
-              <span class="ext-chip">.shx</span>
-              <span class="ext-chip">.dbf</span>
-              <span class="ext-chip">.prj</span>
-              <span class="ext-chip">.cpg</span>
+              <span class="ext-chip" *ngFor="let ext of visibleExtensionChips">{{ ext }}</span>
             </div>
           </div>
 
@@ -223,7 +251,7 @@
             <label class="desc-label" for="fileDesc">Description <span
                 style="color:#94a3b8;font-weight:400">(Optional)</span></label>
             <textarea id="fileDesc" class="desc-textarea" [(ngModel)]="fileDescription"
-              placeholder="Describe this shapefile upload…"></textarea>
+              [placeholder]="'Describe this ' + uploadFormatLabel + ' upload...'"></textarea>
           </div>
 
         </div><!-- /card-body -->
@@ -239,7 +267,7 @@
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <span>{{ isUploading ? 'Uploading… ' + uploadProgress + '%' : 'Upload Shapefile' }}</span>
+            <span>{{ isUploading ? 'Uploading... ' + uploadProgress + '%' : uploadActionLabel }}</span>
           </button>
         </div>
 

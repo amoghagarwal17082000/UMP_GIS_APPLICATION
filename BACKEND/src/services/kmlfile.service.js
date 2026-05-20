@@ -585,5 +585,9 @@ async function importKmlToPostGIS(file, uploadId, layerNameFromRequest) {
     await dropTempTable(tempTable);
   }
 }
+<<<<<<< HEAD
 // comment 1
+=======
+
+>>>>>>> 179e50f (Added latest to all)
 module.exports = { importKmlToPostGIS };

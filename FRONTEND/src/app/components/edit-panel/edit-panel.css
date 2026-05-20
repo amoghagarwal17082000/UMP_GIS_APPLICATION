@@ -320,6 +320,55 @@
   word-break: break-word;
 }
 
+#panelEdit .add-record-file-list{
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+#panelEdit .add-record-file-list li{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border: 1px solid #d8e1f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+#panelEdit .add-record-file-list span{
+  min-width: 0;
+  flex: 1 1 auto;
+  color: #334155;
+  word-break: break-word;
+}
+
+#panelEdit .add-record-file-list button{
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+#panelEdit .add-record-upload-progress{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #1d3b8b;
+}
+
+#panelEdit .add-record-upload-error{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #b91c1c;
+}
+
 /* =========================================================
    CARD + TABLE
    ========================================================= */

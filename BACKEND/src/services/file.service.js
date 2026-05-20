@@ -226,7 +226,7 @@ async function ensureUploadMetadataSchema(client) {
       original_name text,
       upload_type text
         CONSTRAINT uploads_upload_type_check 
-        CHECK (upload_type IN ('shapefile', 'record_attachment')),
+        CHECK (upload_type IN ('shapefile', 'kml', 'record_attachment')),
       layer_name text,
       file_count integer,
       bundle_url text,
@@ -272,7 +272,7 @@ async function ensureUploadMetadataSchema(client) {
     `CREATE INDEX IF NOT EXISTS idx_upload_files_upload_id ON upload_files (upload_id)`,
   );
 
-  // Ensure the CHECK constraint allows both upload types
+  // Ensure the CHECK constraint allows all supported upload types
   try {
     await client.query(`
       ALTER TABLE uploads
@@ -284,7 +284,7 @@ async function ensureUploadMetadataSchema(client) {
     await client.query(`
       ALTER TABLE uploads
       ADD CONSTRAINT uploads_upload_type_check 
-      CHECK (upload_type IN ('shapefile', 'record_attachment'))
+      CHECK (upload_type IN ('shapefile', 'kml', 'record_attachment'))
     `);
   } catch (_) {}
 }

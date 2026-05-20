@@ -8,6 +8,7 @@ import { EDIT_LAYER_OPTIONS } from '../../components/edit-panel/edit-layer-confi
 import { buildDynamicEditLayerOptions, toEditLayerKey } from '../../components/edit-panel/edit-layer-options';
 
 type ModalView = 'layer-select' | 'shapefile';
+type UploadFormat = 'shapefile' | 'kml';
 
 @Component({
   selector: 'app-file-upload',
@@ -28,6 +29,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
 
   shapeFiles: File[] = [];
   shapefileDragOver = false;
+  selectedUploadFormat: UploadFormat = 'shapefile';
 
   isUploading = false;
   uploadProgress = 0;
@@ -40,6 +42,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
 
   readonly SHAPEFILE_EXTENSIONS = ['.shp', '.shx', '.dbf', '.prj', '.cpg', '.qpj', '.sbn', '.sbx'];
   readonly REQUIRED_SHAPEFILE_EXTENSIONS = ['.shp', '.shx', '.dbf'];
+  readonly KML_EXTENSIONS = ['.kml', '.kmz'];
 
   constructor(
     private api: Api,
@@ -132,24 +135,44 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   }
 
   uploadShapefile(): void {
-    this.uploadShapefiles();
+    this.uploadFiles();
+  }
+
+  selectUploadFormat(format: UploadFormat): void {
+    if (this.selectedUploadFormat === format || this.isUploading) return;
+    this.selectedUploadFormat = format;
+    this.shapeFiles = [];
+    this.uploadError = '';
+    this.uploadSuccess = false;
+    this.uploadProgress = 0;
+    this.clearNativeFileInput();
   }
 
   private addShapefiles(files: File[]): void {
+    const allowedExtensions = this.getAllowedUploadExtensions();
     const valid = files.filter((file) => {
       const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-      return this.SHAPEFILE_EXTENSIONS.includes(ext);
+      return allowedExtensions.includes(ext);
     });
 
     const invalid = files.length - valid.length;
-    this.uploadError = invalid > 0 ? `${invalid} file(s) skipped. Only shapefile parts are allowed.` : '';
+    this.uploadError = invalid > 0 ? `${invalid} file(s) skipped. Only ${this.uploadFormatLabelLower} files are allowed.` : '';
+
+    if (this.selectedUploadFormat === 'kml') {
+      this.shapeFiles = valid.slice(0, 1);
+      if (valid.length > 1) {
+        this.uploadError = 'Only one KML or KMZ file can be uploaded at a time.';
+      }
+      return;
+    }
+
     this.shapeFiles = [...this.shapeFiles, ...valid];
   }
 
-  async uploadShapefiles(): Promise<void> {
+  async uploadFiles(): Promise<void> {
     if (!this.shapeFiles.length || !this.selectedLayer) return;
 
-    const validationError = this.getMissingShapefilePartsError();
+    const validationError = this.getUploadValidationError();
     if (validationError) {
       this.uploadError = validationError;
       return;
@@ -161,18 +184,30 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     const targetLayerName = this.getSelectedLayerTableName();
 
     try {
-      await this.fileUploadService.uploadShapefiles(
-        this.shapeFiles,
-        this.fileDescription,
-        this.fileCategory,
-        targetLayerName,
-        (progress) => {
-          this.ngZone.run(() => {
-            this.uploadProgress = progress;
-            this.cdr.markForCheck();
-          });
-        },
-      );
+      const onProgress = (progress: number) => {
+        this.ngZone.run(() => {
+          this.uploadProgress = progress;
+          this.cdr.markForCheck();
+        });
+      };
+
+      if (this.selectedUploadFormat === 'kml') {
+        await this.fileUploadService.uploadKmlFile(
+          this.shapeFiles[0],
+          this.fileDescription,
+          this.fileCategory,
+          targetLayerName,
+          onProgress,
+        );
+      } else {
+        await this.fileUploadService.uploadShapefiles(
+          this.shapeFiles,
+          this.fileDescription,
+          this.fileCategory,
+          targetLayerName,
+          onProgress,
+        );
+      }
 
       this.uploadSuccess = true;
       this.loadUploadedFiles();
@@ -202,6 +237,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
 
   private resetFileState(): void {
     this.shapeFiles = [];
+    this.selectedUploadFormat = 'shapefile';
     this.uploadProgress = 0;
     this.uploadSuccess = false;
     this.uploadError = '';
@@ -223,6 +259,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     setTimeout(() => {
       this.currentView = 'layer-select';
       this.selectedLayer = '';
+      this.selectedUploadFormat = 'shapefile';
       this.uploadSuccess = false;
       this.uploadError = '';
       this.filteredLayerOptions = [...this.layerOptions];
@@ -259,6 +296,59 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     }
 
     return null;
+  }
+
+  private getUploadValidationError(): string | null {
+    if (this.selectedUploadFormat === 'kml') {
+      if (this.shapeFiles.length !== 1) {
+        return 'Choose one KML or KMZ file before uploading.';
+      }
+
+      const ext = this.getFileExtension(this.shapeFiles[0]);
+      if (!this.KML_EXTENSIONS.includes(ext)) {
+        return 'KML upload requires a .kml or .kmz file.';
+      }
+
+      return null;
+    }
+
+    return this.getMissingShapefilePartsError();
+  }
+
+  private getAllowedUploadExtensions(): string[] {
+    return this.selectedUploadFormat === 'kml' ? this.KML_EXTENSIONS : this.SHAPEFILE_EXTENSIONS;
+  }
+
+  private getFileExtension(file: File): string {
+    return '.' + (file.name.split('.').pop()?.toLowerCase() || '');
+  }
+
+  get uploadFormatLabel(): string {
+    return this.selectedUploadFormat === 'kml' ? 'KML/KMZ' : 'Shapefile';
+  }
+
+  get uploadFormatLabelLower(): string {
+    return this.selectedUploadFormat === 'kml' ? 'KML/KMZ' : 'shapefile part';
+  }
+
+  get uploadActionLabel(): string {
+    return this.selectedUploadFormat === 'kml' ? 'Upload KML/KMZ' : 'Upload Shapefile';
+  }
+
+  get dropZoneTitle(): string {
+    return this.selectedUploadFormat === 'kml' ? 'Drop KML or KMZ file here' : 'Drop shapefile parts here';
+  }
+
+  get dropZoneAccept(): string {
+    return this.getAllowedUploadExtensions().join(',');
+  }
+
+  get visibleExtensionChips(): string[] {
+    return this.getAllowedUploadExtensions().slice(0, 5);
+  }
+
+  get successMessage(): string {
+    return `${this.uploadFormatLabel} uploaded successfully! Redirecting...`;
   }
 
   formatFileSize(bytes: number): string {
