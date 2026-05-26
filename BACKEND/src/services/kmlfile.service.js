@@ -11,6 +11,7 @@ const config    = configuration();
 const OGR2OGR_PATH = process.env.OGR2OGR_PATH || 'ogr2ogr';
 
 const TEMP_DIR = process.env.UPLOAD_TEMP_DIR || path.join(os.tmpdir(), 'gis_uploads');
+const TEMP_SELECTION_ID_COLUMN = '__selector_id';
 
 function sanitizeLayerName(layerName, fallback) {
   const normalized = String(layerName || '')
@@ -62,8 +63,8 @@ async function loadKmlIntoTemp(filePath, tempTable, env) {
       throw new Error(`File not found: ${filePath}`);
   }
   console.log(`File size: ${fs.statSync(filePath).size} bytes`);
-    const cmd = [
-    `"${OGR2OGR_PATH}"`,   
+  const cmd = [
+    `"${OGR2OGR_PATH}"`,
     '-f "PostgreSQL"',
     `"${pgConn}"`,
     `"${filePath}"`,
@@ -72,6 +73,9 @@ async function loadKmlIntoTemp(filePath, tempTable, env) {
     '-lco GEOMETRY_NAME=geom',
     '-lco FID=gid',
     '-t_srs EPSG:4326',
+    '-nlt PROMOTE_TO_MULTI',
+    '-lco GEOMETRY_TYPE=GEOMETRY',
+    '-explodecollections',
   ].join(' ');
 
   const { stderr } = await execAsync(cmd, {
@@ -80,6 +84,175 @@ async function loadKmlIntoTemp(filePath, tempTable, env) {
   });
 
   if (stderr) console.log('[ogr2ogr] output:', stderr);
+
+  await pruneTempTableToLines(tempTable);
+}
+
+function getKmlTempTableName(layerName, uploadId) {
+  const requestedLayerName = sanitizeLayerName(layerName, 'layer');
+  return `_temp_${requestedLayerName}_${uploadId.replace(/-/g, '').slice(0, 8)}`;
+}
+
+async function pruneTempTableToLines(tempTable) {
+  const geomCol = await getGeometryColumn('public', tempTable);
+  if (!geomCol) {
+    throw new Error(`No geometry column found in temp table: ${tempTable}`);
+  }
+
+  await pool.query(`
+    DELETE FROM public."${tempTable}"
+    WHERE "${geomCol}" IS NULL
+      OR GeometryType("${geomCol}") NOT IN ('LINESTRING', 'MULTILINESTRING')
+  `);
+}
+
+async function importKmlToTemp(file, uploadId, layerNameFromRequest) {
+  const fallback           = `layer_${uploadId.replace(/-/g, '').slice(0, 12)}`;
+  const requestedLayerName = sanitizeLayerName(layerNameFromRequest, fallback);
+  const target             = await resolveTargetTable(requestedLayerName);
+
+  validateKmlFile(file);
+
+  const tempTable = getKmlTempTableName(requestedLayerName, uploadId);
+  const env       = { ...process.env };
+
+  await loadKmlIntoTemp(file.disk_path, tempTable, env);
+  await ensureTempSelectionIds(tempTable);
+
+  const geometryColumn = await getGeometryColumn('public', tempTable);
+  const { rows: countRows } = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM public."${tempTable}"`,
+  );
+
+  return {
+    tempTable,
+    tempSchema:      'public',
+    targetSchema:    target.table_schema,
+    targetTable:     target.table_name,
+    targetExists:    target.exists,
+    geometryColumn,
+    featureCount:    Number(countRows[0]?.count || 0),
+  };
+}
+
+async function getTempKmlLineFeatures(tempTable) {
+  await ensureTempSelectionIds(tempTable);
+
+  const geomCol = await getGeometryColumn('public', tempTable);
+  if (!geomCol) {
+    throw new Error(`No geometry column found in temp table: ${tempTable}`);
+  }
+
+  const { rows } = await pool.query(
+    `SELECT
+       t."${TEMP_SELECTION_ID_COLUMN}"::int AS feature_id,
+       ST_AsGeoJSON(t."${geomCol}") AS geometry,
+       (to_jsonb(t) - '${geomCol}' - '${TEMP_SELECTION_ID_COLUMN}') AS properties
+     FROM public."${tempTable}" AS t
+     WHERE t."${geomCol}" IS NOT NULL
+     ORDER BY t."${TEMP_SELECTION_ID_COLUMN}" ASC`,
+  );
+
+  return rows.map((row) => {
+    const geometry = row.geometry ? JSON.parse(row.geometry) : null;
+    return {
+      type: 'Feature',
+      id: row.feature_id,
+      geometry,
+      properties: row.properties || {},
+    };
+  });
+}
+
+async function appendSelectedKmlLines(tempTable, targetLayerName, selectedIds) {
+  if (!Array.isArray(selectedIds) || selectedIds.length === 0) {
+    throw new Error('selectedIds must be a non-empty array');
+  }
+
+  await ensureTempSelectionIds(tempTable);
+
+  const target = await resolveTargetTable(targetLayerName);
+  const sourceGeomCol = await getGeometryColumn('public', tempTable);
+  const sourceColumns = await getTableColumns('public', tempTable);
+
+  const { rows: selectedRows } = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM public."${tempTable}" WHERE "${TEMP_SELECTION_ID_COLUMN}" = ANY($1::int[])`,
+    [selectedIds],
+  );
+  const selectedCount = Number(selectedRows[0]?.count || 0);
+  if (selectedCount === 0) {
+    throw new Error('No matching selected rows were found in the temp table');
+  }
+
+  if (!target.exists) {
+    const columnList = sourceColumns
+      .map((col) => `"${col.column_name}"`)
+      .concat(`"${sourceGeomCol}"`)
+      .join(', ');
+
+    await pool.query(`
+      CREATE TABLE "${target.table_schema}"."${target.table_name}" AS
+      SELECT ${columnList}
+      FROM public."${tempTable}"
+      WHERE "${TEMP_SELECTION_ID_COLUMN}" = ANY($1::int[])
+    `, [selectedIds]);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS "${target.table_name}_geom_idx"
+      ON "${target.table_schema}"."${target.table_name}" USING GIST ("${sourceGeomCol}")
+    `);
+    await pool.query(
+      `SELECT UpdateGeometrySRID('${target.table_schema}', '${target.table_name}', '${sourceGeomCol}', 4326)`,
+    );
+  } else {
+    const targetGeomCol = await getGeometryColumn(target.table_schema, target.table_name);
+    const targetColumns = await getTableColumns(target.table_schema, target.table_name);
+    const { mapping } = autoMapColumns(sourceColumns, targetColumns);
+    const hasObjectId = await hasColumn(target.table_schema, target.table_name, 'objectid');
+
+    const insertColumns = [];
+    const selectExpressions = [];
+
+    if (hasObjectId) {
+      const maxOid = await getMaxObjectId(target.table_schema, target.table_name);
+      insertColumns.push('"objectid"');
+      selectExpressions.push(`${maxOid} + ROW_NUMBER() OVER (ORDER BY "gid") AS "objectid"`);
+    }
+
+    for (const m of mapping) {
+      insertColumns.push(`"${m.targetCol}"`);
+      selectExpressions.push(m.selectExpr);
+    }
+
+    insertColumns.push(`"${targetGeomCol}"`);
+    selectExpressions.push(
+      `ST_SetSRID(ST_Transform("${sourceGeomCol}"::geometry, 4326), 4326) AS "${targetGeomCol}"`,
+    );
+
+    await pool.query(`
+      INSERT INTO "${target.table_schema}"."${target.table_name}" (
+        ${insertColumns.join(',\n        ')}
+      )
+      SELECT
+        ${selectExpressions.join(',\n        ')}
+      FROM public."${tempTable}"
+      WHERE "${TEMP_SELECTION_ID_COLUMN}" = ANY($1::int[])
+    `, [selectedIds]);
+  }
+
+  await dropTempTable(tempTable);
+
+  const { rows: countRows } = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM "${target.table_schema}"."${target.table_name}"`,
+  );
+
+  return {
+    success: true,
+    insertedCount: selectedCount,
+    targetSchema: target.table_schema,
+    targetTable: target.table_name,
+    totalRows: Number(countRows[0]?.count || 0),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +347,45 @@ async function getGeometryColumn(schema, table) {
   return 'geom';
 }
 
+async function ensureTempSelectionIds(tempTable) {
+  await pool.query(`
+    ALTER TABLE public."${tempTable}"
+    ADD COLUMN IF NOT EXISTS "${TEMP_SELECTION_ID_COLUMN}" bigint
+  `);
+
+  await pool.query(`
+    WITH numbered AS (
+      SELECT
+        ctid,
+        ROW_NUMBER() OVER (ORDER BY ctid)::bigint AS selector_id
+      FROM public."${tempTable}"
+    )
+    UPDATE public."${tempTable}" AS target
+    SET "${TEMP_SELECTION_ID_COLUMN}" = numbered.selector_id
+    FROM numbered
+    WHERE target.ctid = numbered.ctid
+      AND target."${TEMP_SELECTION_ID_COLUMN}" IS NULL
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS "${tempTable}_${TEMP_SELECTION_ID_COLUMN}_idx"
+    ON public."${tempTable}" ("${TEMP_SELECTION_ID_COLUMN}")
+  `);
+}
+
+async function hasColumn(schema, table, columnName) {
+  const { rows } = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = $1
+       AND table_name = $2
+       AND lower(column_name) = lower($3)
+     LIMIT 1`,
+    [schema, table, columnName],
+  );
+  return rows.length > 0;
+}
+
 async function getTableColumns(schema, table) {
   const geomCol = await getGeometryColumn(schema, table);
   const { rows } = await pool.query(
@@ -186,6 +398,7 @@ async function getTableColumns(schema, table) {
 
   const ALWAYS_EXCLUDE = new Set([
     'objectid', 'ogc_fid', 'shape_length', 'shape_area',
+    TEMP_SELECTION_ID_COLUMN,
   ]);
   const GEOM_NAMES = new Set([
     'shape', 'geom', 'the_geom', 'wkb_geometry', 'geometry',
@@ -585,9 +798,125 @@ async function importKmlToPostGIS(file, uploadId, layerNameFromRequest) {
     await dropTempTable(tempTable);
   }
 }
-<<<<<<< HEAD
-// comment 1
-=======
 
->>>>>>> 179e50f (Added latest to all)
-module.exports = { importKmlToPostGIS };
+async function appendMergedKmlLines(tempTable, targetLayerName, selectedIds) {
+  if (!Array.isArray(selectedIds) || selectedIds.length === 0) {
+    throw new Error('selectedIds must be a non-empty array');
+  }
+
+  await ensureTempSelectionIds(tempTable);
+
+  const target        = await resolveTargetTable(targetLayerName);
+  const sourceGeomCol = await getGeometryColumn('public', tempTable);
+
+  // ── Verify rows exist ───────────────────────────────────────────────────
+  const { rows: countCheck } = await pool.query(
+    `SELECT COUNT(*)::int AS count
+     FROM public."${tempTable}"
+     WHERE "${TEMP_SELECTION_ID_COLUMN}" = ANY($1::int[])`,
+    [selectedIds],
+  );
+  if (Number(countCheck[0]?.count || 0) === 0) {
+    throw new Error('No matching selected rows found in temp table');
+  }
+
+  // ── Collect all → snap collection to itself → LineMerge ─────────────────
+ const { rows: mergedRows } = await pool.query(
+    `WITH collected AS (
+       SELECT ST_Collect(
+         ST_SetSRID(ST_Transform("${sourceGeomCol}"::geometry, 4326), 4326)
+       ) AS geom
+       FROM public."${tempTable}"
+       WHERE "${TEMP_SELECTION_ID_COLUMN}" = ANY($1::int[])
+     ),
+     snapped AS (
+       SELECT ST_Snap(geom, geom, 0.0001) AS geom
+       FROM collected
+     )
+     SELECT
+       ST_AsEWKB(ST_LineMerge(geom))        AS merged_geom,
+       ST_GeometryType(ST_LineMerge(geom))  AS geom_type,
+       ST_NumGeometries(ST_LineMerge(geom)) AS num_parts
+     FROM snapped`,
+    [selectedIds],
+  );
+
+  const mergedGeom = mergedRows[0]?.merged_geom;
+  const geomType   = mergedRows[0]?.geom_type;
+  const numParts   = Number(mergedRows[0]?.num_parts || 1);
+  const hasGaps    = geomType !== 'ST_LineString';
+
+  if (!mergedGeom) {
+    throw new Error('Merge produced no geometry — check if selected lines are valid');
+  }
+
+  console.log(`[kml merge] type=${geomType}, parts=${numParts}, hasGaps=${hasGaps}`);
+
+  if (!target.exists) {
+    // ── CREATE new table with single merged row ──────────────────────────
+    const targetGeomCol = sourceGeomCol;
+    await pool.query(`
+      CREATE TABLE "${target.table_schema}"."${target.table_name}" (
+        objectid          bigint,
+        "${targetGeomCol}" geometry(Geometry, 4326)
+      )
+    `);
+    await pool.query(`
+      INSERT INTO "${target.table_schema}"."${target.table_name}"
+        (objectid, "${targetGeomCol}")
+      VALUES (1, ST_GeomFromEWKB($1))
+    `, [mergedGeom]);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS "${target.table_name}_geom_idx"
+      ON "${target.table_schema}"."${target.table_name}"
+      USING GIST ("${targetGeomCol}")
+    `);
+  } else {
+    // ── APPEND one merged row to existing sde.track_table ───────────────
+    const targetGeomCol = await getGeometryColumn(target.table_schema, target.table_name);
+    const hasObjectId   = await hasColumn(target.table_schema, target.table_name, 'objectid');
+
+    if (hasObjectId) {
+      const maxOid = await getMaxObjectId(target.table_schema, target.table_name);
+      await pool.query(`
+        INSERT INTO "${target.table_schema}"."${target.table_name}"
+          (objectid, "${targetGeomCol}")
+        VALUES ($1, ST_GeomFromEWKB($2))
+      `, [maxOid + 1, mergedGeom]);
+    } else {
+      await pool.query(`
+        INSERT INTO "${target.table_schema}"."${target.table_name}"
+          ("${targetGeomCol}")
+        VALUES (ST_GeomFromEWKB($1))
+      `, [mergedGeom]);
+    }
+  }
+
+  await dropTempTable(tempTable);
+
+  const { rows: totalRows } = await pool.query(
+    `SELECT COUNT(*)::int AS count
+     FROM "${target.table_schema}"."${target.table_name}"`,
+  );
+
+  return {
+    success:         true,
+    insertedCount:   1,
+    mergedFromCount: selectedIds.length,
+    targetSchema:    target.table_schema,
+    targetTable:     target.table_name,
+    totalRows:       Number(totalRows[0]?.count || 0),
+    resultType:      geomType,
+    segmentCount:    numParts,
+    hasGaps,
+  };
+}
+
+module.exports = {
+  importKmlToPostGIS,
+  importKmlToTemp,
+  getTempKmlLineFeatures,
+  appendSelectedKmlLines,
+  getKmlTempTableName,
+  appendMergedKmlLines,
+};

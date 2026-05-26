@@ -1,0 +1,139 @@
+<div class="geometry-selector-container">
+  <div class="gs-header">
+    <div class="gs-title-section">
+      <h1>KML Line Selector</h1>
+      <p class="gs-info-text">Blue lines are temp-table geometries. Click the lines you want to append into {{ layerName }}.</p>
+    </div>
+
+    <div class="gs-stats">
+      <div class="stat-item">
+        <span class="stat-label">Total Lines</span>
+        <span class="stat-value">{{ totalFeatures }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Selected</span>
+        <span class="stat-value selected-count">{{ selectedCount }}</span>
+      </div>
+    </div>
+
+    <div class="gs-search">
+      <input
+        type="text"
+        placeholder="Search by ID or name..."
+        [(ngModel)]="searchText"
+        (input)="filterFeatures()"
+        class="search-input"
+      />
+    </div>
+
+    <div class="gs-actions">
+      <button class="btn btn-secondary" (click)="zoomToAllLines()" [disabled]="totalFeatures === 0">
+        Zoom To Lines
+      </button>
+      <button class="btn btn-secondary" (click)="selectAllFeatures()" [disabled]="filteredFeatures.length === 0">
+        Select All
+      </button>
+      <button class="btn btn-secondary" (click)="clearSelection()" [disabled]="selectedCount === 0">
+        Clear Selection
+      </button>
+    </div>
+  </div>
+
+  <div class="gs-content">
+    <div class="gs-map-wrapper">
+      <div *ngIf="error" class="alert alert-error">
+        <span>!</span>
+        <span>{{ error }}</span>
+      </div>
+      <div *ngIf="appendMessage" class="alert alert-success">
+        <span>{{ appendMessage }}</span>
+      </div>
+      <!-- Merge gap warning -->
+      <div *ngIf="mergeWarning" class="alert alert-warning">
+        <span>⚠</span>
+        <span>{{ mergeWarning }}</span>
+      </div>
+      <div *ngIf="loading" class="loading-overlay">
+        <div>
+          <div class="spinner"></div>
+          <p>{{ loading ? 'Processing...' : 'Loading geometries...' }}</p>
+        </div>
+      </div>
+      <div class="gs-map" #mapContainer>
+        <div class="map-controls">
+          <button class="map-ctrl-btn" (click)="zoomIn()" title="Zoom In">+</button>
+          <button class="map-ctrl-btn" (click)="zoomOut()" title="Zoom Out">−</button>
+          <button class="map-ctrl-btn home-btn" (click)="fitMapToAllLines()" title="Fit to lines">⌂</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="gs-feature-panel">
+      <div class="feature-panel-header">
+        <h3>Lines ({{ filteredFeatures.length }})</h3>
+        <span class="feature-count-badge">{{ selectedCount }} selected</span>
+      </div>
+
+      <div class="feature-list">
+        <div *ngIf="filteredFeatures.length === 0" class="no-features">
+          <p>No geometries found</p>
+        </div>
+
+        <div
+          *ngFor="let feature of filteredFeatures"
+          class="feature-item"
+          [class.selected]="isFeatureSelected(feature)"
+          (click)="toggleFeatureSelection(feature)"
+        >
+          <div class="feature-checkbox">
+            <input
+              type="checkbox"
+              [checked]="isFeatureSelected(feature)"
+              (click)="$event.stopPropagation()"
+              (change)="toggleFeatureSelection(feature)"
+            />
+          </div>
+          <div class="feature-info">
+            <div class="feature-id">{{ feature.id }}</div>
+            <div class="feature-name">{{ getFeatureLabel(feature) }}</div>
+          </div>
+          <button type="button" class="feature-zoom" (click)="zoomToFeature(feature, $event)" title="Zoom to line">
+            Zoom
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gs-footer">
+    <button class="btn btn-ghost" (click)="goBack()" [disabled]="loading">
+      Back
+    </button>
+
+    <!-- Merge toggle — only show when 2+ lines selected -->
+    <label *ngIf="selectedCount >= 2" class="merge-toggle" [class.disabled]="loading">
+      <input
+        type="checkbox"
+        [(ngModel)]="mergeGeometry"
+        [disabled]="loading"
+      />
+      <span class="merge-toggle-label">
+        Merge into one geometry
+      </span>
+      <span class="merge-toggle-hint">
+        {{ mergeGeometry ? '1 row will be inserted' : selectedCount + ' rows will be inserted' }}
+      </span>
+    </label>
+
+    <button
+      class="btn btn-primary"
+      (click)="appendSelectedGeometries()"
+      [disabled]="selectedCount === 0 || loading"
+    >
+      <span *ngIf="!loading">
+        {{ mergeGeometry && selectedCount >= 2 ? 'Merge & Append' : 'Append ' + selectedCount + ' Geometries' }}
+      </span>
+      <span *ngIf="loading">Processing...</span>
+    </button>
+  </div>
+</div>

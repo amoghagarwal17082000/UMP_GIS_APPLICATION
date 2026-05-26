@@ -47,6 +47,8 @@ export class DashboardLayout implements OnInit, OnDestroy {
 
   private updateRouteFlags(url: string): void {
     const normalized = (url || '').toLowerCase();
-    this.isGisRoute = normalized.includes('/dashboard/railway-assets');
+    this.isGisRoute =
+      normalized.includes('/dashboard/railway-assets') ||
+      normalized.includes('/dashboard/kml-geometry-selector');
   }
 }

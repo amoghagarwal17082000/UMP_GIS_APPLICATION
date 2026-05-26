@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { FileUploadService, UploadedFile } from '../../services/file-upload.service';
 import { Api } from '../../api/api';
 import { CurrentUserService } from '../../services/current-user';
@@ -31,6 +32,9 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   shapefileDragOver = false;
   selectedUploadFormat: UploadFormat = 'shapefile';
 
+  kmlUploadId = '';
+  kmlTempTable = '';
+
   isUploading = false;
   uploadProgress = 0;
   uploadSuccess = false;
@@ -50,6 +54,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     private fileUploadService: FileUploadService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -77,6 +82,12 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   }
 
   selectLayer(): void {
+    if (this.selectedUploadFormat === 'kml') {
+      this.selectedLayer = 'track_table';
+      this.currentView = 'shapefile';
+      return;
+    }
+
     if (this.selectedLayer) {
       this.currentView = 'shapefile';
     }
@@ -86,11 +97,6 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     this.currentView = 'layer-select';
     this.selectedLayer = '';
     this.filteredLayerOptions = [...this.layerOptions];
-  }
-
-  goBackToUpload(): void {
-    this.currentView = 'shapefile';
-    this.resetFileState();
   }
 
   filterLayers(event: Event): void {
@@ -146,6 +152,12 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     this.uploadSuccess = false;
     this.uploadProgress = 0;
     this.clearNativeFileInput();
+
+    if (format === 'kml') {
+      this.selectedLayer = 'track_table';
+    } else if (this.currentView === 'layer-select') {
+      this.selectedLayer = '';
+    }
   }
 
   private addShapefiles(files: File[]): void {
@@ -170,7 +182,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   }
 
   async uploadFiles(): Promise<void> {
-    if (!this.shapeFiles.length || !this.selectedLayer) return;
+    if (!this.shapeFiles.length || (this.selectedUploadFormat === 'shapefile' && !this.selectedLayer)) return;
 
     const validationError = this.getUploadValidationError();
     if (validationError) {
@@ -192,22 +204,33 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
       };
 
       if (this.selectedUploadFormat === 'kml') {
-        await this.fileUploadService.uploadKmlFile(
+        const result = await this.fileUploadService.uploadKmlFile(
           this.shapeFiles[0],
           this.fileDescription,
           this.fileCategory,
           targetLayerName,
           onProgress,
         );
-      } else {
-        await this.fileUploadService.uploadShapefiles(
-          this.shapeFiles,
-          this.fileDescription,
-          this.fileCategory,
-          targetLayerName,
-          onProgress,
-        );
+
+        this.kmlUploadId = result.uploadId;
+        this.kmlTempTable = result.tempTable || this.kmlTempTable;
+        await this.router.navigate(['/dashboard/kml-geometry-selector'], {
+          queryParams: {
+            uploadId: this.kmlUploadId,
+            layerName: targetLayerName,
+            tempTable: this.kmlTempTable,
+          },
+        });
+        return;
       }
+
+      await this.fileUploadService.uploadShapefiles(
+        this.shapeFiles,
+        this.fileDescription,
+        this.fileCategory,
+        targetLayerName,
+        onProgress,
+      );
 
       this.uploadSuccess = true;
       this.loadUploadedFiles();
@@ -245,6 +268,8 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     this.fileCategory = '';
     this.isUploading = false;
     this.shapefileDragOver = false;
+    this.kmlUploadId = '';
+    this.kmlTempTable = '';
     this.clearNativeFileInput();
   }
 

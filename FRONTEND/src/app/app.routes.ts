@@ -11,6 +11,7 @@ import { Feedback } from './dashboard/feedback/feedback';
 import { superAdminGuard } from './guards/super-admin-guard';
 import { SuperAdminUserManagementComponent } from './dashboard/user-management/super-admin/super-admin-user-management';
 import { FileUploadComponent } from './dashboard/file-upload/file-upload';
+import { KmlGeometrySelectorComponent } from './components/kml-geometry-selector/kml-geometry-selector';
 
 import { ProfileComponent } from './dashboard/profile/profile';
 
@@ -60,6 +61,11 @@ export const routes: Routes = [
         path: 'file-upload',
         component: FileUploadComponent,
         data: { title: 'File Upload' },
+      },
+      {
+        path: 'kml-geometry-selector',
+        component: KmlGeometrySelectorComponent,
+        data: { title: 'KML Geometry Selector' },
       },
       {
         path: 'add-shapefile',

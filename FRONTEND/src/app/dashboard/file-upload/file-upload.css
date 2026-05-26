@@ -878,3 +878,18 @@
         grid-template-columns: 1fr;
     }
 }
+
+.kml-note-card {
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #1f2937;
+    margin-top: 12px;
+}
+
+.kml-note-title {
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+

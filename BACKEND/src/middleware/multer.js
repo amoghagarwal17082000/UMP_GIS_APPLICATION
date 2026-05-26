@@ -31,6 +31,7 @@ const KML_EXTS       = ['.kml', '.kmz'];
 
 const shapefileUpload = multer({
   storage,
+  limits: { fileSize: 300 * 1024 * 1024 }, 
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (SHAPEFILE_EXTS.includes(ext)) return cb(null, true);
@@ -41,7 +42,7 @@ const shapefileUpload = multer({
 
 const kmlUpload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, 
+  limits: { fileSize: 500 * 1024 * 1024 }, 
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (KML_EXTS.includes(ext)) return cb(null, true);
@@ -51,7 +52,7 @@ const kmlUpload = multer({
 
 const generalUpload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, 
+  limits: { fileSize: 200 * 1024 * 1024 }, 
 }).array('files');
 
 module.exports = { shapefileUpload, kmlUpload, generalUpload, TEMP_DIR };

@@ -18,6 +18,7 @@ export interface FileUploadResponse {
   uploadId: string;
   layerName: string;
   featureCount: number;
+  tempTable?: string;
 }
 
 @Injectable({
@@ -100,4 +101,35 @@ export class FileUploadService {
       catchError(err => throwError(() => new Error(err?.error?.message || 'Failed to fetch files')))
     );
   }
+
+  getKmlTempFeatures(uploadId: string, layerName: string): Promise<any> {
+    return this.http
+      .get<any>(`${this.UPLOAD_URL}/kml/temp/${uploadId}/features`, {
+        params: { layerName },
+      })
+      .pipe(
+        catchError(err => throwError(() => new Error(err?.error?.message || 'Failed to fetch KML temp features')))
+      )
+      .toPromise();
+  }
+
+  appendSelectedKmlLines(
+    uploadId: string,
+    layerName: string,
+    selectedIds: number[],
+    mergeGeometry: boolean = false
+  ): Promise<any> {
+    return this.http
+      .post<any>(`${this.UPLOAD_URL}/kml/temp/${uploadId}/append`, { selectedIds, mergeGeometry }, {
+        params: { layerName },
+      })
+      .pipe(
+        catchError(err => throwError(() => new Error(err?.error?.message || 'Failed to append selected KML lines')))
+      )
+      .toPromise();
+  }
 }
+
+
+
+

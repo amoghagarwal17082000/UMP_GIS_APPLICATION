@@ -1,7 +1,5 @@
 <div class="upload-page">
   <div class="page-content">
-
-    <!-- ── Page Header ────────────────────────────────────────── -->
     <div class="page-header">
       <div class="header-eyebrow">
         <span class="header-eyebrow-dot"></span>
@@ -11,19 +9,9 @@
       <p class="page-subtitle">Append spatial data directly into your GIS layer tables</p>
     </div>
 
-    <!-- ── Step Indicator ─────────────────────────────────────── -->
     <div class="step-indicator">
       <div class="step" [class.active]="currentView === 'layer-select'" [class.done]="currentView === 'shapefile'">
-        <div class="step-dot">
-          <svg *ngIf="currentView !== 'shapefile'" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.5">
-            <polyline points="22 2 13 21 11 13 3 11 22 2"></polyline>
-          </svg>
-          <svg *ngIf="currentView === 'shapefile'" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.5">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
+        <div class="step-dot">1</div>
         <span class="step-label">Select Layer</span>
       </div>
       <div class="step-line" [class.done]="currentView === 'shapefile'"></div>
@@ -33,10 +21,8 @@
       </div>
     </div>
 
-
     <div *ngIf="currentView === 'layer-select'">
       <div class="card">
-
         <div class="card-header">
           <div class="card-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -45,81 +31,88 @@
             </svg>
           </div>
           <div>
-            <h2 class="card-heading">Choose a Layer</h2>
-            <p class="card-desc">Select the GIS table to append your file into</p>
+            <h2 class="card-heading">Choose Upload Type</h2>
+            <p class="card-desc">Shapefile uploads require layer selection. KML uploads always append into <strong>track_table</strong>.</p>
           </div>
         </div>
 
         <div class="card-body">
-
-          <!-- Search -->
-          <div class="search-wrapper">
-            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" class="search-input" placeholder="Search layers..." (input)="filterLayers($event)" />
-          </div>
-
-          <!-- Layer list -->
-          <div class="layer-grid">
-            <div *ngIf="filteredLayerOptions.length === 0" class="no-layers">
-              <div class="no-layers-icon">🗺️</div>
-              <p>No layers match your search</p>
-            </div>
-
-            <button *ngFor="let layer of filteredLayerOptions" class="layer-card"
-              [class.selected]="selectedLayer === layer.value" (click)="selectedLayer = layer.value">
-              <div class="layer-badge">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="1.8">
-                  <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-                </svg>
-              </div>
-
-              <div class="layer-info">
-                <span class="layer-name">{{ layer.label }}</span>
-                <span class="layer-meta">{{ layer.value }}</span>
-              </div>
-
-              <div class="layer-check">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </div>
-            </button>
-          </div>
-
-          <!-- Selected banner -->
-          <div class="selected-banner" *ngIf="selectedLayer">
-            <div class="banner-icon">✓</div>
-            <div>
-              <span class="banner-label">Selected Layer</span>
-              <span class="banner-value">{{ getLayerLabel(selectedLayer) }}</span>
+          <div class="format-section upload-type-select">
+            <label class="format-label">Upload Type</label>
+            <div class="format-options">
+              <button type="button" class="format-option" [class.selected]="selectedUploadFormat === 'shapefile'"
+                (click)="selectUploadFormat('shapefile')" [disabled]="isUploading">
+                <span class="format-option-title">Shapefile</span>
+                <span class="format-option-desc">Require a target layer table</span>
+              </button>
+              <button type="button" class="format-option" [class.selected]="selectedUploadFormat === 'kml'"
+                (click)="selectUploadFormat('kml')" [disabled]="isUploading">
+                <span class="format-option-title">KML/KMZ</span>
+                <span class="format-option-desc">Open a full-screen line selector</span>
+              </button>
             </div>
           </div>
 
-        </div><!-- /card-body -->
+          <div *ngIf="selectedUploadFormat === 'shapefile'">
+            <div class="search-wrapper">
+              <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" class="search-input" placeholder="Search layers..." (input)="filterLayers($event)" />
+            </div>
 
-        <div class="card-footer">
-          <button class="btn-primary" [disabled]="!selectedLayer" (click)="selectLayer()">
-            Continue
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.5">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
-          </button>
+            <div class="layer-grid">
+              <div *ngIf="filteredLayerOptions.length === 0" class="no-layers">
+                <p>No layers match your search</p>
+              </div>
+
+              <button *ngFor="let layer of filteredLayerOptions" class="layer-card"
+                [class.selected]="selectedLayer === layer.value" (click)="selectedLayer = layer.value">
+                <div class="layer-badge">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.8">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                  </svg>
+                </div>
+                <div class="layer-info">
+                  <span class="layer-name">{{ layer.label }}</span>
+                  <span class="layer-meta">{{ layer.value }}</span>
+                </div>
+                <div class="layer-check">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+              </button>
+            </div>
+
+            <div class="selected-banner" *ngIf="selectedLayer">
+              <div class="banner-icon">✓</div>
+              <div>
+                <span class="banner-label">Selected Layer</span>
+                <span class="banner-value">{{ getLayerLabel(selectedLayer) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="selectedUploadFormat === 'kml'" class="kml-note-card">
+            <div class="kml-note-title">KML line selection</div>
+            <p>KML will be imported into a temporary line table. After upload, a full-screen map opens so you can keep only the lines that should merge into <strong>track_table</strong>.</p>
+          </div>
         </div>
 
-      </div><!-- /card -->
+        <div class="card-footer">
+          <button class="btn-primary" [disabled]="selectedUploadFormat === 'shapefile' && !selectedLayer" (click)="selectLayer()">
+            Continue
+          </button>
+        </div>
+      </div>
     </div>
-
 
     <div *ngIf="currentView === 'shapefile'">
       <div class="card">
-
         <div class="card-header">
           <div class="card-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -136,8 +129,6 @@
         </div>
 
         <div class="card-body">
-
-          <!-- Meta chips -->
           <div class="meta-row">
             <div class="meta-chip">
               <span class="meta-chip-label">Selected Layer</span>
@@ -149,54 +140,32 @@
             </div>
           </div>
 
-          <!-- Upload format -->
           <div class="format-section">
             <label class="format-label">Upload Type</label>
             <div class="format-options">
               <button type="button" class="format-option" [class.selected]="selectedUploadFormat === 'shapefile'"
                 (click)="selectUploadFormat('shapefile')" [disabled]="isUploading">
-                <span class="format-option-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                </span>
-                <span>
-                  <span class="format-option-title">Shapefile</span>
-                  <span class="format-option-desc">Upload .shp, .shx, .dbf parts</span>
-                </span>
+                <span class="format-option-title">Shapefile</span>
+                <span class="format-option-desc">Upload .shp, .shx, .dbf parts</span>
               </button>
-
               <button type="button" class="format-option" [class.selected]="selectedUploadFormat === 'kml'"
                 (click)="selectUploadFormat('kml')" [disabled]="isUploading">
-                <span class="format-option-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 1 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                </span>
-                <span>
-                  <span class="format-option-title">KML/KMZ</span>
-                  <span class="format-option-desc">Upload one .kml or .kmz file</span>
-                </span>
+                <span class="format-option-title">KML/KMZ</span>
+                <span class="format-option-desc">Upload one .kml or .kmz file</span>
               </button>
             </div>
           </div>
 
-          <!-- Error / Success alerts -->
           <div class="alert alert-error" *ngIf="uploadError">
-            <span class="alert-icon">⚠️</span>
+            <span class="alert-icon">!</span>
             <span>{{ uploadError }}</span>
           </div>
 
           <div class="alert alert-success" *ngIf="uploadSuccess">
-            <span class="alert-icon">✅</span>
+            <span class="alert-icon">OK</span>
             <span>{{ successMessage }}</span>
           </div>
 
-          <!-- Drop Zone -->
           <div class="drop-zone" [class.drag-active]="shapefileDragOver" (dragover)="onDragOver($event)"
             (dragleave)="onDragLeave()" (drop)="onDrop($event)">
             <input #shapefileInput type="file" class="drop-file-input" (change)="onFileSelect($event)"
@@ -216,7 +185,6 @@
             </div>
           </div>
 
-          <!-- Selected files list -->
           <div class="files-section" *ngIf="shapeFiles.length > 0">
             <div class="files-header">
               <h4 class="files-heading">Selected Files</h4>
@@ -230,14 +198,13 @@
                 </span>
                 <span class="file-name">{{ file.name }}</span>
                 <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                <button class="file-remove" (click)="removeFile(file)" title="Remove">×</button>
+                <button class="file-remove" (click)="removeFile(file)" title="Remove">x</button>
               </li>
             </ul>
 
-            <!-- Progress -->
             <div class="progress-wrap" *ngIf="isUploading">
               <div class="progress-label">
-                <span>Uploading…</span>
+                <span>Uploading...</span>
                 <span>{{ uploadProgress }}%</span>
               </div>
               <div class="progress-track">
@@ -246,33 +213,23 @@
             </div>
           </div>
 
-          <!-- Description -->
           <div class="desc-field">
             <label class="desc-label" for="fileDesc">Description <span
                 style="color:#94a3b8;font-weight:400">(Optional)</span></label>
             <textarea id="fileDesc" class="desc-textarea" [(ngModel)]="fileDescription"
               [placeholder]="'Describe this ' + uploadFormatLabel + ' upload...'"></textarea>
           </div>
-
-        </div><!-- /card-body -->
+        </div>
 
         <div class="card-footer">
           <button class="btn-ghost" (click)="goBackToLayers()" [disabled]="isUploading">
-            ← Back
+            Back
           </button>
           <button class="btn-success" [disabled]="shapeFiles.length === 0 || isUploading" (click)="uploadShapefile()">
-            <svg *ngIf="!isUploading" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
             <span>{{ isUploading ? 'Uploading... ' + uploadProgress + '%' : uploadActionLabel }}</span>
           </button>
         </div>
-
-      </div><!-- /card -->
+      </div>
     </div>
-
-  </div><!-- /page-content -->
-</div><!-- /upload-page -->
+  </div>
+</div>
