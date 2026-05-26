@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AuthApi } from './auth/auth.api';
-import { CommonDashboardApi } from './common/dashboard/dashboard.api';
+import { CommonDashboardApi, DashboardCountFilters } from './common/dashboard/dashboard.api';
 import { CommonLocationApi } from './common/location/location.api';
 import { CommonViewingApi } from './common/viewing/common-viewing.api';
 import { CivilEngineeringAssetsViewingApi } from './civil_engineering_assets/viewing/viewing.api';
@@ -215,36 +215,45 @@ searchStations(q: string, limit = 10) {
     return this.authApi.login(username, password);
   }
 
-  getStationCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getStationCount(type, allIndia);
-  }
-  getBridgeStartCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeStartCount(type, allIndia);
-  }
-  getBridgeStopCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeStopCount(type, allIndia);
-  }
-  getBridgeMinorCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeMinorCount(type, allIndia);
-  }
-  getLevelXingCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getLevelXingCount(type, allIndia);
-  }
-  getRoadOverBridgeCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRoadOverBridgeCount(type, allIndia);
-  }
-  getRubLhsCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRubLhsCount(type, allIndia);
-  }
-  getRorCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRorCount(type, allIndia);
-  }
-  getKmPostCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getKmPostCount(type, allIndia);
-  }
-  getLandPlanCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getLandPlanCount(type, allIndia);
-  }
+  getStationCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getStationCount(type, filters);
+}
+
+getBridgeStartCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getBridgeStartCount(type, filters);
+}
+
+getBridgeStopCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getBridgeStopCount(type, filters);
+}
+
+getBridgeMinorCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getBridgeMinorCount(type, filters);
+}
+
+getLevelXingCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getLevelXingCount(type, filters);
+}
+
+getRoadOverBridgeCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getRoadOverBridgeCount(type, filters);
+}
+
+getRubLhsCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getRubLhsCount(type, filters);
+}
+
+getRorCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getRorCount(type, filters);
+}
+
+getKmPostCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getKmPostCount(type, filters);
+}
+
+getLandPlanCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getLandPlanCount(type, filters);
+}
 
   rating(obj: any) {
     return this.ratingApi.rating(obj);
@@ -332,5 +341,8 @@ searchStations(q: string, limit = 10) {
   deleteSuperAdminUser(objectid: number | string) {
     return this.superAdminUserManagementApi.deleteUser(objectid);
   }
+  getZoneDivisionFilters() {
+  return this.commonDashboardApi.getZoneDivisionFilters();
+}
 }
 

@@ -22,6 +22,37 @@
       </div>
     </div>
 
+    <div class="col-12" *ngIf="isSuperAdminDashboard">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <select
+            class="form-select"
+            [(ngModel)]="selectedZone"
+            (change)="onZoneChange()"
+          >
+            <option value="">All Zones</option>
+            <option *ngFor="let zone of zoneOptions" [value]="zone">
+              {{ zone }}
+            </option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <select
+            class="form-select"
+            [(ngModel)]="selectedDivision"
+            (change)="onDivisionChange()"
+            [disabled]="!selectedZone"
+          >
+            <option value="">All Divisions</option>
+            <option *ngFor="let division of divisionOptions" [value]="division">
+              {{ division }}
+            </option>
+          </select>
+        </div>
+      </div>
+    </div>
+
     <div class="col-12">
       <div class="row g-4 main-cards">
         <div class="col-12 col-sm-6 col-xl-4 col-xxl" *ngFor="let card of mainCards">
@@ -65,4 +96,3 @@
     </div>
   </div>
 </div>
-

@@ -4,6 +4,8 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { Api } from 'src/app/api/api';
 import { CurrentUserService } from 'src/app/services/current-user';
+import { FormsModule } from '@angular/forms';
+import { DashboardCountFilters } from '../../api/common/dashboard/dashboard.api';
 
 type CardType = 'TOTAL' | 'MAKER' | 'CHECKER' | 'APPROVER' | 'FINALIZED';
 
@@ -37,11 +39,19 @@ interface SubCard {
 @Component({
   selector: 'app-dashboard-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule,   FormsModule,],
   templateUrl: './dashboard-home.html',
   styleUrl: './dashboard-home.css',
 })
 export class DashboardHome implements OnInit {
+
+  zoneDivisionFilters: any[] = [];
+  zoneOptions: string[] = [];
+  divisionOptions: string[] = [];
+
+  selectedZone = '';
+  selectedDivision = '';
+
   selectedMain: CardType = 'TOTAL';
 
   mainCards: MainCard[] = [
@@ -65,7 +75,7 @@ export class DashboardHome implements OnInit {
     private cdr: ChangeDetectorRef,
     private router: Router,
     private currentUser: CurrentUserService
-  ) {}
+  ) { }
 
   private getUserMainKey(): CardType | 'ADMIN' | null {
     const ut = (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase();
@@ -75,6 +85,31 @@ export class DashboardHome implements OnInit {
     if (ut === 'admin') return 'ADMIN';
     return null;
   }
+
+  private getDashboardFilters(): DashboardCountFilters {
+  if (!this.isSuperAdminDashboard) {
+    return {};
+  }
+
+  if (this.selectedDivision) {
+    return {
+      allIndia: true,
+      zone: this.selectedZone,
+      division: this.selectedDivision,
+    };
+  }
+
+  if (this.selectedZone) {
+    return {
+      allIndia: true,
+      zone: this.selectedZone,
+    };
+  }
+
+  return {
+    allIndia: true,
+  };
+}
 
   get isSuperAdminDashboard(): boolean {
     return (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase() === 'super admin';
@@ -98,11 +133,30 @@ export class DashboardHome implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadZoneDivisionFilters();
     this.loadDashboard();
   }
 
+  onZoneChange(): void {
+  this.selectedDivision = '';
+
+  const selectedZone = this.zoneDivisionFilters.find(
+    (zone: any) => zone.zoneName === this.selectedZone
+  );
+
+  this.divisionOptions =
+    selectedZone?.divisions?.map((division: any) => division.divisionName) || [];
+
+  this.loadDashboard();
+}
+
+onDivisionChange(): void {
+  this.loadDashboard();
+}
+
   private loadDashboard(): void {
     const types: CardType[] = ['TOTAL', 'MAKER', 'CHECKER', 'APPROVER', 'FINALIZED'];
+    const filters = this.getDashboardFilters();
     const allIndia = this.isSuperAdminDashboard;
 
     const stationCalls: any = {};
@@ -117,16 +171,16 @@ export class DashboardHome implements OnInit {
     const landPlanCalls: any = {};
 
     types.forEach((type) => {
-      stationCalls[type] = this.api.getStationCount(type, allIndia);
-      bridgeStartCalls[type] = this.api.getBridgeStartCount(type, allIndia);
-      bridgeStopCalls[type] = this.api.getBridgeStopCount(type, allIndia);
-      bridgeMinorCalls[type] = this.api.getBridgeMinorCount(type, allIndia);
-      levelXingCalls[type] = this.api.getLevelXingCount(type, allIndia);
-      robCalls[type] = this.api.getRoadOverBridgeCount(type, allIndia);
-      rubLhsCalls[type] = this.api.getRubLhsCount(type, allIndia);
-      rorCalls[type] = this.api.getRorCount(type, allIndia);
-      kmPostCalls[type] = this.api.getKmPostCount(type, allIndia);
-      landPlanCalls[type] = this.api.getLandPlanCount(type, allIndia);
+      stationCalls[type] = this.api.getStationCount(type, filters);
+      bridgeStartCalls[type] = this.api.getBridgeStartCount(type, filters);
+      bridgeStopCalls[type] = this.api.getBridgeStopCount(type, filters);
+      bridgeMinorCalls[type] = this.api.getBridgeMinorCount(type, filters);
+      levelXingCalls[type] = this.api.getLevelXingCount(type, filters);
+      robCalls[type] = this.api.getRoadOverBridgeCount(type, filters);
+      rubLhsCalls[type] = this.api.getRubLhsCount(type, filters);
+      rorCalls[type] = this.api.getRorCount(type, filters);
+      kmPostCalls[type] = this.api.getKmPostCount(type, filters);
+      landPlanCalls[type] = this.api.getLandPlanCount(type, filters);
     });
 
     forkJoin({
@@ -162,6 +216,18 @@ export class DashboardHome implements OnInit {
     });
   }
 
+
+  loadZoneDivisionFilters(): void {
+    this.api.getZoneDivisionFilters().subscribe({
+      next: (response: any) => {
+        this.zoneDivisionFilters = response?.data || [];
+        this.zoneOptions = this.zoneDivisionFilters.map((zone: any) => zone.zoneName);
+      },
+      error: (error) => {
+        console.error('Failed to load zone/division filters', error);
+      },
+    });
+  }
   private setSubCard(type: CardType, title: string, value: number): void {
     this.subCardMap = {
       ...this.subCardMap,
