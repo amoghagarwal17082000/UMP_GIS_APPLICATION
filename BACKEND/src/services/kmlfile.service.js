@@ -99,10 +99,27 @@ async function pruneTempTableToLines(tempTable) {
     throw new Error(`No geometry column found in temp table: ${tempTable}`);
   }
 
+  // Step 1 — remove non-line geometries
   await pool.query(`
     DELETE FROM public."${tempTable}"
     WHERE "${geomCol}" IS NULL
       OR GeometryType("${geomCol}") NOT IN ('LINESTRING', 'MULTILINESTRING')
+  `);
+
+  // Step 2 — remove label/annotation boxes
+  // These are rectangular closed lines with very small bounding boxes
+  await pool.query(`
+    DELETE FROM public."${tempTable}"
+    WHERE ST_IsClosed("${geomCol}")        -- closed loop = likely a label box
+      AND ST_NPoints("${geomCol}") <= 5    -- rectangles have 4-5 points
+  `);
+
+  // Step 3 — remove extremely short lines (noise/dimension lines)
+  await pool.query(`
+    DELETE FROM public."${tempTable}"
+    WHERE ST_Length(
+      ST_Transform("${geomCol}"::geometry, 3857)
+    ) < 100   -- remove lines shorter than 100 metres
   `);
 }
 

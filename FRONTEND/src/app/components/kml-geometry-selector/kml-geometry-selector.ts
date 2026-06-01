@@ -1,4 +1,13 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, NgZone, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ViewChild,
+  ElementRef,
+  NgZone,
+  ChangeDetectorRef,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -6,6 +15,8 @@ import * as L from 'leaflet';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { FileUploadService } from '../../services/file-upload.service';
+import { MapRegistry } from '../../services/map-registry';
+import { UiState } from '../../services/ui-state';
 
 @Component({
   selector: 'app-kml-geometry-selector',
@@ -16,6 +27,7 @@ import { FileUploadService } from '../../services/file-upload.service';
 })
 export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
   @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLDivElement>;
+  @ViewChild('mapControls') mapControls?: ElementRef<HTMLDivElement>;
 
   uploadId = '';
   layerName = 'track_table';
@@ -30,7 +42,7 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
   casingLayer?: L.GeoJSON;
   layerMap = new Map<number, L.Layer>();
   lineRenderer?: L.Renderer;
-  
+
   searchText = '';
   filteredFeatures: any[] = [];
 
@@ -39,8 +51,11 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
   appendMessage = '';
   mergeGeometry = false;
   mergeWarning = '';
-  
+
+
   private destroy$ = new Subject<void>();
+  showBasemapMenu = false;
+  activeBasemap = 'osm'; 
 
   constructor(
     private fileUploadService: FileUploadService,
@@ -48,6 +63,8 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
+    private mapRegistry: MapRegistry,
+    public ui: UiState,
   ) {}
 
   ngOnInit(): void {
@@ -62,12 +79,30 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
     });
   }
 
+  toggleBasemapMenu(): void {
+    this.showBasemapMenu = !this.showBasemapMenu;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(ev: MouseEvent) {
+    if (!this.showBasemapMenu) return;
+    const target = ev.target as Node;
+    const controlsEl = this.mapControls?.nativeElement;
+    if (controlsEl && !controlsEl.contains(target)) {
+      this.showBasemapMenu = false;
+      this.cdr.markForCheck();
+    }
+  }
+
   private async loadFeatures(): Promise<void> {
     this.loading = true;
     this.error = '';
 
     try {
-      const response = await this.fileUploadService.getKmlTempFeatures(this.uploadId, this.layerName);
+      const response = await this.fileUploadService.getKmlTempFeatures(
+        this.uploadId,
+        this.layerName,
+      );
       this.kmlFeatures = Array.isArray(response.features) ? response.features : [];
       this.tempTable = response.tempTable || this.tempTable;
       this.totalFeatures = this.kmlFeatures.length;
@@ -96,6 +131,12 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
       preferCanvas: false,
       scrollWheelZoom: true,
     }).setView([22.5, 79], 8.5);
+
+    // register map so other panels (basemap selector) can access it
+    this.mapRegistry.setMap(this.map);
+
+    // apply selected basemap from global UI state
+    this.applyBasemap(this.ui.selectedBasemap);
 
     this.map.createPane('kmlLines');
     const linePane = this.map.getPane('kmlLines');
@@ -284,48 +325,47 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
   }
 
   async appendSelectedGeometries(): Promise<void> {
-  if (this.selectedFeatureIds.length === 0) {
-    this.error = 'Please select at least one geometry.';
-    return;
-  }
-
-  this.loading = true;
-  this.error = '';
-  this.mergeWarning = '';
-
-  try {
-    const result = await this.fileUploadService.appendSelectedKmlLines(
-      this.uploadId,
-      this.layerName,
-      this.selectedFeatureIds,
-      this.mergeGeometry && this.selectedFeatureIds.length >= 2,
-    );
-
-    // Show gap warning if merge was requested but lines didn't fully connect
-    if (this.mergeGeometry && result?.hasGaps) {
-      this.mergeWarning =
-        `Saved as ${result.segmentCount} segments — some selected lines have gaps and could not be fully merged.`;
+    if (this.selectedFeatureIds.length === 0) {
+      this.error = 'Please select at least one geometry.';
+      return;
     }
 
-    this.appendMessage = this.mergeGeometry && this.selectedFeatureIds.length >= 2
-      ? `${this.selectedFeatureIds.length} lines merged into 1 geometry and appended into ${result?.targetSchema}.${result?.targetTable}.`
-      : `${result?.insertedCount || this.selectedFeatureIds.length} geometries appended into ${result?.targetSchema}.${result?.targetTable}.`;
+    this.loading = true;
+    this.error = '';
+    this.mergeWarning = '';
 
-    this.loading = false;
-    this.cdr.markForCheck();
+    try {
+      const result = await this.fileUploadService.appendSelectedKmlLines(
+        this.uploadId,
+        this.layerName,
+        this.selectedFeatureIds,
+        this.mergeGeometry && this.selectedFeatureIds.length >= 2,
+      );
 
-    setTimeout(() => {
-      this.router.navigate(['/dashboard/file-upload'], {
-        queryParams: { kmlAppend: 'success' },
-      });
-    }, 1500);
-  } catch (err: any) {
-    this.error = err?.message || 'Failed to append selected geometries.';
-    this.loading = false;
-    this.cdr.markForCheck();
+      // Show gap warning if merge was requested but lines didn't fully connect
+      if (this.mergeGeometry && result?.hasGaps) {
+        this.mergeWarning = `Saved as ${result.segmentCount} segments — some selected lines have gaps and could not be fully merged.`;
+      }
+
+      this.appendMessage =
+        this.mergeGeometry && this.selectedFeatureIds.length >= 2
+          ? `${this.selectedFeatureIds.length} lines merged into 1 geometry and appended into ${result?.targetSchema}.${result?.targetTable}.`
+          : `${result?.insertedCount || this.selectedFeatureIds.length} geometries appended into ${result?.targetSchema}.${result?.targetTable}.`;
+
+      this.loading = false;
+      this.cdr.markForCheck();
+
+      setTimeout(() => {
+        this.router.navigate(['/dashboard/file-upload'], {
+          queryParams: { kmlAppend: 'success' },
+        });
+      }, 1500);
+    } catch (err: any) {
+      this.error = err?.message || 'Failed to append selected geometries.';
+      this.loading = false;
+      this.cdr.markForCheck();
+    }
   }
-}
-
 
   goBack(): void {
     this.router.navigate(['/dashboard/file-upload']);
@@ -360,6 +400,76 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
       .map((feature) => this.getFeatureId(feature))
       .filter((id): id is number => id !== null);
   }
+  private applyBasemap(type: string) {
+    if (!this.map) return;
+
+    // remove any existing tile layers
+    this.map.eachLayer((layer: any) => {
+      if (layer instanceof L.TileLayer || (layer.options && layer.options.layers)) {
+        this.map?.removeLayer(layer);
+      }
+    });
+
+    if (type === 'Open Street Map') {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxNativeZoom: 17,
+        maxZoom: 22,
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(this.map);
+      return;
+    }
+
+    if (type === 'satellite') {
+      L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxNativeZoom: 18,
+          maxZoom: 22,
+          attribution: 'Tiles © Esri',
+        },
+      ).addTo(this.map);
+      return;
+    }
+
+    if (type === 'Google Satellite') {
+      L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxNativeZoom: 20,
+        maxZoom: 22,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: 'Tiles © Google',
+      }).addTo(this.map);
+      return;
+    }
+
+    if (type === 'Esri Topographic') {
+      L.tileLayer(
+        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxNativeZoom: 17,
+          maxZoom: 22,
+          attribution: 'Tiles © Esri',
+        },
+      ).addTo(this.map);
+      return;
+    }
+
+    if (type === 'Bhuvan India') {
+      const BHUVAN_WMS_URL = 'https://bhuvan-vec1.nrsc.gov.in/bhuvan/gwc/service/wms/?';
+      const opts: L.WMSOptions = {
+        layers: 'india3',
+        transparent: true,
+        format: 'image/png',
+        maxNativeZoom: 17,
+        maxZoom: 22,
+        attribution: '<a href="https://bhuvan.nrsc.gov.in/" target="_blank">Bhuvan Maps:</a> ISRO',
+      };
+      try {
+        (L.tileLayer as any).wms(BHUVAN_WMS_URL, opts).addTo(this.map);
+      } catch (e) {
+        L.tileLayer(BHUVAN_WMS_URL, opts as any).addTo(this.map);
+      }
+    }
+  }
 
   private fitMapToLines(): void {
     if (!this.map || !this.featureLayer) return;
@@ -368,5 +478,32 @@ export class KmlGeometrySelectorComponent implements OnInit, OnDestroy {
     if (bounds.isValid()) {
       this.map.fitBounds(bounds.pad(0.2), { maxZoom: 16 });
     }
+  }
+
+  getBasemapLabel(): string {
+    const labels: Record<string, string> = {
+      osm: 'Map',
+      satellite: 'Satellite',
+      google: 'Google',
+      topo: 'Terrain',
+      bhuvan: 'Bhuvan',
+    };
+    return labels[this.activeBasemap] || 'Map';
+  }
+
+  onBasemapChange(type: string): void {
+    // Map type string to activeBasemap key
+    const keyMap: Record<string, string> = {
+      'Open Street Map': 'osm',
+      satellite: 'satellite',
+      'Google Satellite': 'google',
+      'Esri Topographic': 'topo',
+      'Bhuvan India': 'bhuvan',
+    };
+    this.activeBasemap = keyMap[type] || 'osm';
+    this.showBasemapMenu = false; // ← close menu on selection
+    (this.ui as any).selectedBasemap = type;
+    this.applyBasemap(type);
+    this.cdr.markForCheck();
   }
 }

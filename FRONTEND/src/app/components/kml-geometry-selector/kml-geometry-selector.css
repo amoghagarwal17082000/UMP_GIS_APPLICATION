@@ -435,3 +435,108 @@
 :host ::ng-deep .leaflet-control-zoom {
   display: none !important;
 }
+
+.basemap-select {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(148,163,184,0.5);
+  padding: 4px 8px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.basemap-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.basemap-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(148,163,184,0.3);
+  background: #f8fafc;
+  cursor: pointer;
+  padding: 6px;
+  box-shadow: 0 4px 10px rgba(15,23,42,0.06);
+}
+
+.basemap-btn .basemap-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.basemap-btn .basemap-label {
+  font-size: 11px;
+  margin-top: 4px;
+  color: #0f172a;
+}
+
+.basemap-btn.active {
+  background: #cfe8ff;
+  border-color: #60a5fa;
+  box-shadow: 0 6px 14px rgba(37,99,235,0.12);
+}
+
+.basemap-toggle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e6f2ff;
+  border: 1px solid rgba(96,165,250,0.3);
+  box-shadow: 0 6px 14px rgba(37,99,235,0.06);
+  cursor: pointer;
+}
+
+.basemap-menu {
+  position: absolute;
+  left: 64px;
+  bottom: 0;
+  transform: translateY(2px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(148,163,184,0.2);
+  box-shadow: 0 12px 28px rgba(15,23,42,0.12);
+  border-radius: 8px;
+  z-index: 10000;
+}
+
+.basemap-menu-item {
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.basemap-menu-item:hover {
+  background: #f1f5f9;
+}
+
+.basemap-menu-item .menu-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.basemap-menu-item .menu-label {
+  font-size: 13px;
+  color: #0f172a;
+}

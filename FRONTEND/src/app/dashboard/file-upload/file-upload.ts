@@ -155,7 +155,11 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
 
     if (format === 'kml') {
       this.selectedLayer = 'track_table';
-    } else if (this.currentView === 'layer-select') {
+      this.currentView = 'shapefile';
+      return;
+    }
+
+    if (this.currentView === 'layer-select') {
       this.selectedLayer = '';
     }
   }
