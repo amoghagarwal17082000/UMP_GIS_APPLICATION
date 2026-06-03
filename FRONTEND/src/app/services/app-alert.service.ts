@@ -7,6 +7,7 @@ export interface AppAlert {
   id: number;
   type: AppAlertType;
   message: string;
+  modal?: boolean;
   closing?: boolean;
 }
 
@@ -17,7 +18,7 @@ export class AppAlertService {
   private readonly alertsSubject = new BehaviorSubject<AppAlert[]>([]);
   readonly alerts$ = this.alertsSubject.asObservable();
 
-  show(message: string, type: AppAlertType = 'info', timeoutMs = 0): void {
+  show(message: string, type: AppAlertType = 'info', timeoutMs = 0, modal = false): void {
     const cleanMessage = String(message || '').trim();
     if (!cleanMessage) return;
 
@@ -25,6 +26,7 @@ export class AppAlertService {
       id: this.nextId++,
       type,
       message: cleanMessage,
+      modal,
     };
     this.alertsSubject.next([...this.alertsSubject.value, alert]);
 
@@ -34,20 +36,20 @@ export class AppAlertService {
     }
   }
 
-  success(message: string, timeoutMs?: number): void {
-    this.show(message, 'success', timeoutMs);
+  success(message: string, timeoutMs?: number, modal = false): void {
+    this.show(message, 'success', timeoutMs, modal);
   }
 
-  error(message: string, timeoutMs?: number): void {
-    this.show(message, 'danger', timeoutMs);
+  error(message: string, timeoutMs?: number, modal = false): void {
+    this.show(message, 'danger', timeoutMs, modal);
   }
 
-  warning(message: string, timeoutMs?: number): void {
-    this.show(message, 'warning', timeoutMs);
+  warning(message: string, timeoutMs?: number, modal = false): void {
+    this.show(message, 'warning', timeoutMs, modal);
   }
 
-  info(message: string, timeoutMs?: number): void {
-    this.show(message, 'info', timeoutMs);
+  info(message: string, timeoutMs?: number, modal = false): void {
+    this.show(message, 'info', timeoutMs, modal);
   }
 
   dismiss(id: number): void {

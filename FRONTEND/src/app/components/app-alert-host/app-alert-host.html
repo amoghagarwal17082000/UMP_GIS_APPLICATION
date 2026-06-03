@@ -1,6 +1,7 @@
 <ng-container *ngIf="currentAlert as alert">
   <div
     class="app-alert-backdrop"
+    [class.app-alert-backdrop-modal]="alert.modal"
     [class.app-alert-backdrop-closing]="alert.closing"
     aria-live="assertive"
     aria-atomic="true"

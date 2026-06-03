@@ -52,6 +52,9 @@ async function getCurrentDivisionBuffer(req, res, next) {
   try {
     const { division, allIndia } = req.query;
     const useAllIndia = isTruthy(allIndia);
+    if (useAllIndia) {
+      return res.json({ type: 'FeatureCollection', features: [] });
+    }
     const effectiveDivision = useAllIndia ? '' : String(division || req?.user?.division || '').trim();
     const geojson = await model.getDivisionBufferGeoJSON(effectiveDivision);
 

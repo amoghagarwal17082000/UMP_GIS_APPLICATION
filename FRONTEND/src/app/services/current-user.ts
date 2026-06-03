@@ -70,9 +70,14 @@ export class CurrentUserService {
     this.loadPromise = firstValueFrom(
       this.http.get<any>(`${BASE_URL}/api/auth/me`).pipe(
         map((res) => this.normalizeUser(res?.user)),
-        catchError(() => of(null))
+        catchError((error: any) => of(this.isExpiredSessionError(error) ? null : undefined as any))
       )
     ).then((user) => {
+      if (user === undefined) {
+        this.loadPromise = null;
+        return this.getSnapshot();
+      }
+
       if (!user) {
         this.clear();
       } else {
@@ -83,6 +88,27 @@ export class CurrentUserService {
     });
 
     return this.loadPromise;
+  }
+
+  private isExpiredSessionError(error: any): boolean {
+    if (error?.status !== 401) return false;
+
+    const message = String(
+      error?.error?.message ||
+        error?.error?.error ||
+        error?.message ||
+        ''
+    ).toLowerCase();
+
+    return (
+      message.includes('missing authentication token') ||
+      message.includes('invalid or expired token') ||
+      message.includes('token payload invalid') ||
+      message.includes('session not found') ||
+      message.includes('session expired') ||
+      message.includes('session invalid') ||
+      message.includes('not authenticated')
+    );
   }
 
   private normalizeUser(user: any): CurrentUser | null {

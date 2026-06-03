@@ -5,32 +5,51 @@
         <div class="status-heading-row">
           <span class="status-heading-symbol" aria-hidden="true">
             <svg viewBox="0 0 48 48" role="img" focusable="false">
-              <path d="M16 9h4l-2 30h-4l2-30Zm12 0h4l2 30h-4l-2-30Z" fill="#f8fafc"/>
-              <path d="M17.2 13.5h13.6v3H17.2v-3Zm-.8 7.5h15.2v3H16.4v-3Zm-.8 7.5h16.8v3H15.6v-3Z" fill="#f59e0b"/>
-              <path d="M18.8 39h2.4l1.2 4h-2.4l-1.2-4Zm8.8 0h2.4l-1.2 4h-2.4l1.2-4Z" fill="#f8fafc"/>
+              <path d="M16 9h4l-2 30h-4l2-30Zm12 0h4l2 30h-4l-2-30Z" fill="#f8fafc" />
+              <path d="M17.2 13.5h13.6v3H17.2v-3Zm-.8 7.5h15.2v3H16.4v-3Zm-.8 7.5h16.8v3H15.6v-3Z" fill="#f59e0b" />
+              <path d="M18.8 39h2.4l1.2 4h-2.4l-1.2-4Zm8.8 0h2.4l-1.2 4h-2.4l1.2-4Z" fill="#f8fafc" />
             </svg>
           </span>
           <h2 class="status-heading">Layer Wise Status Count</h2>
         </div>
         <p class="status-subheading">
           {{
-            isSuperAdminDashboard
-              ? 'Track all-India asset counts by workflow stage across railway layers.'
-              : 'Track asset counts by workflow stage across the assigned railway layers.'
+          isSuperAdminDashboard
+          ? 'Track all-India asset counts by workflow stage across railway layers.'
+          : 'Track asset counts by workflow stage across the assigned railway layers.'
           }}
         </p>
+      </div>
+    </div>
+
+    <div class="col-12" *ngIf="isSuperAdminDashboard">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <select class="form-select" [(ngModel)]="selectedZone" (change)="onZoneChange()">
+            <option value="">All Zones</option>
+            <option *ngFor="let zone of zoneDivisionFilters" [value]="zone.zoneCode">
+              {{ zone.zoneName }}
+            </option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <select class="form-select" [(ngModel)]="selectedDivision" (change)="onDivisionChange()"
+            [disabled]="!selectedZone">
+            <option value="">All Divisions</option>
+            <option *ngFor="let division of divisionOptions" [value]="division.divisionCode">
+              {{ division.divisionName }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
     <div class="col-12">
       <div class="row g-4 main-cards">
         <div class="col-12 col-sm-6 col-xl-4 col-xxl" *ngFor="let card of mainCards">
-          <div
-            class="main-card h-100"
-            [attr.data-color]="card.color"
-            [class.active]="selectedMain === card.key"
-            (click)="onMainCardClick(card.key)"
-          >
+          <div class="main-card h-100" [attr.data-color]="card.color" [class.active]="selectedMain === card.key"
+            (click)="onMainCardClick(card.key)">
             <div class="main-title">{{ card.title }}</div>
             <div class="main-value">{{ card.value }}</div>
           </div>
@@ -41,11 +60,7 @@
     <div class="col-12">
       <div class="row g-4 sub-cards">
         <div class="col-12 col-sm-6 col-xl-4 col-xxl-3" *ngFor="let card of activeSubCards">
-          <div
-            class="sub-card h-100"
-            [attr.data-color]="activeColor"
-            (click)="onSubCardClick(card)"
-          >
+          <div class="sub-card h-100" [attr.data-color]="activeColor" (click)="onSubCardClick(card)">
             <div class="sub-title">{{ card.title }}</div>
             <div class="sub-value">{{ card.value }}</div>
           </div>
@@ -65,4 +80,3 @@
     </div>
   </div>
 </div>
-

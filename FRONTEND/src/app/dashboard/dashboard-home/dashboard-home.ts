@@ -4,7 +4,8 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { Api } from 'src/app/api/api';
 import { CurrentUserService } from 'src/app/services/current-user';
-import { normalizeCivilEngineeringLayerId } from 'src/app/departments/civil_engineering_assets/editing/civil-engineering-assets-editing';
+import { FormsModule } from '@angular/forms';
+import { DashboardCountFilters } from '../../api/common/dashboard/dashboard.api';
 
 type CardType = 'TOTAL' | 'MAKER' | 'CHECKER' | 'APPROVER' | 'FINALIZED';
 
@@ -35,22 +36,23 @@ interface SubCard {
   statusKey: string;
 }
 
-type DashboardLayerConfig = {
-  title: string;
-  layerKey: EditableLayerKey;
-  call: (type: CardType, allIndia: boolean) => any;
-};
-
 @Component({
   selector: 'app-dashboard-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule,   FormsModule,],
   templateUrl: './dashboard-home.html',
   styleUrl: './dashboard-home.css',
 })
 export class DashboardHome implements OnInit {
+
+  zoneDivisionFilters: any[] = [];
+  zoneOptions: string[] = [];
+  divisionOptions: any[] = [];
+
+  selectedZone = '';
+  selectedDivision = '';
+
   selectedMain: CardType = 'TOTAL';
-  private visibleDashboardLayers: DashboardLayerConfig[] = [];
 
   mainCards: MainCard[] = [
     { key: 'TOTAL', title: 'TOTAL', value: 0, color: 'blue' },
@@ -73,7 +75,7 @@ export class DashboardHome implements OnInit {
     private cdr: ChangeDetectorRef,
     private router: Router,
     private currentUser: CurrentUserService
-  ) {}
+  ) { }
 
   private getUserMainKey(): CardType | 'ADMIN' | null {
     const ut = (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase();
@@ -84,121 +86,147 @@ export class DashboardHome implements OnInit {
     return null;
   }
 
+  private getDashboardFilters(): DashboardCountFilters {
+  if (!this.isSuperAdminDashboard) {
+    return {};
+  }
+
+  if (this.selectedDivision) {
+    return {
+      allIndia: true,
+      zone: this.selectedZone,
+      division: this.selectedDivision,
+    };
+  }
+
+  if (this.selectedZone) {
+    return {
+      allIndia: true,
+      zone: this.selectedZone,
+    };
+  }
+
+  return {
+    allIndia: true,
+  };
+}
+
   get isSuperAdminDashboard(): boolean {
     return (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase() === 'super admin';
   }
 
   onSubCardClick(card: SubCard): void {
+    if (card.layerKey !== 'stations') return;
+
     const userMain = this.getUserMainKey();
     if (!userMain) return;
 
     const allowed = userMain === 'ADMIN' || this.selectedMain === userMain;
     if (!allowed) return;
 
-    const layer = this.getEditRouteLayer(card.layerKey);
-    if (!layer) return;
-
     this.router.navigate(['/dashboard/railway-assets'], {
       queryParams: {
         panel: 'edit',
-        layer,
+        layer: 'stations',
       },
     });
   }
 
   ngOnInit(): void {
+    this.loadZoneDivisionFilters();
     this.loadDashboard();
   }
 
+  onZoneChange(): void {
+  this.selectedDivision = '';
+
+  const selectedZone = this.zoneDivisionFilters.find(
+  (zone: any) => zone.zoneCode === this.selectedZone
+);
+
+this.divisionOptions = selectedZone?.divisions || [];
+
+  this.loadDashboard();
+}
+
+onDivisionChange(): void {
+  this.loadDashboard();
+}
+
   private loadDashboard(): void {
-    if (this.isMakerDashboard()) {
-      this.loadMakerDashboard();
-      return;
-    }
-
-    this.visibleDashboardLayers = this.getAllDashboardLayers();
-    this.loadDashboardCounts(this.isSuperAdminDashboard);
-  }
-
-  private loadMakerDashboard(): void {
-    const currentUserId = String(this.currentUser.getSnapshot()?.user_id || '').trim();
-    if (!currentUserId) {
-      this.applyVisibleDashboardLayers([]);
-      return;
-    }
-
-    this.api.getMakerLayerList(currentUserId).subscribe({
-      next: (res: any) => {
-        const makers = Array.isArray(res?.makers) ? res.makers : [];
-        const maker = makers.find(
-          (item: any) => String(item?.user_id || '').trim().toLowerCase() === currentUserId.toLowerCase(),
-        );
-
-        const assignedIds = String(maker?.assigned_layers || '')
-          .split(',')
-          .map((value) => String(value || '').trim())
-          .filter(Boolean);
-
-        if (!maker?.department_id || !assignedIds.length) {
-          this.applyVisibleDashboardLayers([]);
-          return;
-        }
-
-        this.api.getDepartmentLayers(String(maker.department_id).trim()).subscribe({
-          next: (layers: any[]) => {
-            const assignedLayerKeys = new Set(
-              (Array.isArray(layers) ? layers : [])
-                .filter((layer: any) => assignedIds.includes(String(layer?.layer_id || '').trim()))
-                .map((layer: any) => this.toDashboardLayerKey(layer?.layer_id, layer?.layar_name))
-                .filter(Boolean) as EditableLayerKey[],
-            );
-
-            const visibleLayers = this.getAllDashboardLayers().filter((layer) =>
-              assignedLayerKeys.has(layer.layerKey)
-            );
-            this.visibleDashboardLayers = visibleLayers;
-            this.loadDashboardCounts(false);
-          },
-          error: () => this.applyVisibleDashboardLayers([]),
-        });
-      },
-      error: () => this.applyVisibleDashboardLayers([]),
-    });
-  }
-
-  private loadDashboardCounts(allIndia: boolean): void {
     const types: CardType[] = ['TOTAL', 'MAKER', 'CHECKER', 'APPROVER', 'FINALIZED'];
+    const filters = this.getDashboardFilters();
+    const allIndia = this.isSuperAdminDashboard;
 
-    this.applyVisibleDashboardLayers(this.visibleDashboardLayers);
-    if (!this.visibleDashboardLayers.length) {
-      this.selectedMain = 'TOTAL';
-      this.cdr.detectChanges();
-      return;
-    }
+    const stationCalls: any = {};
+    const bridgeStartCalls: any = {};
+    const bridgeStopCalls: any = {};
+    const bridgeMinorCalls: any = {};
+    const levelXingCalls: any = {};
+    const robCalls: any = {};
+    const rubLhsCalls: any = {};
+    const rorCalls: any = {};
+    const kmPostCalls: any = {};
+    const landPlanCalls: any = {};
 
-    const calls: Record<string, any> = {};
-    this.visibleDashboardLayers.forEach((layer) => {
-      const perStatusCalls: any = {};
-      types.forEach((type) => {
-        perStatusCalls[type] = layer.call(type, allIndia);
-      });
-      calls[layer.layerKey] = forkJoin(perStatusCalls);
+    types.forEach((type) => {
+      stationCalls[type] = this.api.getStationCount(type, filters);
+      bridgeStartCalls[type] = this.api.getBridgeStartCount(type, filters);
+      bridgeStopCalls[type] = this.api.getBridgeStopCount(type, filters);
+      bridgeMinorCalls[type] = this.api.getBridgeMinorCount(type, filters);
+      levelXingCalls[type] = this.api.getLevelXingCount(type, filters);
+      robCalls[type] = this.api.getRoadOverBridgeCount(type, filters);
+      rubLhsCalls[type] = this.api.getRubLhsCount(type, filters);
+      rorCalls[type] = this.api.getRorCount(type, filters);
+      kmPostCalls[type] = this.api.getKmPostCount(type, filters);
+      landPlanCalls[type] = this.api.getLandPlanCount(type, filters);
     });
 
-    forkJoin(calls).subscribe({
+    forkJoin({
+      stations: forkJoin(stationCalls),
+      bridgeStart: forkJoin(bridgeStartCalls),
+      bridgeStop: forkJoin(bridgeStopCalls),
+      bridgeMinor: forkJoin(bridgeMinorCalls),
+      levelXing: forkJoin(levelXingCalls),
+      rob: forkJoin(robCalls),
+      rubLhs: forkJoin(rubLhsCalls),
+      ror: forkJoin(rorCalls),
+      kmPost: forkJoin(kmPostCalls),
+      landPlan: forkJoin(landPlanCalls),
+    }).subscribe({
       next: (res: any) => {
         types.forEach((type) => {
-          this.visibleDashboardLayers.forEach((layer) => {
-            this.setSubCard(type, layer.title, Number(res?.[layer.layerKey]?.[type]?.count || 0));
-          });
+          this.setSubCard(type, 'Station', res.stations[type].count);
+          this.setSubCard(type, 'Bridge Start', res.bridgeStart[type].count);
+          this.setSubCard(type, 'Bridge Stop', res.bridgeStop[type].count);
+          this.setSubCard(type, 'Bridge Minor', res.bridgeMinor[type].count);
+          this.setSubCard(type, 'Level Xing', res.levelXing[type].count);
+          this.setSubCard(type, 'Road Over Bridge', res.rob[type].count);
+          this.setSubCard(type, 'Road Under Bridge', res.rubLhs[type].count);
+          this.setSubCard(type, 'Rail Over Rail', res.ror[type].count);
+          this.setSubCard(type, 'KM Post', res.kmPost[type].count);
+          this.setSubCard(type, 'Land Plan Ontrack', res.landPlan[type].count);
         });
+
         this.selectedMain = 'TOTAL';
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('Dashboard load failed', err),
+      error: (err: any) => console.error('Dashboard load failed', err),
     });
   }
 
+
+  loadZoneDivisionFilters(): void {
+    this.api.getZoneDivisionFilters().subscribe({
+      next: (response: any) => {
+        this.zoneDivisionFilters = response?.data || [];
+        this.zoneOptions = this.zoneDivisionFilters.map((zone: any) => zone.zoneName);
+      },
+      error: (error: any) => {
+        console.error('Failed to load zone/division filters', error);
+      },
+    });
+  }
   private setSubCard(type: CardType, title: string, value: number): void {
     this.subCardMap = {
       ...this.subCardMap,
@@ -225,70 +253,17 @@ export class DashboardHome implements OnInit {
   }
 
   private emptySubCards(statusKey: string): SubCard[] {
-    return this.visibleDashboardLayers.map((layer) => ({
-      title: layer.title,
-      value: 0,
-      layerKey: layer.layerKey,
-      statusKey,
-    }));
-  }
-
-  private isMakerDashboard(): boolean {
-    return (this.currentUser.getSnapshot()?.user_type || '').trim().toLowerCase() === 'maker';
-  }
-
-  private applyVisibleDashboardLayers(layers: DashboardLayerConfig[]): void {
-    this.visibleDashboardLayers = [...layers];
-    const types: CardType[] = ['TOTAL', 'MAKER', 'CHECKER', 'APPROVER', 'FINALIZED'];
-    const nextSubCardMap = types.reduce((acc, type) => {
-      acc[type] = this.emptySubCards(type);
-      return acc;
-    }, {} as Record<CardType, SubCard[]>);
-
-    this.subCardMap = nextSubCardMap;
-    this.mainCards = this.mainCards.map((card) => ({ ...card, value: 0 }));
-  }
-
-  private getAllDashboardLayers(): DashboardLayerConfig[] {
     return [
-      { title: 'KM Post', layerKey: 'km_post', call: (type, allIndia) => this.api.getKmPostCount(type, allIndia) },
-      { title: 'Road Over Bridge', layerKey: 'road_over_bridge', call: (type, allIndia) => this.api.getRoadOverBridgeCount(type, allIndia) },
-      { title: 'Rail Over Rail', layerKey: 'ror', call: (type, allIndia) => this.api.getRorCount(type, allIndia) },
-      { title: 'Road Under Bridge', layerKey: 'rub_lhs', call: (type, allIndia) => this.api.getRubLhsCount(type, allIndia) },
-      { title: 'Station', layerKey: 'stations', call: (type, allIndia) => this.api.getStationCount(type, allIndia) },
-      { title: 'Level Xing', layerKey: 'levelxing', call: (type, allIndia) => this.api.getLevelXingCount(type, allIndia) },
-      { title: 'Bridge Start', layerKey: 'bridge_start', call: (type, allIndia) => this.api.getBridgeStartCount(type, allIndia) },
-      { title: 'Bridge End', layerKey: 'bridge_end', call: (type, allIndia) => this.api.getBridgeStopCount(type, allIndia) },
-      { title: 'Bridge Minor', layerKey: 'bridge_minor', call: (type, allIndia) => this.api.getBridgeMinorCount(type, allIndia) },
-      { title: 'Land Plan Ontrack', layerKey: 'landplan_ontrack', call: (type, allIndia) => this.api.getLandPlanCount(type, allIndia) },
+      { title: 'KM Post', value: 0, layerKey: 'km_post', statusKey },
+      { title: 'Road Over Bridge', value: 0, layerKey: 'road_over_bridge', statusKey },
+      { title: 'Rail Over Rail', value: 0, layerKey: 'ror', statusKey },
+      { title: 'Road Under Bridge', value: 0, layerKey: 'rub_lhs', statusKey },
+      { title: 'Station', value: 0, layerKey: 'stations', statusKey },
+      { title: 'Level Xing', value: 0, layerKey: 'levelxing', statusKey },
+      { title: 'Bridge Start', value: 0, layerKey: 'bridge_start', statusKey },
+      { title: 'Bridge Stop', value: 0, layerKey: 'bridge_end', statusKey },
+      { title: 'Bridge Minor', value: 0, layerKey: 'bridge_minor', statusKey },
+      { title: 'Land Plan Ontrack', value: 0, layerKey: 'landplan_ontrack', statusKey },
     ];
-  }
-
-  private toDashboardLayerKey(layerId: any, layerName: any): EditableLayerKey | null {
-    const candidates = [
-      normalizeCivilEngineeringLayerId(String(layerId || '')),
-      normalizeCivilEngineeringLayerId(String(layerName || '')),
-    ];
-
-    for (const candidate of candidates) {
-      if (candidate === 'station') return 'stations';
-      if (candidate === 'stations') return 'stations';
-      if (candidate === 'km_post') return 'km_post';
-      if (candidate === 'landplan_ontrack' || candidate === 'land_plan_ontrack' || candidate === 'land_plan_on_track') return 'landplan_ontrack';
-      if (candidate === 'bridge_start') return 'bridge_start';
-      if (candidate === 'bridge_end') return 'bridge_end';
-      if (candidate === 'bridge_minor') return 'bridge_minor';
-      if (candidate === 'levelxing' || candidate === 'level_xing') return 'levelxing';
-      if (candidate === 'road_over_bridge' || candidate === 'rob') return 'road_over_bridge';
-      if (candidate === 'road_under_bridge' || candidate === 'rub_lhs' || candidate === 'rub') return 'rub_lhs';
-      if (candidate === 'rail_over_rail' || candidate === 'ror') return 'ror';
-    }
-
-    return null;
-  }
-
-  private getEditRouteLayer(layerKey: string): string | null {
-    if (!layerKey) return null;
-    return normalizeCivilEngineeringLayerId(layerKey);
   }
 }

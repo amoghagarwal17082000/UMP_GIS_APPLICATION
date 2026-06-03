@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AuthApi } from './auth/auth.api';
-import { CommonDashboardApi } from './common/dashboard/dashboard.api';
+import { CommonDashboardApi, DashboardCountFilters } from './common/dashboard/dashboard.api';
 import { CommonLocationApi } from './common/location/location.api';
 import { CommonViewingApi } from './common/viewing/common-viewing.api';
 import { CivilEngineeringAssetsViewingApi } from './civil_engineering_assets/viewing/viewing.api';
@@ -28,11 +28,16 @@ export class Api {
     private superAdminUserManagementApi: SuperAdminUserManagementApi,
   ) {}
 
-  getStations(bbox: string) {
-    return this.commonViewingApi.getStations(bbox);
+  getStations(bbox: string, limit?: number, categories: string[] = []) {
+    return this.commonViewingApi.getStations(bbox, limit, categories);
   }
-  getTracks(bbox: string) {
-    return this.commonViewingApi.getTracks(bbox);
+
+  searchStations(q: string, limit = 10) {
+  return this.commonViewingApi.searchStations(q, limit);
+}
+
+  getTracks(bbox: string, z?: number) {
+    return this.commonViewingApi.getTracks(bbox, z);
   }
   getkmposts(bbox: string) {
     return this.commonViewingApi.getKmPosts(bbox);
@@ -221,35 +226,48 @@ export class Api {
     return this.authApi.login(username, password);
   }
 
-  getStationCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getStationCount(type, allIndia);
-  }
-  getBridgeStartCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeStartCount(type, allIndia);
-  }
-  getBridgeStopCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeStopCount(type, allIndia);
-  }
-  getBridgeMinorCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getBridgeMinorCount(type, allIndia);
-  }
-  getLevelXingCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getLevelXingCount(type, allIndia);
-  }
-  getRoadOverBridgeCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRoadOverBridgeCount(type, allIndia);
-  }
-  getRubLhsCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRubLhsCount(type, allIndia);
-  }
-  getRorCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getRorCount(type, allIndia);
-  }
-  getKmPostCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getKmPostCount(type, allIndia);
-  }
-  getLandPlanCount(type: string, allIndia = false) {
-    return this.commonDashboardApi.getLandPlanCount(type, allIndia);
+   getStationCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getStationCount(type, filters);
+}
+
+getBridgeStartCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getBridgeStartCount(type, filters);
+}
+
+getBridgeStopCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getBridgeStopCount(type, filters);
+}
+
+getBridgeMinorCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getBridgeMinorCount(type, filters);
+}
+
+getLevelXingCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getLevelXingCount(type, filters);
+}
+
+getRoadOverBridgeCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getRoadOverBridgeCount(type, filters);
+}
+
+getRubLhsCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getRubLhsCount(type, filters);
+}
+
+getRorCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getRorCount(type, filters);
+}
+
+getKmPostCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getKmPostCount(type, filters);
+}
+
+getLandPlanCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.commonDashboardApi.getLandPlanCount(type, filters);
+}
+
+  getZoneDivisionFilters() {
+    return this.commonDashboardApi.getZoneDivisionFilters();
   }
 
   rating(obj: any) {

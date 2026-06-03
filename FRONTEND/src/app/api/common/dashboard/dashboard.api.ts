@@ -2,44 +2,87 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BASE_URL, getDivision } from '../../shared/api-utils';
 
+export interface DashboardCountFilters {
+  allIndia?: boolean;
+  zone?: string;
+  division?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CommonDashboardApi {
   constructor(private http: HttpClient) {}
 
-  private getDashboardCount(asset: string, type: string, allIndia = false) {
-    return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/view/dashboard/${asset}/count`, {
-      params: allIndia ? { allIndia: 'true', type } : { division: getDivision(), type },
-    });
+  private getDashboardCount(
+  asset: string,
+  type: string,
+  filters: DashboardCountFilters = {}
+) {
+  const params: any = { type };
+
+  if (filters.allIndia) {
+    params.allIndia = 'true';
   }
 
-  getStationCount(type: string, allIndia = false) {
-    return this.getDashboardCount('station', type, allIndia);
+  if (filters.zone) {
+    params.zone = filters.zone;
   }
-  getBridgeStartCount(type: string, allIndia = false) {
-    return this.getDashboardCount('bridgeStart', type, allIndia);
+
+  if (filters.division) {
+    params.division = filters.division;
   }
-  getBridgeStopCount(type: string, allIndia = false) {
-    return this.getDashboardCount('bridgeEnd', type, allIndia);
+
+  if (!filters.allIndia && !filters.division) {
+    params.division = getDivision();
   }
-  getBridgeMinorCount(type: string, allIndia = false) {
-    return this.getDashboardCount('bridgeMinor', type, allIndia);
-  }
-  getLevelXingCount(type: string, allIndia = false) {
-    return this.getDashboardCount('levelXing', type, allIndia);
-  }
-  getRoadOverBridgeCount(type: string, allIndia = false) {
-    return this.getDashboardCount('roadOverBridge', type, allIndia);
-  }
-  getRubLhsCount(type: string, allIndia = false) {
-    return this.getDashboardCount('rubLhs', type, allIndia);
-  }
-  getRorCount(type: string, allIndia = false) {
-    return this.getDashboardCount('ror', type, allIndia);
-  }
-  getKmPostCount(type: string, allIndia = false) {
-    return this.getDashboardCount('kmPost', type, allIndia);
-  }
-  getLandPlanCount(type: string, allIndia = false) {
-    return this.getDashboardCount('landPlan', type, allIndia);
-  }
+
+  return this.http.get<any>(
+    `${BASE_URL}/api/civil_engineering_assets/view/dashboard/${asset}/count`,
+    { params }
+  );
+}
+
+getStationCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('station', type, filters);
+}
+
+getBridgeStartCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('bridgeStart', type, filters);
+}
+
+getBridgeStopCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('bridgeEnd', type, filters);
+}
+
+getBridgeMinorCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('bridgeMinor', type, filters);
+}
+
+getLevelXingCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('levelXing', type, filters);
+}
+
+getRoadOverBridgeCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('roadOverBridge', type, filters);
+}
+
+getRubLhsCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('rubLhs', type, filters);
+}
+
+getRorCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('ror', type, filters);
+}
+
+getKmPostCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('kmPost', type, filters);
+}
+
+getLandPlanCount(type: string, filters: DashboardCountFilters = {}) {
+  return this.getDashboardCount('landPlan', type, filters);
+}
+  getZoneDivisionFilters() {
+  return this.http.get<any>(
+    `${BASE_URL}/api/civil_engineering_assets/view/dashboard/filters/zone-division`
+  );
+}
 }

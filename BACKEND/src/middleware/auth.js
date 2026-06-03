@@ -5,11 +5,6 @@ function getJwtSecret() {
   return String(process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || '').trim();
 }
 
-function getIdleTimeoutMs() {
-  const minutes = Number(process.env.IDLE_TIMEOUT_MINUTES || 180);
-  return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 * 1000 : 30 * 60 * 1000;
-}
-
 async function authenticateToken(req, res, next) {
   try {
     const header = req.headers.authorization || '';
@@ -45,18 +40,14 @@ async function authenticateToken(req, res, next) {
 
     const nowMs = Date.now();
     const dbExpiryMs = new Date(session.expires_at).getTime();
-    const updatedAtMs = new Date(session.updated_at).getTime();
-    const idleTimeoutMs = getIdleTimeoutMs();
 
     if (
       session.revoked_at ||
       !Number.isFinite(dbExpiryMs) ||
-      nowMs > dbExpiryMs ||
-      !Number.isFinite(updatedAtMs) ||
-      (nowMs - updatedAtMs) > idleTimeoutMs
+      nowMs > dbExpiryMs
     ) {
       await authModel.clearSession(userId);
-      return res.status(401).json({ success: false, message: 'Session expired due to inactivity. Please login again.' });
+      return res.status(401).json({ success: false, message: 'Session expired. Please login again.' });
     }
 
     await authModel.touchSession(userId);

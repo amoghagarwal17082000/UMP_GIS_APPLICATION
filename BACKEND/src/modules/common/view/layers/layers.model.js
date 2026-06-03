@@ -83,8 +83,12 @@ function normalizeDivisionSql(expression) {
   return `REGEXP_REPLACE(UPPER(COALESCE(${expression}::text, '')), '[^A-Z0-9]', '', 'g')`;
 }
 
+function quoteIdent(identifier) {
+  return `"${String(identifier || '').replace(/"/g, '""')}"`;
+}
+
 function buildDivisionWhereClause(columnName, paramIndex) {
-  return `${normalizeDivisionSql(columnName)} = ${normalizeDivisionSql(`$${paramIndex}`)}`;
+  return `${normalizeDivisionSql(quoteIdent(columnName))} = ${normalizeDivisionSql(`$${paramIndex}`)}`;
 }
 
 function resolveGeometryColumn(columns) {
@@ -173,13 +177,34 @@ async function resolveDepartmentLayerConfig(departmentRef, layerKey) {
   };
 }
 
-async function getLayerGeoJSON(layerConfig, whereSql, params, division, limit = 20000) {
+async function getLayerGeoJSON(
+  layerConfig,
+  whereSql,
+  params,
+  division,
+  limit = 20000,
+  simplifyTolerance = 0,
+  categoryList = [],
+) {
   let divisionSql = '';
   const rowLimit = Math.min(20000, Math.max(1, Number(limit) || 20000));
+  const queryParams = [...params];
+  const idColumn = quoteIdent(layerConfig.idColumn);
+  const geometryColumn = quoteIdent(layerConfig.geometryColumn);
+  const tolerance = Math.max(0, Number(simplifyTolerance) || 0);
+  const geometryExpression = tolerance > 0
+    ? `ST_SimplifyPreserveTopology(${geometryColumn}, ${tolerance})`
+    : geometryColumn;
 
   if (division && layerConfig.hasDivision !== false) {
-    params.push(division);
-    divisionSql = ` AND ${buildDivisionWhereClause('division', params.length)}`;
+    queryParams.push(division);
+    divisionSql = ` AND ${buildDivisionWhereClause('division', queryParams.length)}`;
+  }
+
+  let categorySql = '';
+  if (Array.isArray(categoryList) && categoryList.length > 0) {
+    queryParams.push(categoryList);
+    categorySql = ` AND ${quoteIdent('category')} = ANY($${queryParams.length}::text[])`;
   }
 
   const sql = `
@@ -189,9 +214,9 @@ async function getLayerGeoJSON(layerConfig, whereSql, params, division, limit = 
         jsonb_agg(
           jsonb_build_object(
             'type','Feature',
-            'id', ${layerConfig.idColumn},
+            'id', ${idColumn},
             'properties', to_jsonb(t) - '${layerConfig.geometryColumn}',
-            'geometry', ST_AsGeoJSON(${layerConfig.geometryColumn})::jsonb
+            'geometry', ST_AsGeoJSON(${geometryExpression})::jsonb
           )
         ),
         '[]'::jsonb
@@ -200,12 +225,12 @@ async function getLayerGeoJSON(layerConfig, whereSql, params, division, limit = 
     FROM (
       SELECT *
       FROM ${layerConfig.table}
-      WHERE ${whereSql} ${divisionSql}
+      WHERE ${whereSql} ${divisionSql} ${categorySql}
       LIMIT ${rowLimit}
     ) t;
   `;
 
-  const { rows } = await pool.query(sql, params);
+  const { rows } = await pool.query(sql, queryParams);
   return rows[0]?.geojson;
 }
 
@@ -218,11 +243,80 @@ async function getDepartmentLayerGeoJSON(departmentRef, layerKey, whereSql, para
   };
 }
 
+async function searchStations(q, limit = 10, division = '') {
+  const search = String(q || '').trim();
+  const rowLimit = Math.min(25, Math.max(1, Number(limit) || 10));
+  const queryParams = [search];
+  let divisionSql = '';
+
+  const effectiveDivision = String(division || '').trim();
+  if (effectiveDivision) {
+    queryParams.push(effectiveDivision);
+    divisionSql = `AND ${buildDivisionWhereClause('division', queryParams.length)}`;
+  }
+
+  const sql = `
+    SELECT jsonb_build_object(
+      'type','FeatureCollection',
+      'features', COALESCE(
+        jsonb_agg(
+          jsonb_build_object(
+            'type','Feature',
+            'id', objectid,
+            'properties', jsonb_build_object(
+              'objectid', objectid,
+              'sttnname', sttnname,
+              'sttncode', sttncode,
+              'district', district,
+              'division', division,
+              'state', state,
+              'category', category
+            ),
+            'geometry', ST_AsGeoJSON(shape)::jsonb
+          )
+          ORDER BY
+            CASE
+              WHEN UPPER(sttncode) = UPPER($1) THEN 1
+              WHEN UPPER(sttncode) LIKE UPPER($1) || '%' THEN 2
+              WHEN UPPER(sttnname) LIKE UPPER($1) || '%' THEN 3
+              ELSE 4
+            END,
+            sttnname
+        ),
+        '[]'::jsonb
+      )
+    ) AS geojson
+    FROM (
+      SELECT *
+      FROM sde.station
+      WHERE shape IS NOT NULL
+        ${divisionSql}
+        AND (
+          UPPER(sttncode) LIKE UPPER($1) || '%'
+          OR UPPER(sttnname) LIKE '%' || UPPER($1) || '%'
+        )
+      ORDER BY
+        CASE
+          WHEN UPPER(sttncode) = UPPER($1) THEN 1
+          WHEN UPPER(sttncode) LIKE UPPER($1) || '%' THEN 2
+          WHEN UPPER(sttnname) LIKE UPPER($1) || '%' THEN 3
+          ELSE 4
+        END,
+        sttnname
+      LIMIT ${rowLimit}
+    ) t;
+  `;
+
+  const { rows } = await pool.query(sql, queryParams);
+  return rows[0]?.geojson;
+}
+
 module.exports = {
   getLayerGeoJSON,
   getDepartmentLayerCatalog,
   getDepartmentLayerGeoJSON,
   resolveDepartmentLayerConfig,
   normalizeLayerKey,
+  searchStations,
 };
 

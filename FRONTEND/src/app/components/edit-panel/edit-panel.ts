@@ -181,14 +181,14 @@ export class EditPanel implements OnInit, OnDestroy {
     if (!text) return;
     const lower = text.toLowerCase();
     if (lower.includes('failed') || lower.includes('not validated') || lower.includes('not wired') || lower.includes('not all')) {
-      this.alerts.error(text);
+      this.alerts.error(text, 0, true);
       return;
     }
     if (lower.includes('please') || lower.includes('mode is on') || lower.includes('drawing mode')) {
-      this.alerts.warning(text);
+      this.alerts.warning(text, 0, true);
       return;
     }
-    this.alerts.success(text);
+    this.alerts.success(text, 0, true);
   }
 
   ngOnInit(): void {
@@ -2541,7 +2541,11 @@ export class EditPanel implements OnInit, OnDestroy {
     this.validating = true;
     this.api.validateStationCode(this.draft.sttncode).subscribe({
       next: (res: any) => {
-        if (!this.draft) return;
+        if (!this.draft) {
+          this.validating = false;
+          this.cdr.detectChanges();
+          return;
+        }
         const row = res?.row || {};
         const validatedName = row?.station_name || this.draft.sttnname;
         const validatedCategory = row?.category || this.draft.category;

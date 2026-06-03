@@ -1,8 +1,8 @@
 import { Component, OnDestroy, OnInit, Output, EventEmitter, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, map, takeUntil } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map, switchMap, takeUntil, tap, finalize } from 'rxjs/operators';
+import { Subject, of } from 'rxjs';
 import { SearchResult, Station, StationService } from '../../services/station.service';
 
 @Component({
@@ -28,7 +28,7 @@ export class StationSearchComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.setupSearch();
-    void this.stationService.ensureLoaded();
+    // void this.stationService.ensureLoaded();
   }
 
   ngOnDestroy(): void {
@@ -36,30 +36,43 @@ export class StationSearchComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private setupSearch(): void {
-    this.searchControl.valueChanges
-      .pipe(
-        debounceTime(150),
-        map((query) => String(query || '').trim()),
-        distinctUntilChanged(),
-        takeUntil(this.destroy$)
-      )
-      .subscribe((query) => {
+ private setupSearch(): void {
+  this.searchControl.valueChanges
+    .pipe(
+      debounceTime(150),
+      map((query) => String(query || '').trim()),
+      distinctUntilChanged(),
+      tap((query) => {
         if (query.length === 0) {
           this.searchResults = [];
           this.showResults = false;
           this.selectedIndex = -1;
+          this.isLoading = false;
           this.searchCleared.emit();
           return;
         }
 
         this.isLoading = true;
         this.showResults = true;
-        this.searchResults = this.stationService.searchStations(query, 10);
-        this.selectedIndex = this.searchResults.length > 0 ? 0 : -1;
-        this.isLoading = false;
-      });
-  }
+      }),
+      switchMap((query) => {
+        if (query.length < 2) {
+          return of([]);
+        }
+
+        return this.stationService.searchStationsFromApi(query, 10).pipe(
+          finalize(() => {
+            this.isLoading = false;
+          })
+        );
+      }),
+      takeUntil(this.destroy$)
+    )
+    .subscribe((results) => {
+      this.searchResults = results;
+      this.selectedIndex = this.searchResults.length > 0 ? 0 : -1;
+    });
+}
 
   selectStation(result: SearchResult): void {
     this.stationSelected.emit(result.station);

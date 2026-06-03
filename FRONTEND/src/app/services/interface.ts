@@ -179,27 +179,73 @@ export interface ClusteredPointLayerOptions {
   disableClusteringZoom?: number;
   minClusterCount?: number;
   clusterClickZoom?: number;
+  clusterLabel?: string;
 }
 
 function createClusterMarker(latlng: L.LatLng, count: number, legend: LayerLegend): L.Marker {
   const stroke = legend.strokeColor || legend.color;
   const fill = legend.fillColor || legend.color;
-  const size = count >= 100 ? 40 : count >= 10 ? 34 : 30;
-  const fontSize = count >= 100 ? 13 : 12;
-  const html = '<div style="' +
-    'width:' + size + 'px;' +
-    'height:' + size + 'px;' +
-    'border-radius:999px;' +
-    'display:flex;' +
-    'align-items:center;' +
-    'justify-content:center;' +
-    'background:' + fill + ';' +
-    'border:2px solid ' + stroke + ';' +
-    'color:#ffffff;' +
-    'font-weight:800;' +
-    'font-size:' + fontSize + 'px;' +
-    'box-shadow:0 2px 6px rgba(0,0,0,0.24);' +
-    '">' + count + '</div>';
+  const size = count >= 100 ? 42 : count >= 10 ? 38 : 34;
+  const fontSize = count >= 100 ? 12 : 11;
+
+  let html = '';
+
+  if (legend.imageUrl) {
+    const imageSize = Math.max(24, Math.min(30, legend.imageWidth ?? 26));
+    const badgeSize = count >= 100 ? 24 : count >= 10 ? 21 : 18;
+
+    html =
+      '<div style="' +
+      'position:relative;' +
+      'width:' + size + 'px;' +
+      'height:' + size + 'px;' +
+      'display:flex;' +
+      'align-items:center;' +
+      'justify-content:center;' +
+      '">' +
+        '<img src="' + legend.imageUrl + '" style="' +
+        'width:' + imageSize + 'px;' +
+        'height:' + imageSize + 'px;' +
+        'object-fit:contain;' +
+        'filter:drop-shadow(0 2px 4px rgba(0,0,0,0.30));' +
+        '" alt="' + escapeHtml(legend.label || 'cluster') + '">' +
+        '<span style="' +
+        'position:absolute;' +
+        'right:0;' +
+        'top:0;' +
+        'min-width:' + badgeSize + 'px;' +
+        'height:' + badgeSize + 'px;' +
+        'padding:0 4px;' +
+        'border-radius:999px;' +
+        'display:flex;' +
+        'align-items:center;' +
+        'justify-content:center;' +
+        'background:#111827;' +
+        'border:2px solid #ffffff;' +
+        'color:#ffffff;' +
+        'font-weight:800;' +
+        'font-size:' + fontSize + 'px;' +
+        'line-height:1;' +
+        'box-shadow:0 1px 4px rgba(0,0,0,0.28);' +
+        'box-sizing:border-box;' +
+        '">' + count + '</span>' +
+      '</div>';
+  } else {
+    html = '<div style="' +
+      'width:' + size + 'px;' +
+      'height:' + size + 'px;' +
+      'border-radius:999px;' +
+      'display:flex;' +
+      'align-items:center;' +
+      'justify-content:center;' +
+      'background:' + fill + ';' +
+      'border:2px solid ' + stroke + ';' +
+      'color:#ffffff;' +
+      'font-weight:800;' +
+      'font-size:' + fontSize + 'px;' +
+      'box-shadow:0 2px 6px rgba(0,0,0,0.24);' +
+      '">' + count + '</div>';
+  }
 
   return L.marker(latlng, {
     icon: L.divIcon({
@@ -222,6 +268,7 @@ export function buildClusteredPointLayers(options: ClusteredPointLayerOptions): 
     clusterRadiusPx = 48,
     disableClusteringZoom = 14,
     minClusterCount = 40,
+    clusterLabel = 'features',
     clusterClickZoom,
   } = options;
 
@@ -285,7 +332,7 @@ export function buildClusteredPointLayers(options: ClusteredPointLayerOptions): 
         map.fitBounds(bucket.bounds.pad(0.4), { animate: false });
       }
     });
-    marker.bindPopup('<b>' + bucket.features.length + '</b> features in this area');
+       marker.bindPopup('<b>' + bucket.features.length + '</b> ' + clusterLabel + ' in this area');
     layers.push(marker);
   });
 

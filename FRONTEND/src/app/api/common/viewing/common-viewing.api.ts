@@ -15,19 +15,35 @@ import {
 export class CommonViewingApi {
   constructor(private http: HttpClient) {}
 
-  getStations(bbox: string) {
+  getStations(bbox: string, limit?: number, categories: string[] = []) {
     const allIndia = isPortalAdminUser();
     if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
+    const params: Record<string, string | number> = { bbox };
+    if (typeof limit === 'number' && Number.isFinite(limit)) params['limit'] = limit;
+    if (categories.length) params['categories'] = categories.join(',');
+
     return this.http.get<any>(`${BASE_URL}/api/common/view/layers/station`, {
-      params: allIndia ? withAllIndia({ bbox }) : withDivision({ bbox }),
+      params: allIndia ? withAllIndia(params) : withDivision(params),
     });
   }
 
-  getTracks(bbox: string) {
+  searchStations(q: string, limit = 10) {
+  const allIndia = isPortalAdminUser();
+  if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
+
+  return this.http.get<any>(`${BASE_URL}/api/common/view/layers/station/search`, {
+    params: allIndia
+      ? withAllIndia({ q, limit })
+      : withDivision({ q, limit }),
+  });
+}
+
+  getTracks(bbox: string, z?: number) {
     const allIndia = isPortalAdminUser();
     if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
+    const params = z == null ? { bbox } : { bbox, z };
     return this.http.get<any>(`${BASE_URL}/api/common/view/layers/railwayTrack`, {
-      params: allIndia ? withAllIndia({ bbox }) : withDivision({ bbox }),
+      params: allIndia ? withAllIndia(params) : withDivision(params),
     });
   }
 
@@ -48,14 +64,14 @@ export class CommonViewingApi {
 
   getDivisionBuffer() {
     const allIndia = isPortalAdminUser();
-    if (!hasDivision() && !allIndia) return of(emptyFeatureCollection());
+    if (allIndia || !hasDivision()) return of(emptyFeatureCollection());
     return this.http.get<any>(`${BASE_URL}/api/civil_engineering_assets/view/layers/division-buffer/current`, {
-      params: allIndia ? withAllIndia({}) : withDivision({}),
+      params: withDivision({}),
     });
   }
 
   getDivisionBufferKey(z: number) {
-    return isPortalAdminUser() ? `allIndia=true|z=${z}` : `division=${getDivision()}|z=${z}`;
+    return isPortalAdminUser() ? `portalAdmin=no-buffer|z=${z}` : `division=${getDivision()}|z=${z}`;
   }
 
   getDepartmentLayerCatalog(departmentRef: string) {

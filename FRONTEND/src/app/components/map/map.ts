@@ -40,6 +40,7 @@ import { MapZoomService, ZoomTarget } from '../../services/map-zoom';
 import { Station } from '../../services/station.service';
 import { FileUploadService } from '../../services/file-upload.service';
 import { AppAlertService } from '../../services/app-alert.service';
+import { StationCategoryVisibilityService } from '../../services/station-category-visibility';
 
 type EditableLayer = string | null;
 type DepartmentModuleKey = 'civil_engineering_assets' | 'civil_engineering_assets_offtrack' | 'unknown';
@@ -130,7 +131,8 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     private fileUploadService: FileUploadService,
     private route: ActivatedRoute,
     private router: Router,
-    private alerts: AppAlertService
+    private alerts: AppAlertService,
+    private stationCategoryVisibility: StationCategoryVisibilityService
   ) {}
 
   ngAfterViewInit(): void {
@@ -543,17 +545,21 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     const portalAdmin = this.isPortalAdmin();
     this.layerManager.clear(); this.layerManager.setActiveDepartmentLabel(department.label);
     this.layerManager.registerOnce(new IndiaBoundaryLayer(this.api));
-    this.layerManager.registerOnce(new DivisionBufferLayer(this.api, () => {
-      if (!this.map) return;
-      setTimeout(() => {
+    if (portalAdmin) {
+      setTimeout(() => this.startInitialLayerLoad(), 60);
+    } else {
+      this.layerManager.registerOnce(new DivisionBufferLayer(this.api, () => {
         if (!this.map) return;
-        this.startInitialLayerLoad();
-      }, 60);
-    }));
+        setTimeout(() => {
+          if (!this.map) return;
+          this.startInitialLayerLoad();
+        }, 60);
+      }));
+    }
     this.layerManager.registerOnce(new TrackLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Railway Track', g)));
     if (department.key === 'civil_engineering_assets' || portalAdmin) {
       attributeTabs.unshift('Station');
-      this.layerManager.registerOnce(new StationViewingLayer(this.api, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)));
+      this.layerManager.registerOnce(new StationViewingLayer(this.api, this.zone, this.stationCategoryVisibility, (g: any) => this.attrTable.pushFeatureCollection('Station', g)));
     }
     if (department.key === 'civil_engineering_assets') {
       attributeTabs.splice(1, 0, 'Landplan Ontrack', 'Land Offset', 'Land Boundary');
@@ -577,7 +583,12 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     const wantsLandPlanOntrackEditLayer = this.edit.enabled && normalizedEditLayer === 'landplan_ontrack';
     const wantsLandOffsetEditLayer = this.edit.enabled && normalizedEditLayer === 'land_offset';
     const wantsLandBoundaryEditLayer = this.edit.enabled && normalizedEditLayer === 'land_boundary';
-    this.layerManager.replaceLayer(wantsStationEditLayer ? new StationLayer(this.api, this.filters, this.edit, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)) : new StationViewingLayer(this.api, this.zone, (g) => this.attrTable.pushFeatureCollection('Station', g)), this.map);
+    this.layerManager.replaceLayer(
+      wantsStationEditLayer
+        ? new StationLayer(this.api, this.filters, this.edit, this.zone, this.stationCategoryVisibility, (g: any) => this.attrTable.pushFeatureCollection('Station', g))
+        : new StationViewingLayer(this.api, this.zone, this.stationCategoryVisibility, (g: any) => this.attrTable.pushFeatureCollection('Station', g)),
+      this.map
+    );
     this.layerManager.replaceLayer(wantsLandPlanOntrackEditLayer ? new LandPlanOntrackLayer(this.api, this.edit, (g) => this.attrTable.pushFeatureCollection('Landplan Ontrack', g)) : new LandPlanOntrackViewingLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Landplan Ontrack', g)), this.map);
     this.layerManager.replaceLayer(wantsLandOffsetEditLayer ? new LandOffsetEditLayer(this.api, this.edit, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)) : new LandOffsetLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Offset', g)), this.map);
     this.layerManager.replaceLayer(wantsLandBoundaryEditLayer ? new LandBoundaryEditLayer(this.api, this.edit, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)) : new LandBoundaryLayer(this.api, (g) => this.attrTable.pushFeatureCollection('Land Boundary', g)), this.map);

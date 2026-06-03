@@ -14,7 +14,7 @@ function isSuperAdmin(req) {
 async function getAssetCount(req, res, next) {
   try {
     const { asset } = req.params;
-    const { division, type = 'TOTAL', allIndia } = req.query;
+    const { division, zone, type = 'TOTAL', allIndia } = req.query;
     const wantsAllIndia = String(allIndia || '').trim().toLowerCase() === 'true';
 
     if (wantsAllIndia && !isSuperAdmin(req)) {
@@ -39,7 +39,10 @@ async function getAssetCount(req, res, next) {
 
     const count = await model.getCount(
       tableName,
-      String(division || '').trim(),
+      {
+        division: String(division || '').trim(),
+        zone: String(zone || '').trim(),
+      },
       String(type).toUpperCase(),
       wantsAllIndia
     );
@@ -51,4 +54,13 @@ async function getAssetCount(req, res, next) {
   }
 }
 
-module.exports = { getAssetCount };
+async function getZoneDivisionFilters(req, res, next) {
+  try {
+    const data = await model.getZoneDivisionFilters(config.station);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAssetCount, getZoneDivisionFilters };

@@ -1,7 +1,4 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
-import { Router } from '@angular/router';
-
-import { Auth } from './auth';
 
 @Injectable({ providedIn: 'root' })
 export class IdleTimeoutService implements OnDestroy {
@@ -11,11 +8,7 @@ export class IdleTimeoutService implements OnDestroy {
   private started = false;
   private readonly boundReset = () => this.resetTimer();
 
-  constructor(
-    private auth: Auth,
-    private router: Router,
-    private zone: NgZone
-  ) {}
+  constructor(private zone: NgZone) {}
 
   start(): void {
     if (this.started) return;
@@ -53,12 +46,7 @@ export class IdleTimeoutService implements OnDestroy {
   }
 
   private onIdleTimeout(): void {
-    if (!this.auth.isLoggedIn()) return;
-
-    this.zone.run(() => {
-      this.auth.logout();
-      this.router.navigateByUrl('/login');
-    });
+    this.stop();
   }
 }
 

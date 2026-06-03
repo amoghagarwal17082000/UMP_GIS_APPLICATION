@@ -3,7 +3,8 @@
  * Expected format: minX,minY,maxX,maxY (EPSG:4326)
  */
 function parseBbox(bbox, geometryColumn = 'shape') {
-  const safeGeometryColumn = String(geometryColumn || 'shape').trim() || 'shape';
+  const columnName = String(geometryColumn || 'shape').trim() || 'shape';
+  const safeGeometryColumn = `"${columnName.replace(/"/g, '""')}"`;
   // Default: no bbox → return all geometries
   if (!bbox) {
     return {

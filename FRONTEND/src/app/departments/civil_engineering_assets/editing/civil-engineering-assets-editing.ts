@@ -4,6 +4,7 @@ import { NgZone } from '@angular/core';
 import { Api } from '../../../api/api';
 import { FilterState } from '../../../services/filter-state';
 import { EditState } from '../../../services/edit-state';
+import { StationCategoryVisibilityService } from '../../../services/station-category-visibility';
 import {
   DynamicDepartmentLayer,
   LandBoundaryLayer,
@@ -109,9 +110,10 @@ export class StationLayer extends StationViewingLayer {
     _filters: FilterState,
     private edit: EditState,
     zone: NgZone,
+    stationCategoryVisibility: StationCategoryVisibilityService,
     onData?: (geojson: any) => void
   ) {
-    super(api, zone, onData);
+    super(api, zone, stationCategoryVisibility, onData);
   }
 
   protected override onMarkerCreated(feature: any, marker: L.Marker) {

@@ -171,7 +171,7 @@ export class LayerManager {
       this.loadFrame = null;
     }
 
-    const priorityIds = new Set(['division_buffer', 'tracks', 'stations', 'landboundary']);
+    const priorityIds = new Set(['division_buffer', 'tracks', 'stations', 'landboundary', 'landplan_ontrack', 'land_offset', 'land_boundary']);
     const priorityLayers = layers.filter((layer) => priorityIds.has(layer.id));
     const deferredLayers = layers.filter((layer) => !priorityLayers.includes(layer));
 
@@ -184,7 +184,7 @@ export class LayerManager {
     });
 
     let index = 0;
-    const layersPerFrame = label === 'loadForMap' ? 8 : 5;
+    const layersPerFrame = label === 'loadForMap' ? 6 : 4;
     const runNext = () => {
       this.loadFrame = null;
       if (!map || index >= deferredLayers.length) return;
