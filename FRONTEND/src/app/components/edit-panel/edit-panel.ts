@@ -109,10 +109,6 @@ export class EditPanel implements OnInit, OnDestroy {
   makerTab: MakerTabKey = 'edit';
   checkerTab: CheckerTabKey = 'pending';
   rejectedLayer: EditLayerKey | null = null;
-  layerDropdownOpen = false;
-  rejectedLayerDropdownOpen = false;
-  layerSearch = '';
-  rejectedLayerSearch = '';
 
   geomEditing = false;
   showAddRecordModal = false;
@@ -255,65 +251,6 @@ export class EditPanel implements OnInit, OnDestroy {
 
   get rejectedLayerPickerLabel(): string {
     return 'Select Layer (Rejected Records)';
-  }
-
-  private getActiveRawLayer(): string {
-    return String(this.isMakerRejectedView() ? this.rejectedLayer : this.edit.editLayer || '').trim();
-  }
-
-  getFilteredLayerOptions(rejected = false): MakerLayerOption[] {
-    const term = String(rejected ? this.rejectedLayerSearch : this.layerSearch).trim().toLowerCase();
-    if (!term) return this.layerOptions;
-    return this.layerOptions.filter((option) => {
-      const label = String(option.label || '').toLowerCase();
-      const value = String(option.value || '').toLowerCase();
-      return label.includes(term) || value.includes(term);
-    });
-  }
-
-  getLayerDropdownLabel(rejected = false): string {
-    const selected = String(rejected ? this.rejectedLayer : this.edit.editLayer || '').trim();
-    if (!selected) return 'Select Layer';
-    return this.layerOptions.find((option) => option.value === selected)?.label || selected;
-  }
-
-  toggleLayerDropdown(rejected = false): void {
-    if (rejected) {
-      this.rejectedLayerDropdownOpen = !this.rejectedLayerDropdownOpen;
-      this.layerDropdownOpen = false;
-      return;
-    }
-    this.layerDropdownOpen = !this.layerDropdownOpen;
-    this.rejectedLayerDropdownOpen = false;
-  }
-
-  selectLayerOption(option: MakerLayerOption, rejected = false): void {
-    if (rejected) {
-      this.rejectedLayer = option.value as EditLayerKey;
-      this.rejectedLayerDropdownOpen = false;
-      this.rejectedLayerSearch = '';
-      this.onRejectedLayerChange();
-      return;
-    }
-
-    this.edit.editLayer = option.value as any;
-    this.layerDropdownOpen = false;
-    this.layerSearch = '';
-    this.onLayerChange();
-  }
-
-  clearLayerSelection(rejected = false): void {
-    if (rejected) {
-      this.rejectedLayer = null;
-      this.rejectedLayerSearch = '';
-      this.rejectedLayerDropdownOpen = false;
-      this.onRejectedLayerChange();
-      return;
-    }
-    this.edit.editLayer = null as any;
-    this.layerSearch = '';
-    this.layerDropdownOpen = false;
-    this.onLayerChange();
   }
 
   get currentLayerSchema() {
@@ -597,14 +534,14 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   get unsupportedLayerSelected(): boolean {
-    const selected = this.getActiveRawLayer();
+    const selected = String(this.isMakerRejectedView() ? this.rejectedLayer : this.edit.editLayer || '').trim();
     if (!selected) return false;
     const option = this.layerOptions.find((item) => item.value === selected);
     return !!option && !option.supported;
   }
 
   get selectedLayerLabel(): string {
-    const selected = this.getActiveRawLayer();
+    const selected = String(this.isMakerRejectedView() ? this.rejectedLayer : this.edit.editLayer || '').trim();
     if (!selected) return '';
     return this.layerOptions.find((item) => item.value === selected)?.label || selected;
   }
@@ -1575,7 +1512,7 @@ export class EditPanel implements OnInit, OnDestroy {
 
     this.edit.startCreateStation();
     const layerLabel = this.currentLayerSchema?.label || this.selectedLayerLabel || 'asset';
-    this.notifyAlert(`Drawing mode is on. Double-click inside the division buffer to place the new ${layerLabel}.`);
+    this.alerts.warning(`Drawing mode is on. Click inside the division buffer to place the new ${layerLabel}.`, 3200, false);
 
     this.cdr.detectChanges();
   }

@@ -26,8 +26,10 @@ export class FileUploadComponent implements OnInit {
   currentView: ModalView = 'layer-select';
 
   selectedLayer = '';
-layerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_OPTIONS];
-filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_OPTIONS];
+  layerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_OPTIONS];
+  filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_OPTIONS];
+  layerListOpen = false;
+  layerSearchTerm = '';
 
   shapeFiles: File[] = [];
   shapefileDragOver = false;
@@ -42,6 +44,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   uploadSuccess = false;
   uploadError = '';
   uploadedFilesList: UploadedFile[] = [];
+  private successfulUploadResetTimer?: ReturnType<typeof setTimeout>;
 
   fileDescription = '';
   fileCategory = '';
@@ -81,7 +84,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     this.isModalOpen = true;
     this.currentView = 'layer-select';
     this.resetUploadState();
-    this.filteredLayerOptions = [...this.layerOptions];
+    this.applyLayerFilter();
   }
 
   closeModal(): void {
@@ -105,7 +108,9 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   goBackToLayers(): void {
     this.currentView = 'layer-select';
     this.selectedLayer = '';
-    this.filteredLayerOptions = [...this.layerOptions];
+    this.layerSearchTerm = '';
+    this.layerListOpen = false;
+    this.applyLayerFilter();
   }
 
   // goBackToUpload(): void {
@@ -114,14 +119,28 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   // }
 
   filterLayers(event: Event): void {
-    const searchTerm = String((event.target as HTMLInputElement)?.value || '').toLowerCase();
+    this.layerSearchTerm = String((event.target as HTMLInputElement)?.value || '');
+    this.applyLayerFilter();
+  }
+
+  toggleLayerList(): void {
+    this.layerListOpen = !this.layerListOpen;
+  }
+
+  clearLayerSearch(): void {
+    this.layerSearchTerm = '';
+    this.applyLayerFilter();
+  }
+
+  private applyLayerFilter(): void {
+    const searchTerm = this.layerSearchTerm.trim().toLowerCase();
     if (!searchTerm) {
       this.filteredLayerOptions = [...this.layerOptions];
       return;
     }
 
     this.filteredLayerOptions = this.layerOptions.filter((layer) =>
-      layer.label.toLowerCase().includes(searchTerm),
+      layer.label.toLowerCase().includes(searchTerm) || layer.value.toLowerCase().includes(searchTerm),
     );
   }
 
@@ -151,15 +170,27 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
     const index = this.shapeFiles.indexOf(file);
     if (index > -1) {
       this.shapeFiles.splice(index, 1);
+      if (this.shapeFiles.length === 0) {
+        this.uploadError = '';
+        this.uploadProgress = 0;
+      }
+      this.clearNativeFileInput();
+      this.cdr.markForCheck();
     }
   }
 
   selectShapefileLayer(layerValue: string): void {
     this.activateUploadFormat('shapefile');
     this.selectedLayer = layerValue;
+    this.layerListOpen = false;
   }
 
   onShapefileDragOver(event: DragEvent): void {
+    if (!this.selectedLayer || this.isUploading) {
+      event.preventDefault();
+      this.shapefileDragOver = false;
+      return;
+    }
     this.activateUploadFormat('shapefile');
     this.onDragOver(event);
   }
@@ -170,6 +201,14 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   }
 
   onShapefileDrop(event: DragEvent): void {
+    if (!this.selectedLayer || this.isUploading) {
+      event.preventDefault();
+      this.shapefileDragOver = false;
+      this.uploadError = 'Select a layer before attaching shapefile parts.';
+      this.layerListOpen = true;
+      this.cdr.markForCheck();
+      return;
+    }
     this.activateUploadFormat('shapefile');
     this.onDrop(event);
   }
@@ -180,6 +219,13 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   }
 
   onShapefileFileSelect(event: Event): void {
+    if (!this.selectedLayer || this.isUploading) {
+      this.uploadError = 'Select a layer before attaching shapefile parts.';
+      this.layerListOpen = true;
+      this.clearNativeFileInput();
+      this.cdr.markForCheck();
+      return;
+    }
     this.activateUploadFormat('shapefile');
     this.onFileSelect(event);
   }
@@ -236,6 +282,13 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
 
 
   private addShapefiles(files: File[]): void {
+    if (this.selectedUploadFormat === 'shapefile' && !this.selectedLayer) {
+      this.uploadError = 'Select a layer before attaching shapefile parts.';
+      this.layerListOpen = true;
+      this.clearNativeFileInput();
+      return;
+    }
+
     const allowedExtensions = this.getAllowedUploadExtensions();
     const valid = files.filter((file) => {
       const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -307,6 +360,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
         onProgress,
       );
 
+      this.isUploading = false;
       this.uploadSuccess = true;
       this.loadUploadedFiles();
       this.resetAfterSuccessfulUpload();
@@ -328,9 +382,15 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   }
 
   private resetUploadState(): void {
+    if (this.successfulUploadResetTimer) {
+      clearTimeout(this.successfulUploadResetTimer);
+      this.successfulUploadResetTimer = undefined;
+    }
     this.selectedLayer = '';
     this.resetFileState();
-    this.filteredLayerOptions = [...this.layerOptions];
+    this.layerSearchTerm = '';
+    this.layerListOpen = false;
+    this.applyLayerFilter();
   }
 
   private resetFileState(): void {
@@ -349,22 +409,45 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
   }
 
   private resetAfterSuccessfulUpload(): void {
+    if (this.successfulUploadResetTimer) {
+      clearTimeout(this.successfulUploadResetTimer);
+      this.successfulUploadResetTimer = undefined;
+    }
+
+    this.isUploading = false;
     this.shapeFiles = [];
+    this.selectedLayer = '';
+    this.selectedUploadFormat = 'shapefile';
     this.fileDescription = '';
     this.fileCategory = '';
-    this.uploadProgress = 0;
+    this.uploadProgress = 100;
+    this.uploadError = '';
     this.shapefileDragOver = false;
+    this.layerSearchTerm = '';
+    this.layerListOpen = false;
+    this.applyLayerFilter();
     this.clearNativeFileInput();
+    this.cdr.markForCheck();
 
-    setTimeout(() => {
+    this.successfulUploadResetTimer = setTimeout(() => {
+      this.successfulUploadResetTimer = undefined;
       this.currentView = 'layer-select';
       this.selectedLayer = '';
       this.selectedUploadFormat = 'shapefile';
+      this.isUploading = false;
       this.uploadSuccess = false;
       this.uploadError = '';
-      this.filteredLayerOptions = [...this.layerOptions];
+      this.uploadProgress = 0;
+      this.fileDescription = '';
+      this.fileCategory = '';
+      this.shapeFiles = [];
+      this.shapefileDragOver = false;
+      this.layerSearchTerm = '';
+      this.layerListOpen = false;
+      this.applyLayerFilter();
+      this.clearNativeFileInput();
       this.cdr.markForCheck();
-    }, 1200);
+    }, 1500);
   }
 
   private clearNativeFileInput(): void {
@@ -492,7 +575,7 @@ filteredLayerOptions: Array<{ value: string; label: string }> = [...EDIT_LAYER_O
 
   private setLayerOptions(options: Array<{ value: string; label: string }>): void {
     this.layerOptions = [...options];
-    this.filteredLayerOptions = [...options];
+    this.applyLayerFilter();
 
     if (this.selectedLayer && !this.layerOptions.some((option) => option.value === this.selectedLayer)) {
       this.selectedLayer = '';
