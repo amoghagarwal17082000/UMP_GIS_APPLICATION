@@ -28,4 +28,8 @@ export class CommonLocationApi {
     });
     return this.http.get<any>(`${BASE_URL}/api/common/location/parliamentary-constituencies`, { params });
   }
+
+  getRailways() {
+    return this.http.get<any>(`${BASE_URL}/api/common/location/railways`);
+  }
 }

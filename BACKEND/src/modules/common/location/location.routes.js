@@ -6,5 +6,6 @@ const router = express.Router();
 router.get('/states', controller.getStates);
 router.get('/districts', controller.getDistricts);
 router.get('/parliamentary-constituencies', controller.getParliamentaryConstituencies);
+router.get('/railways', controller.getRailways);
 
 module.exports = router;

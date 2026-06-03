@@ -1,45 +1,29 @@
-<ng-container *ngIf="currentAlert as alert">
+<ng-container *ngIf="currentAlert">
   <div
     class="app-alert-backdrop"
-    [class.app-alert-backdrop-modal]="alert.modal"
-    [class.app-alert-backdrop-closing]="alert.closing"
+    [class.app-alert-backdrop-modal]="isModalAlert"
+    [class.app-alert-backdrop-closing]="isClosingAlert"
     aria-live="assertive"
     aria-atomic="true"
   >
     <div
       class="app-alert-modal"
-      [class.app-alert-modal-closing]="alert.closing"
-      [ngClass]="'app-alert-' + alert.type"
+      [class.app-alert-modal-closing]="isClosingAlert"
+      [ngClass]="alertTypeClass"
       role="alertdialog"
       aria-modal="true"
     >
       <div class="app-alert-symbol">
-        <i
-          class="bi"
-          [ngClass]="{
-            'bi-check-lg': alert.type === 'success',
-            'bi-x-lg': alert.type === 'danger',
-            'bi-exclamation-lg': alert.type === 'warning',
-            'bi-info-lg': alert.type === 'info'
-          }"
-        ></i>
+        <i class="bi" [ngClass]="alertIconClass"></i>
       </div>
 
       <h2 class="app-alert-title">
-        {{
-          alert.type === 'success'
-            ? 'Success'
-            : alert.type === 'danger'
-              ? 'Error'
-              : alert.type === 'warning'
-                ? 'Alert'
-                : 'Information'
-        }}
+        {{ alertTitle }}
       </h2>
 
-      <p class="app-alert-message">{{ alert.message }}</p>
+      <p class="app-alert-message">{{ alertMessage }}</p>
 
-      <button type="button" class="btn app-alert-action" [disabled]="alert.closing" (click)="alerts.dismiss(alert.id)">
+      <button type="button" class="btn app-alert-action" [disabled]="isClosingAlert" (click)="alerts.dismiss(alertId)">
         Okay
       </button>
     </div>
