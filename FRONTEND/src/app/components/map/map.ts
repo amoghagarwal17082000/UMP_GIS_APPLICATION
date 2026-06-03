@@ -88,6 +88,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private reloadTimer: any = null;
   private suppressedReloadTimer: any = null;
   private routeSub?: Subscription;
+  private createStationClickHandler?: (e: L.LeafletMouseEvent) => void;
   private createStationDblClickHandler?: (e: L.LeafletMouseEvent) => void;
   private createPointMouseMoveHandler?: (e: L.LeafletMouseEvent) => void;
   private createPointHintMarker?: L.Marker;
@@ -372,7 +373,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     if (!this.createPointHintMarker) {
       const icon = L.divIcon({
         className: 'create-point-hint-marker',
-        html: '<div class="create-point-hint-label">Click on map and mark the point</div>',
+        html: '<div class="create-point-hint-label">Click to place the new asset</div>',
         iconSize: [210, 32],
         iconAnchor: [0, 16],
       });
@@ -435,9 +436,10 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.scheduleReloadAfterSuppression();
   }
 
-  private handleStationCreateDoubleClick(e: L.LeafletMouseEvent): void {
+  private handleCreateAssetMapClick(e: L.LeafletMouseEvent): void {
     if (!this.map) return;
     if (!this.edit.enabled || !this.edit.editLayer || !this.edit.creatingStation) return;
+    L.DomEvent.stop(e.originalEvent);
     const divisionBuffer = this.layerManager.findById('division_buffer') as DivisionBufferLayer | undefined;
     if (divisionBuffer?.containsLatLng && !divisionBuffer.containsLatLng(e.latlng)) {
       this.zone.run(() => { this.alerts.warning('New asset can only be created inside the division buffer.'); });
@@ -667,12 +669,14 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.map = L.map(el, { preferCanvas: false, zoomControl: false, zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: false, zoomAnimationThreshold: 8, wheelDebounceTime: 60, wheelPxPerZoomLevel: 140, zoomSnap: 0.1, zoomDelta: 0.1, maxZoom: 22 }).setView(initialView.center, initialView.zoom);
     L.control.zoom({ position: 'topleft' }).addTo(this.map);
     this.mapRegistry.setMap(this.map);
-    this.createStationDblClickHandler = (e: L.LeafletMouseEvent) => this.handleStationCreateDoubleClick(e);
+    this.createStationClickHandler = (e: L.LeafletMouseEvent) => this.handleCreateAssetMapClick(e);
+    this.createStationDblClickHandler = (e: L.LeafletMouseEvent) => this.handleCreateAssetMapClick(e);
     this.createPointMouseMoveHandler = (e: L.LeafletMouseEvent) => {
       if (!this.edit.enabled || !this.edit.editLayer || !this.edit.creatingStation) return;
       this.updateCreatePointHintPosition(e.latlng);
     };
-    this.map.on('click', this.createStationDblClickHandler);
+    this.map.on('click', this.createStationClickHandler);
+    this.map.on('dblclick', this.createStationDblClickHandler);
     this.map.on('mousemove', this.createPointMouseMoveHandler);
     this.sidebarSub?.unsubscribe(); this.sidebarSub = new Subscription();
     this.sidebarSub.add(this.ui.layoutChanged$.subscribe(() => { setTimeout(() => this.forceMapResize(), 320); }));
@@ -801,7 +805,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     document.body.classList.remove(this.performanceBodyClass);
     this.zoomSub?.unsubscribe(); this.clearSelectionSub?.unsubscribe(); this.sidebarSub?.unsubscribe(); this.mapZoomSub?.unsubscribe(); this.lockDragSub?.unsubscribe(); this.editSuppressionSub?.unsubscribe(); this.routeSub?.unsubscribe(); this.shapefileUploadSub?.unsubscribe(); this.zoomSub = undefined; this.clearSelectionSub = undefined; this.sidebarSub = undefined; this.mapZoomSub = undefined; this.lockDragSub = undefined; this.editSuppressionSub = undefined; this.routeSub = undefined; this.shapefileUploadSub = undefined; if (this.reloadTimer) clearTimeout(this.reloadTimer); this.reloadTimer = null; if (this.map) this.clearZoomArtifacts(); if (!this.map) return;
-    try { if (this.createStationDblClickHandler) this.map.off('click', this.createStationDblClickHandler); if (this.createPointMouseMoveHandler) this.map.off('mousemove', this.createPointMouseMoveHandler); if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { if (this.selectedStationMarker && this.map?.hasLayer(this.selectedStationMarker)) { this.map.removeLayer(this.selectedStationMarker); } if (this.createPointHintMarker && this.map?.hasLayer(this.createPointHintMarker)) { this.map.removeLayer(this.createPointHintMarker); } this.selectedStationMarker = undefined; this.createPointHintMarker = undefined; this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); this.createStationDblClickHandler = undefined; this.createPointMouseMoveHandler = undefined; }
+    try { if (this.createStationClickHandler) this.map.off('click', this.createStationClickHandler); if (this.createStationDblClickHandler) this.map.off('dblclick', this.createStationDblClickHandler); if (this.createPointMouseMoveHandler) this.map.off('mousemove', this.createPointMouseMoveHandler); if (this.onMoveOrZoom) this.map.off('moveend', this.onMoveOrZoom); else this.map.off(); this.layerManager.removeAll(this.map); this.map.remove(); } finally { if (this.selectedStationMarker && this.map?.hasLayer(this.selectedStationMarker)) { this.map.removeLayer(this.selectedStationMarker); } if (this.createPointHintMarker && this.map?.hasLayer(this.createPointHintMarker)) { this.map.removeLayer(this.createPointHintMarker); } this.selectedStationMarker = undefined; this.createPointHintMarker = undefined; this.map = undefined; this.onMoveOrZoom = undefined; this.highlightLayer = undefined; this.homeCenter = undefined; this.homeZoom = undefined; this.homeCaptured = false; this.dragMarker = undefined; this.zoomHighlight = undefined; this.suppressedVis.clear(); this.createStationClickHandler = undefined; this.createStationDblClickHandler = undefined; this.createPointMouseMoveHandler = undefined; }
   }
 }
 

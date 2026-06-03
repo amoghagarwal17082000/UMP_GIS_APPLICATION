@@ -10,34 +10,123 @@ function isSafeTableName(tableName) {
   return /^[a-zA-Z_][\w]*\.[a-zA-Z_][\w]*$/.test(String(tableName || ''));
 }
 
-async function getCount(tableName, filters = {}, type, allIndia = false) {
+function isSafeIdentifier(value) {
+  return /^[a-zA-Z_][\w]*$/.test(String(value || ''));
+}
+
+function quoteIdentifier(value) {
+  if (!isSafeIdentifier(value)) {
+    throw new Error(`Unsafe SQL identifier: ${value}`);
+  }
+  return `"${value}"`;
+}
+
+function quoteLiteral(value) {
+  return `'${String(value ?? '').replace(/'/g, "''")}'`;
+}
+
+function getWorkflowStatusContext(workflowConfig) {
+  const workflow = workflowConfig?.draftWorkflow;
+  if (!workflow || !isSafeTableName(workflow.table)) return null;
+
+  const mainIdColumn = workflowConfig.idColumn || 'objectid';
+  const originalIdColumn = workflow.originalIdColumn || 'original_id';
+  const editIdColumn = workflow.editIdColumn || 'edit_id';
+  const statusColumn = workflow.statusColumn || 'status';
+
+  if (![mainIdColumn, originalIdColumn, editIdColumn, statusColumn].every(isSafeIdentifier)) {
+    return null;
+  }
+
+  const originalStatusValue = String(workflow.originalStatusValue || 'Under Editing').trim() || 'Under Editing';
+  const handoffStatus = `UPPER(TRIM(${quoteLiteral(originalStatusValue)}::text))`;
+  const effectiveStatus = `
+    CASE
+      WHEN UPPER(TRIM(COALESCE(m.status::text, ''))) = ${handoffStatus}
+           AND COALESCE(d.__draft_exists, FALSE)
+      THEN d.${quoteIdentifier(statusColumn)}::text
+      ELSE m.status::text
+    END
+  `;
+
+  return {
+    table: workflow.table,
+    mainIdColumn,
+    originalIdColumn,
+    editIdColumn,
+    statusColumn,
+    effectiveStatus,
+  };
+}
+
+async function getCount(tableName, filters = {}, type, allIndia = false, workflowConfig = null) {
   let statusCondition = '';
   const params = [];
   const conditions = [];
   const division = String(filters?.division || '').trim();
   const zone = String(filters?.zone || '').trim();
+  const workflowStatus = getWorkflowStatusContext(workflowConfig);
+  let fromClause = `FROM ${tableName} m`;
+  let statusExpression = 'm.status';
+  let sourceAlias = 'm';
+
+  if (workflowStatus) {
+    statusExpression = 'e.status';
+    sourceAlias = 'e';
+    fromClause = `
+      FROM (
+        SELECT
+          ${workflowStatus.effectiveStatus} AS status,
+          COALESCE(d.division::text, m.division::text) AS division,
+          COALESCE(d.railway::text, m.railway::text) AS railway
+        FROM ${tableName} m
+        LEFT JOIN LATERAL (
+          SELECT
+            TRUE AS __draft_exists,
+            d.${quoteIdentifier(workflowStatus.statusColumn)},
+            d.division,
+            d.railway
+          FROM ${workflowStatus.table} d
+          WHERE d.${quoteIdentifier(workflowStatus.editIdColumn)}::text = m.${quoteIdentifier(workflowStatus.mainIdColumn)}::text
+          ORDER BY d.${quoteIdentifier(workflowStatus.editIdColumn)} DESC
+          LIMIT 1
+        ) d ON TRUE
+
+        UNION ALL
+
+        SELECT
+          d.${quoteIdentifier(workflowStatus.statusColumn)}::text AS status,
+          d.division::text AS division,
+          d.railway::text AS railway
+        FROM ${workflowStatus.table} d
+        LEFT JOIN ${tableName} m
+          ON d.${quoteIdentifier(workflowStatus.editIdColumn)}::text = m.${quoteIdentifier(workflowStatus.mainIdColumn)}::text
+        WHERE m.${quoteIdentifier(workflowStatus.mainIdColumn)} IS NULL
+      ) e
+    `;
+  }
 
   if (zone) {
     params.push(zone);
-    conditions.push(`AND UPPER(TRIM(COALESCE(railway::text, ''))) = UPPER(TRIM($${params.length}::text))`);
+    conditions.push(`AND UPPER(TRIM(COALESCE(${sourceAlias}.railway::text, ''))) = UPPER(TRIM($${params.length}::text))`);
   }
 
   if (division) {
     params.push(division);
-    conditions.push(`AND UPPER(TRIM(COALESCE(division::text, ''))) = UPPER(TRIM($${params.length}::text))`);
+    conditions.push(`AND UPPER(TRIM(COALESCE(${sourceAlias}.division::text, ''))) = UPPER(TRIM($${params.length}::text))`);
   }
 
   if (type === 'MAKER') {
-    statusCondition = 'AND status IS NULL';
+    statusCondition = `AND (${statusExpression} IS NULL OR UPPER(TRIM(${statusExpression}::text)) = UPPER(TRIM('Asset Saved'::text)))`;
   } else if (type === 'CHECKER') {
     params.push('Sent to Checker');
-    statusCondition = `AND UPPER(status) = UPPER($${params.length})`;
+    statusCondition = `AND UPPER(${statusExpression}) = UPPER($${params.length})`;
   } else if (type === 'APPROVER') {
     params.push('Sent to Approver');
-    statusCondition = `AND UPPER(status) = UPPER($${params.length})`;
+    statusCondition = `AND UPPER(${statusExpression}) = UPPER($${params.length})`;
   } else if (type === 'FINALIZED') {
     params.push('Sent to Database');
-    statusCondition = `AND UPPER(status) = UPPER($${params.length})`;
+    statusCondition = `AND UPPER(${statusExpression}) = UPPER($${params.length})`;
   }
 
   if (!allIndia && !division) {
@@ -46,7 +135,7 @@ async function getCount(tableName, filters = {}, type, allIndia = false) {
 
   const sql = `
     SELECT COUNT(*)::int AS count
-    FROM ${tableName}
+    ${fromClause}
     WHERE 1 = 1
     ${conditions.join('\n')}
     ${statusCondition};

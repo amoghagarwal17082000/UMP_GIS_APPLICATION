@@ -91,162 +91,46 @@
 /* =========================================================
    TABLE MODE: Layer selection
    ========================================================= */
-#panelEdit .layer-picker{
-  position: relative;
+#panelEdit .layer-picker > label{
   margin-top: 8px;
-  margin-bottom: 42px;
-  padding-bottom: 48px;
   display: flex;
   align-items: center;
   gap: 12px;
-}
 
-#panelEdit .layer-picker-label{
-  min-width: 158px;
   font-size: 16px;
   font-weight: 700;
   color: #1f2937;
 }
 
-#panelEdit .layer-dropdown{
-  position: relative;
-  width: min(430px, 100%);
-}
+#panelEdit .layer-picker select{
+  min-width: 410px;
+  height: 36px;
+  padding: 5px 10px;
 
-#panelEdit .layer-dropdown-toggle{
-  width: 100%;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 12px;
   font-size: 15px;
   font-weight: 700;
+
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #fff;
-  color: #0f172a;
   cursor: pointer;
 }
 
-#panelEdit .layer-dropdown-toggle:hover,
-#panelEdit .layer-dropdown.open .layer-dropdown-toggle{
-  border-color: #1d4ed8;
-}
-
-#panelEdit .layer-dropdown.open .layer-dropdown-toggle{
-  border-bottom-color: #e2e8f0;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.14);
-}
-
-#panelEdit .layer-dropdown-toggle:focus,
-#panelEdit .layer-dropdown-search:focus{
+#panelEdit .panel-body select:hover{ border-color: #1d4ed8; }
+#panelEdit .panel-body select:focus{
   outline: none;
   border-color: #1d4ed8;
   box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.20);
 }
 
-#panelEdit .layer-dropdown-chevron{
-  font-size: 16px;
-  color: #64748b;
-}
-
-#panelEdit .layer-dropdown-panel{
-  position: absolute;
-  z-index: 1300;
-  top: 100%;
-  left: 0;
-  right: 0;
-  padding: 8px;
-  border: 1px solid #1d4ed8;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
-  background: #ffffff;
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18), 0 0 0 2px rgba(29, 78, 216, 0.14);
-}
-
-#panelEdit .layer-dropdown-search{
-  width: 100%;
-  height: 36px;
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  border: 1px solid #d6deea;
-  border-radius: 9px;
-  background: #f8fafc;
-  color: #0f172a;
-  font-size: 13px;
-}
-
-#panelEdit .layer-dropdown-option{
-  width: 100%;
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 800;
-  text-align: left;
-  cursor: pointer;
-}
-
-#panelEdit .layer-dropdown-option:hover{
-  background: #eff6ff;
-}
-
-#panelEdit .layer-dropdown-option.selected{
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-#panelEdit .layer-dropdown-option.unsupported{
-  opacity: 0.55;
-}
-
-#panelEdit .layer-dropdown-option.muted{
-  color: #64748b;
-  font-weight: 700;
-}
-
-#panelEdit .layer-dropdown-option small{
-  color: #94a3b8;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 11px;
-}
-
-#panelEdit .layer-dropdown-panel .layer-dropdown-option:nth-of-type(n+2){
-  margin-top: 2px;
-}
-
-#panelEdit .layer-dropdown-panel{
-  max-height: 310px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
-#panelEdit .layer-dropdown-empty{
-  padding: 14px 10px;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
-  text-align: center;
+#panelEdit .layer-picker{
+  margin-bottom: 42px;
+  padding-bottom: 48px;
 }
 
 #panelEdit .layer-picker::after{
   content: "";
   display: block;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 16px;
   margin-top: 22px;
   border-bottom: 1px solid #e5e7eb;
 }

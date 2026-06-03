@@ -8,10 +8,11 @@
   >
     <div
       class="app-alert-modal"
+      [class.app-alert-toast]="isToastAlert"
       [class.app-alert-modal-closing]="isClosingAlert"
       [ngClass]="alertTypeClass"
-      role="alertdialog"
-      aria-modal="true"
+      [attr.role]="isModalAlert ? 'alertdialog' : 'status'"
+      [attr.aria-modal]="isModalAlert ? 'true' : null"
     >
       <div class="app-alert-symbol">
         <i class="bi" [ngClass]="alertIconClass"></i>
@@ -23,7 +24,7 @@
 
       <p class="app-alert-message">{{ alertMessage }}</p>
 
-      <button type="button" class="btn app-alert-action" [disabled]="isClosingAlert" (click)="alerts.dismiss(alertId)">
+      <button *ngIf="isModalAlert" type="button" class="btn app-alert-action" [disabled]="isClosingAlert" (click)="alerts.dismiss(alertId)">
         Okay
       </button>
     </div>

@@ -2,6 +2,7 @@
 
 const config = require('./dashboard.config');
 const model = require('./dashboard.model');
+const editConfig = require('../../edit/edit.config');
 
 function normalizeText(value) {
   return String(value || '').trim().toLowerCase();
@@ -9,6 +10,11 @@ function normalizeText(value) {
 
 function isSuperAdmin(req) {
   return normalizeText(req?.user?.user_type) === 'super admin';
+}
+
+function getEditWorkflowConfigForTable(tableName) {
+  const normalizedTable = normalizeText(tableName);
+  return Object.values(editConfig).find((item) => normalizeText(item?.table) === normalizedTable) || null;
 }
 
 async function getAssetCount(req, res, next) {
@@ -44,7 +50,8 @@ async function getAssetCount(req, res, next) {
         zone: String(zone || '').trim(),
       },
       String(type).toUpperCase(),
-      wantsAllIndia
+      wantsAllIndia,
+      getEditWorkflowConfigForTable(tableName)
     );
 
     res.json({ count });

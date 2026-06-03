@@ -18,6 +18,7 @@ export class AppAlertHostComponent implements OnDestroy {
   alertMessage = '';
   alertId = 0;
   isModalAlert = false;
+  isToastAlert = true;
   isClosingAlert = false;
   private alertSub: Subscription;
 
@@ -31,6 +32,7 @@ export class AppAlertHostComponent implements OnDestroy {
       this.alertMessage = nextAlert?.message || '';
       this.alertId = nextAlert?.id || 0;
       this.isModalAlert = !!nextAlert?.modal;
+      this.isToastAlert = !!nextAlert && !nextAlert.modal;
       this.isClosingAlert = !!nextAlert?.closing;
     });
   }
