@@ -58,6 +58,10 @@ export class Api {
     return this.commonLocationApi.getParliamentaryConstituencies(filters);
   }
 
+  getRailways() {
+    return this.commonLocationApi.getRailways();
+  }
+
   getDivisionBuffer() {
     return this.commonViewingApi.getDivisionBuffer();
   }

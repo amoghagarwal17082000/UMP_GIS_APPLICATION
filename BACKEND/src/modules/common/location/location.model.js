@@ -95,8 +95,24 @@ async function getParliamentaryConstituencies(filters = {}) {
   return rows;
 }
 
+async function getRailways() {
+  const sql = `
+    SELECT DISTINCT
+      NULLIF(TRIM(rly_name), '') AS rly_name,
+      NULLIF(TRIM(rlycode), '') AS rlycode
+    FROM div_master
+    WHERE NULLIF(TRIM(rly_name), '') IS NOT NULL
+      AND NULLIF(TRIM(rlycode), '') IS NOT NULL
+    ORDER BY rly_name, rlycode
+  `;
+
+  const { rows } = await pool.query(sql);
+  return rows;
+}
+
 module.exports = {
   getStates,
   getDistricts,
   getParliamentaryConstituencies,
+  getRailways,
 };

@@ -34,8 +34,18 @@ async function getParliamentaryConstituencies(req, res, next) {
   }
 }
 
+async function getRailways(_req, res, next) {
+  try {
+    const railways = await model.getRailways();
+    res.json({ success: true, data: railways });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getStates,
   getDistricts,
   getParliamentaryConstituencies,
+  getRailways,
 };

@@ -35,15 +35,33 @@
     </div>
 
     <div class="layer-picker" *ngIf="mode === 'table' && !isMakerRejectedView()" style="margin-bottom: 8px;">
-      <label>
-        {{ layerPickerLabel }}
-        <select [(ngModel)]="edit.editLayer" (change)="onLayerChange()">
-          <option [ngValue]="null">Select Layer</option>
-          <option *ngFor="let option of layerOptions" [value]="option.value">
-            {{ option.label }}
-          </option>
-        </select>
-      </label>
+      <div class="layer-picker-label">{{ layerPickerLabel }}</div>
+      <div class="layer-dropdown" [class.open]="layerDropdownOpen">
+        <button class="layer-dropdown-toggle" type="button" (click)="toggleLayerDropdown()"
+          [attr.aria-expanded]="layerDropdownOpen">
+          <span>{{ getLayerDropdownLabel() }}</span>
+          <span class="layer-dropdown-chevron">⌄</span>
+        </button>
+
+        <div class="layer-dropdown-panel" *ngIf="layerDropdownOpen">
+          <input class="layer-dropdown-search" type="search" placeholder="Search layers..."
+            [(ngModel)]="layerSearch" (click)="$event.stopPropagation()" />
+          <button class="layer-dropdown-option muted" type="button" (click)="clearLayerSelection()">
+            Select Layer
+          </button>
+          <button class="layer-dropdown-option" type="button"
+            *ngFor="let option of getFilteredLayerOptions()"
+            [class.selected]="option.value === edit.editLayer"
+            [class.unsupported]="!option.supported"
+            (click)="selectLayerOption(option)">
+            <span>{{ option.label }}</span>
+            <small>{{ option.value }}</small>
+          </button>
+          <div class="layer-dropdown-empty" *ngIf="getFilteredLayerOptions().length === 0">
+            No layers found
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="table-meta" *ngIf="mode === 'table' && unsupportedLayerSelected">
@@ -52,15 +70,33 @@
     </div>
 
     <div class="layer-picker rejected-picker" *ngIf="isMakerRejectedView()" style="margin-bottom: 8px;">
-      <label>
-        {{ rejectedLayerPickerLabel }}
-        <select [(ngModel)]="rejectedLayer" (change)="onRejectedLayerChange()">
-          <option [ngValue]="null">Select Layer</option>
-          <option *ngFor="let option of layerOptions" [value]="option.value">
-            {{ option.label }}
-          </option>
-        </select>
-      </label>
+      <div class="layer-picker-label">{{ rejectedLayerPickerLabel }}</div>
+      <div class="layer-dropdown" [class.open]="rejectedLayerDropdownOpen">
+        <button class="layer-dropdown-toggle" type="button" (click)="toggleLayerDropdown(true)"
+          [attr.aria-expanded]="rejectedLayerDropdownOpen">
+          <span>{{ getLayerDropdownLabel(true) }}</span>
+          <span class="layer-dropdown-chevron">⌄</span>
+        </button>
+
+        <div class="layer-dropdown-panel" *ngIf="rejectedLayerDropdownOpen">
+          <input class="layer-dropdown-search" type="search" placeholder="Search layers..."
+            [(ngModel)]="rejectedLayerSearch" (click)="$event.stopPropagation()" />
+          <button class="layer-dropdown-option muted" type="button" (click)="clearLayerSelection(true)">
+            Select Layer
+          </button>
+          <button class="layer-dropdown-option" type="button"
+            *ngFor="let option of getFilteredLayerOptions(true)"
+            [class.selected]="option.value === rejectedLayer"
+            [class.unsupported]="!option.supported"
+            (click)="selectLayerOption(option, true)">
+            <span>{{ option.label }}</span>
+            <small>{{ option.value }}</small>
+          </button>
+          <div class="layer-dropdown-empty" *ngIf="getFilteredLayerOptions(true).length === 0">
+            No layers found
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="table-meta" *ngIf="isMakerRejectedView() && unsupportedLayerSelected">

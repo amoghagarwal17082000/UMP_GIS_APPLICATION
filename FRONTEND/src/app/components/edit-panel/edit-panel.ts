@@ -46,27 +46,6 @@ type LocationOption = {
   stateLgd?: number | null;
   state?: string;
 };
-const RAILWAY_CODE_MAP: Record<string, string> = {
-  'Central Railway': 'CR',
-  'Eastern Railway': 'ER',
-  'East Central Railway': 'ECR',
-  'East Coast Railway': 'ECoR',
-  'Northern Railway': 'NR',
-  'North Central Railway': 'NCR',
-  'North Eastern Railway': 'NER',
-  'Northeast Frontier Railway': 'NFR',
-  'North Western Railway': 'NWR',
-  'Southern Railway': 'SR',
-  'South Central Railway': 'SCR',
-  'South Eastern Railway': 'SER',
-  'South East Central Railway': 'SECR',
-  'South Western Railway': 'SWR',
-  'Western Railway': 'WR',
-  'West Central Railway': 'WCR',
-  'Metro Railway': 'MTP',
-  'Konkan Railway': 'KR',
-};
-
 @Component({
   selector: 'app-edit-panel',
   standalone: true,
@@ -103,6 +82,7 @@ export class EditPanel implements OnInit, OnDestroy {
   private formFieldsCache: EditFieldConfig[] = [];
   private readonly emptyLocationOptions: LocationOption[] = [];
   private locationOptionsCache = new Map<string, LocationOption[]>();
+  private railwayCodeByName = new Map<string, string>();
 
   rows: any[] = [];
 
@@ -129,6 +109,10 @@ export class EditPanel implements OnInit, OnDestroy {
   makerTab: MakerTabKey = 'edit';
   checkerTab: CheckerTabKey = 'pending';
   rejectedLayer: EditLayerKey | null = null;
+  layerDropdownOpen = false;
+  rejectedLayerDropdownOpen = false;
+  layerSearch = '';
+  rejectedLayerSearch = '';
 
   geomEditing = false;
   showAddRecordModal = false;
@@ -271,6 +255,65 @@ export class EditPanel implements OnInit, OnDestroy {
 
   get rejectedLayerPickerLabel(): string {
     return 'Select Layer (Rejected Records)';
+  }
+
+  private getActiveRawLayer(): string {
+    return String(this.isMakerRejectedView() ? this.rejectedLayer : this.edit.editLayer || '').trim();
+  }
+
+  getFilteredLayerOptions(rejected = false): MakerLayerOption[] {
+    const term = String(rejected ? this.rejectedLayerSearch : this.layerSearch).trim().toLowerCase();
+    if (!term) return this.layerOptions;
+    return this.layerOptions.filter((option) => {
+      const label = String(option.label || '').toLowerCase();
+      const value = String(option.value || '').toLowerCase();
+      return label.includes(term) || value.includes(term);
+    });
+  }
+
+  getLayerDropdownLabel(rejected = false): string {
+    const selected = String(rejected ? this.rejectedLayer : this.edit.editLayer || '').trim();
+    if (!selected) return 'Select Layer';
+    return this.layerOptions.find((option) => option.value === selected)?.label || selected;
+  }
+
+  toggleLayerDropdown(rejected = false): void {
+    if (rejected) {
+      this.rejectedLayerDropdownOpen = !this.rejectedLayerDropdownOpen;
+      this.layerDropdownOpen = false;
+      return;
+    }
+    this.layerDropdownOpen = !this.layerDropdownOpen;
+    this.rejectedLayerDropdownOpen = false;
+  }
+
+  selectLayerOption(option: MakerLayerOption, rejected = false): void {
+    if (rejected) {
+      this.rejectedLayer = option.value as EditLayerKey;
+      this.rejectedLayerDropdownOpen = false;
+      this.rejectedLayerSearch = '';
+      this.onRejectedLayerChange();
+      return;
+    }
+
+    this.edit.editLayer = option.value as any;
+    this.layerDropdownOpen = false;
+    this.layerSearch = '';
+    this.onLayerChange();
+  }
+
+  clearLayerSelection(rejected = false): void {
+    if (rejected) {
+      this.rejectedLayer = null;
+      this.rejectedLayerSearch = '';
+      this.rejectedLayerDropdownOpen = false;
+      this.onRejectedLayerChange();
+      return;
+    }
+    this.edit.editLayer = null as any;
+    this.layerSearch = '';
+    this.layerDropdownOpen = false;
+    this.onLayerChange();
   }
 
   get currentLayerSchema() {
@@ -554,14 +597,14 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   get unsupportedLayerSelected(): boolean {
-    const selected = String(this.edit.editLayer || '').trim();
+    const selected = this.getActiveRawLayer();
     if (!selected) return false;
     const option = this.layerOptions.find((item) => item.value === selected);
     return !!option && !option.supported;
   }
 
   get selectedLayerLabel(): string {
-    const selected = String(this.edit.editLayer || '').trim();
+    const selected = this.getActiveRawLayer();
     if (!selected) return '';
     return this.layerOptions.find((item) => item.value === selected)?.label || selected;
   }
@@ -859,6 +902,21 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   private loadLocationOptions(): void {
+    this.api.getRailways().subscribe({
+      next: (res: any) => {
+        const rows = this.extractLookupRows(res);
+        const nextMap = new Map<string, string>();
+        rows.forEach((row: any) => {
+          const name = String(row?.rly_name || '').trim();
+          const code = String(row?.rlycode || '').trim();
+          if (name && code) nextMap.set(name.toLowerCase(), code);
+        });
+        this.railwayCodeByName = nextMap;
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => console.error('Railway lookup failed:', err),
+    });
+
     this.api.getStates().subscribe({
       next: (res: any) => {
         const rows = this.extractLookupRows(res);
@@ -910,7 +968,12 @@ export class EditPanel implements OnInit, OnDestroy {
   }
 
   private ensureLocationOptionsLoaded(): void {
-    if (this.stateOptions.length && this.districtOptions.length && this.constituencyOptions.length) return;
+    if (
+      this.stateOptions.length &&
+      this.districtOptions.length &&
+      this.constituencyOptions.length &&
+      this.railwayCodeByName.size
+    ) return;
     this.loadLocationOptions();
   }
 
@@ -2157,7 +2220,8 @@ export class EditPanel implements OnInit, OnDestroy {
       localStorage.getItem('railway_code') || localStorage.getItem('zone_code') || ''
     ).trim();
     if (storedCode) return storedCode;
-    return RAILWAY_CODE_MAP[this.getRailwayName()] || this.getRailwayName();
+    const railwayName = this.getRailwayName();
+    return this.railwayCodeByName.get(railwayName.toLowerCase()) || railwayName;
   }
 
   private requiresStationValidationBeforeSend(): boolean {
