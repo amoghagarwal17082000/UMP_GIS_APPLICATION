@@ -221,6 +221,21 @@ export class StationViewingLayer implements MapLayer {
     (marker as any).__stationTooltipState = { label, permanent };
   }
 
+  protected forEachStationMarker(callback: (marker: any) => void): void {
+    const visit = (layer: any): void => {
+      if (!layer) return;
+      if (layer.getLatLng && layer.bindTooltip) {
+        callback(layer);
+        return;
+      }
+      if (layer.eachLayer) {
+        layer.eachLayer((child: any) => visit(child));
+      }
+    };
+
+    this.layer.eachLayer((layer: any) => visit(layer));
+  }
+
   constructor(
     protected api: Api,
     protected zone: NgZone,
@@ -257,6 +272,7 @@ export class StationViewingLayer implements MapLayer {
       map.on('zoomstart', this.onMoveStartHandler);
       map.on('movestart', this.onMoveStartHandler);
       map.on('moveend', this.onMoveEndHandler);
+      map.on('zoomend', this.onMoveEndHandler);
       this.layer.bringToFront();
       this.updateLabels(map);
     }
@@ -273,6 +289,7 @@ export class StationViewingLayer implements MapLayer {
     }
     if (this.onMoveEndHandler) {
       map.off('moveend', this.onMoveEndHandler);
+      map.off('zoomend', this.onMoveEndHandler);
     }
     this.onMoveStartHandler = undefined;
     this.onMoveEndHandler = undefined;
@@ -284,7 +301,7 @@ export class StationViewingLayer implements MapLayer {
   }
 
   protected closeLabels() {
-    this.layer.eachLayer((l: any) => {
+    this.forEachStationMarker((l: any) => {
       const label = (l as any).__stationTooltipState?.label || '';
       if (!label) return;
       this.bindStationTooltip(l, label, false);
@@ -308,7 +325,7 @@ export class StationViewingLayer implements MapLayer {
     let shownCount = 0;
     const maxLabels = 120;
 
-    this.layer.eachLayer((l: any) => {
+    this.forEachStationMarker((l: any) => {
       const label = (l as any).__stationTooltipState?.label || '';
       if (!label || !l.getLatLng) return;
       if (!map.hasLayer(l)) return;
