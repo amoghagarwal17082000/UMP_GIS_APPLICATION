@@ -121,6 +121,39 @@ function hasValue(value: any): boolean {
   return String(value).trim() !== '';
 }
 
+function firstValue(props: PopupProperties, keys: string[]): any {
+  for (const key of keys) {
+    const direct = props?.[key];
+    if (hasValue(direct)) return direct;
+
+    const actualKey = findPropKey(props, [key]);
+    if (actualKey && hasValue(props[actualKey])) return props[actualKey];
+  }
+  return undefined;
+}
+
+function normalizePopupProperties(properties: PopupProperties): PopupProperties {
+  const props = { ...(properties || {}) };
+  const assetId = firstValue(props, [
+    'asset_id',
+    'assetid',
+    'assetId',
+    'ASSET_ID',
+    'ASSETID',
+    'gisid',
+    'gis_unique_id',
+  ]);
+
+  if (!hasValue(props['asset_id']) && hasValue(assetId)) {
+    props['asset_id'] = assetId;
+  }
+  if (!hasValue(props['assetid']) && hasValue(assetId)) {
+    props['assetid'] = assetId;
+  }
+
+  return props;
+}
+
 function isDateLike(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}(T|\s|$)/.test(value);
 }
@@ -366,10 +399,13 @@ function fieldSortBucket(key: string): number {
 
 function orderedLandPopupKeys(props: PopupProperties, visibleKeys: string[]): string[] {
   const landKeys = LAND_POPUP_FIELDS.map((field) => findPropKey(props, field.keys) || field.keys[0]);
-  const assetIdKeys = visibleKeys.filter(isAssetIdField);
+  const allAssetIdKeys = visibleKeys.filter(isAssetIdField);
+  const assetIdKeys = allAssetIdKeys.length
+    ? [allAssetIdKeys.find((key) => key.toLowerCase() === 'asset_id') || allAssetIdKeys[0]]
+    : [];
   const remainingKeys = visibleKeys
     .filter((key) => !landKeys.some((landKey) => normalizeKey(landKey) === normalizeKey(key)))
-    .filter((key) => !assetIdKeys.includes(key))
+    .filter((key) => !allAssetIdKeys.includes(key))
     .sort((a, b) => fieldSortBucket(a) - fieldSortBucket(b));
 
   return [...landKeys, ...remainingKeys, ...assetIdKeys];
@@ -386,11 +422,14 @@ function orderedKeys(props: PopupProperties, title = ''): string[] {
     return orderedLandPopupKeys(props, keys);
   }
 
-  const assetIdKeys = keys.filter(isAssetIdField);
-  const priority = PRIORITY_KEYS.filter((key) => keys.includes(key) && !assetIdKeys.includes(key));
+  const allAssetIdKeys = keys.filter(isAssetIdField);
+  const assetIdKeys = allAssetIdKeys.length
+    ? [allAssetIdKeys.find((key) => key.toLowerCase() === 'asset_id') || allAssetIdKeys[0]]
+    : [];
+  const priority = PRIORITY_KEYS.filter((key) => keys.includes(key) && !allAssetIdKeys.includes(key));
   const remaining = keys
     .filter((key) => !priority.includes(key))
-    .filter((key) => !assetIdKeys.includes(key))
+    .filter((key) => !allAssetIdKeys.includes(key))
     .sort((a, b) => {
       const bucketDiff = fieldSortBucket(a) - fieldSortBucket(b);
       return bucketDiff || a.localeCompare(b);
@@ -657,7 +696,7 @@ export function buildAssetPopupHtml(
   properties: PopupProperties,
   options: { index?: number; total?: number; layerKey?: string; switcherLabels?: string[] } = {}
 ): string {
-  const props = properties || {};
+  const props = normalizePopupProperties(properties || {});
   const keys = orderedKeys(props, title);
   const popupTitle = resolveTitle(title, props);
   const total = options.total || 1;

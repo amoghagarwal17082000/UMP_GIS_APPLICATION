@@ -554,6 +554,7 @@ export class EditPanel implements OnInit, OnDestroy {
     if (key === 'rubno') return row?.rubno ?? row?.bridgeno ?? row?.rorno;
     if (key === 'rorno') return row?.rorno ?? row?.bridgeno;
     if (key === 'asset_id') return row?.asset_id ?? row?.assetid;
+    if (key === 'assetid') return row?.assetid ?? row?.asset_id;
     if (key === 'constituncy') return row?.constituncy ?? row?.constituency;
     if (key === 'comments') {
       return row?.comments ?? row?.comment ?? row?.remarks ?? row?.remark ?? row?.reject_reason ?? row?.rejected_reason;
@@ -2016,6 +2017,7 @@ export class EditPanel implements OnInit, OnDestroy {
       normalized.constituency = constituency;
     }
     normalized.asset_id = normalized.asset_id ?? normalized.assetid ?? '';
+    normalized.assetid = normalized.assetid ?? normalized.asset_id ?? '';
     normalized.robno = normalized.robno ?? normalized.bridgeno ?? normalized.rorno ?? '';
     normalized.rubno = normalized.rubno ?? normalized.bridgeno ?? normalized.rorno ?? '';
     normalized.rorno = normalized.rorno ?? normalized.bridgeno ?? '';
