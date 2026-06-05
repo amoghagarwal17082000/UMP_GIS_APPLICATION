@@ -1,0 +1,17 @@
+ modified:   BACKEND/node_modules/.package-lock.json
+        modified:   BACKEND/package-lock.json
+        modified:   BACKEND/package.json
+        modified:   BACKEND/src/app.js
+        modified:   BACKEND/src/routes/upload.router.js
+        modified:   FRONTEND/src/app/components/kml-geometry-selector/kml-geometry-selector.ts
+        modified:   FRONTEND/src/app/dashboard/file-upload/file-upload.html
+        modified:   FRONTEND/src/app/dashboard/file-upload/file-upload.ts
+
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        BACKEND/node_modules/csv-parse/
+        BACKEND/src/services/geometryService.js
+
+
+npm install csv-parse

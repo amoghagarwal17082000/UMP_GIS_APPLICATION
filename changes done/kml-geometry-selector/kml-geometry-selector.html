@@ -1,0 +1,179 @@
+<div class="geometry-selector-container">
+  <div class="gs-header">
+    <div class="gs-title-section">
+      <h1>KML Line Selector</h1>
+      <p class="gs-info-text">Blue lines are temp-table geometries. Click the lines you want to append into {{ layerName }}.</p>
+    </div>
+
+    <div class="gs-stats">
+      <div class="stat-item">
+        <span class="stat-label">Total Lines</span>
+        <span class="stat-value">{{ totalFeatures }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Selected</span>
+        <span class="stat-value selected-count">{{ selectedCount }}</span>
+      </div>
+    </div>
+
+    <div class="gs-search">
+      <input
+        type="text"
+        placeholder="Search by ID or name..."
+        [(ngModel)]="searchText"
+        (input)="filterFeatures()"
+        class="search-input"
+      />
+    </div>
+
+    <div class="gs-actions">
+      <button class="btn btn-secondary" (click)="zoomToAllLines()" [disabled]="totalFeatures === 0">
+        Zoom To Lines
+      </button>
+      <button class="btn btn-secondary" (click)="selectAllFeatures()" [disabled]="filteredFeatures.length === 0">
+        Select All
+      </button>
+      <button class="btn btn-secondary" (click)="clearSelection()" [disabled]="selectedCount === 0">
+        Clear Selection
+      </button>
+    </div>
+  </div>
+
+  <div class="gs-content">
+    <div class="gs-map-wrapper">
+      <div *ngIf="error" class="alert alert-error">
+        <span>!</span>
+        <span>{{ error }}</span>
+      </div>
+      <div *ngIf="appendMessage" class="alert alert-success">
+        <span>{{ appendMessage }}</span>
+      </div>
+      <!-- Merge gap warning -->
+      <div *ngIf="mergeWarning" class="alert alert-warning">
+        <span>⚠</span>
+        <span>{{ mergeWarning }}</span>
+      </div>
+      <div *ngIf="loading" class="loading-overlay">
+        <div>
+          <div class="spinner"></div>
+          <p>{{ loading ? 'Processing...' : 'Loading geometries...' }}</p>
+        </div>
+      </div>
+      <div class="gs-map" #mapContainer>
+        <div class="map-controls" #mapControls>
+          <button class="map-ctrl-btn" (click)="zoomIn()" title="Zoom In">+</button>
+          <button class="map-ctrl-btn" (click)="zoomOut()" title="Zoom Out">−</button>
+          <button class="map-ctrl-btn home-btn" (click)="fitMapToAllLines()" title="Fit to lines">⌂</button>
+          <button class="basemap-toggle" (click)="toggleBasemapMenu()" title="Change basemap" [attr.aria-expanded]="showBasemapMenu">
+            <!-- inline simplified map-pin SVG similar to Google Maps style -->
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#60A5FA"/>
+              <circle cx="12" cy="9" r="2.5" fill="#fff"/>
+            </svg>
+          </button>
+
+          <div class="basemap-menu" *ngIf="showBasemapMenu">
+            <button class="basemap-menu-item" (click)="onBasemapChange('Open Street Map')">
+              <span class="menu-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6l7-3 7 3 4-1v13l-7 3-7-3-4 1V6z" stroke="#0f172a" stroke-width="1" fill="#e6f2ff"/></svg>
+              </span>
+              <span class="menu-label">Map</span>
+            </button>
+            <button class="basemap-menu-item" (click)="onBasemapChange('satellite')">
+              <span class="menu-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 3l-6 6-3-1 1-3 6-6 2 2zM3 21l6-6 3 1-1 3-6 6-2-2z" fill="#0f172a"/></svg>
+              </span>
+              <span class="menu-label">Satellite</span>
+            </button>
+            <button class="basemap-menu-item" (click)="onBasemapChange('Google Satellite')">
+              <span class="menu-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" fill="#fff" stroke="#0f172a" stroke-width="1"/></svg>
+              </span>
+              <span class="menu-label">Google Satellite</span>
+            </button>
+            <button class="basemap-menu-item" (click)="onBasemapChange('Esri Topographic')">
+              <span class="menu-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 12c4-8 12-10 20-6-4 8-12 10-20 6z" fill="#0f172a"/></svg>
+              </span>
+              <span class="menu-label">Topographic</span>
+            </button>
+            <button class="basemap-menu-item" (click)="onBasemapChange('Bhuvan India')">
+              <span class="menu-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill="#0f172a"/></svg>
+              </span>
+              <span class="menu-label">Bhuvan</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gs-feature-panel">
+      <div class="feature-panel-header">
+        <h3>Lines ({{ filteredFeatures.length }})</h3>
+        <span class="feature-count-badge">{{ selectedCount }} selected</span>
+      </div>
+
+      <div class="feature-list">
+        <div *ngIf="filteredFeatures.length === 0" class="no-features">
+          <p>No geometries found</p>
+        </div>
+
+        <div
+          *ngFor="let feature of filteredFeatures"
+          class="feature-item"
+          [class.selected]="isFeatureSelected(feature)"
+          (click)="toggleFeatureSelection(feature)"
+        >
+          <div class="feature-checkbox">
+            <input
+              type="checkbox"
+              [checked]="isFeatureSelected(feature)"
+              (click)="$event.stopPropagation()"
+              (change)="toggleFeatureSelection(feature)"
+            />
+          </div>
+          <div class="feature-info">
+            <div class="feature-id">{{ feature.id }}</div>
+            <div class="feature-name">{{ getFeatureLabel(feature) }}</div>
+          </div>
+          <button type="button" class="feature-zoom" (click)="zoomToFeature(feature, $event)" title="Zoom to line">
+            Zoom
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gs-footer">
+    <button class="btn btn-ghost" (click)="goBack()" [disabled]="loading">
+      Back
+    </button>
+
+    <!-- Merge toggle — only show when 2+ lines selected -->
+    <label *ngIf="selectedCount >= 2" class="merge-toggle" [class.disabled]="loading">
+      <input
+        type="checkbox"
+        [(ngModel)]="mergeGeometry"
+        [disabled]="loading"
+      />
+      <span class="merge-toggle-label">
+        Merge into one geometry
+      </span>
+      <span class="merge-toggle-hint">
+        {{ mergeGeometry ? '1 row will be inserted' : selectedCount + ' rows will be inserted' }}
+      </span>
+    </label>
+
+    <button
+      class="btn btn-primary"
+      (click)="appendSelectedGeometries()"
+      [disabled]="selectedCount === 0 || loading"
+    >
+      <span *ngIf="!loading">
+        {{ mergeGeometry && selectedCount >= 2 ? 'Merge & Append' : 'Append ' + selectedCount + ' Geometries' }}
+      </span>
+      <span *ngIf="loading">Processing...</span>
+    </button>
+  </div>
+</div>
