@@ -11,7 +11,16 @@ const { pool } = require('../../../../db/pool');
 
 
 function resolveConfig(layer) {
-  const config = configMap[layer];
+  const rawLayer = String(layer || '').trim().toLowerCase();
+  const compactLayer = rawLayer.replace(/[\s-]+/g, '_');
+  const aliases = {
+    stations: 'station',
+    level_xing: 'levelxing',
+    point_xing: 'pointxing',
+    rob: 'road_over_bridge',
+  };
+  const normalizedLayer = aliases[compactLayer] || compactLayer;
+  const config = configMap[normalizedLayer];
   if (!config) {
     const err = new Error('Invalid edit layer');
     err.status = 404;
@@ -120,6 +129,7 @@ async function create(req, res, next) {
   try {
     const { layer } = req.params;
     const division = String(req.query.division || '').trim();
+    const makerUserId = String(req?.user?.sub || req?.user?.user_id || '').trim();
 
     if (!division) {
       const err = new Error('division is required');
@@ -128,7 +138,7 @@ async function create(req, res, next) {
     }
 
     const config = resolveConfig(layer);
-    const row = await model.create(config, req.body, division);
+    const row = await model.create(config, req.body, division, makerUserId);
 
     res.status(201).json(row);
   } catch (err) {

@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+const fs = require('fs');
 
 const activeOtpSends = new Map(); // key=email -> { cancelled: boolean }
 
@@ -64,7 +65,15 @@ async function sendOtpMail({ to, user_name, otp }) {
 
   try {
     // ✅ IMPORTANT: use absolute path safely
-    const logoPath = path.resolve(__dirname, '../../public/images/IR_logo.png');
+    const logoCandidates = [
+      process.env.OTP_LOGO_PATH,
+      path.resolve(__dirname, '../../public/Images/IR_logo.png'),
+      path.resolve(__dirname, '../../public/images/IR_logo.png'),
+    ].filter(Boolean);
+    const logoPath = logoCandidates.find((candidate) => fs.existsSync(candidate));
+    const logoHtml = logoPath
+      ? '<img src="cid:irlogo" alt="Indian Railways" style="height:75px; display:block;" />'
+      : '<div style="font-size:16px;font-weight:700;color:#0b3d91;white-space:nowrap;">Indian Railways</div>';
 
     const html = `
 <div style="background:#f4f6f9;padding:40px 0;font-family:'Segoe UI',Arial,sans-serif;">
@@ -75,7 +84,7 @@ async function sendOtpMail({ to, user_name, otp }) {
           <table cellpadding="0" cellspacing="0">
             <tr>
               <td style="vertical-align:middle;padding-right:15px;">
-                <img src="cid:irlogo" alt="Indian Railways" style="height:75px; display:block;" />
+                ${logoHtml}
               </td>
               <td style="vertical-align:middle;">
                 <h1 style="margin:0;font-size:36px;letter-spacing:2px;color:#1a1a1a;font-weight:800;font-family:'Segoe UI', Arial, sans-serif;">UMP</h1>
@@ -116,14 +125,16 @@ async function sendOtpMail({ to, user_name, otp }) {
       to,
       subject,
       html,
-      attachments: [
-        {
-          filename: 'IR_logo.png',
-          path: logoPath,
-          cid: 'irlogo',
-          contentDisposition: 'inline',
-        },
-      ],
+      attachments: logoPath
+        ? [
+            {
+              filename: 'IR_logo.png',
+              path: logoPath,
+              cid: 'irlogo',
+              contentDisposition: 'inline',
+            },
+          ]
+        : [],
     };
 
     // ✅ fast retries for transient errors only

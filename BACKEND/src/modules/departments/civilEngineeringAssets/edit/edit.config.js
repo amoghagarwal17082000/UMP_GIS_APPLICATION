@@ -50,11 +50,83 @@ function buildBridgeLikePointLayerConfig(table, numberField) {
   });
 }
 
+function buildLevelXingLayerConfig() {
+  const fields = [
+    'gid',
+    'distkm',
+    'distm',
+    'latitude',
+    'longitude',
+    'fdetail',
+    'stnfrom',
+    'line',
+    'railway',
+    'division',
+    'ersection',
+    'tmssection',
+    'state',
+    'district',
+    'city',
+    'asset_id',
+    'xcoord',
+    'ycoord',
+    'remark',
+    'date',
+    'stnto',
+    'gisid',
+    'tahsil',
+    'village',
+    'valid',
+    'user_type',
+    'unit_type',
+    'unit_code',
+    'unit_name',
+    'department',
+    'user_id',
+    'expired_flag',
+    'created_by',
+    'created_date',
+    'modified_by',
+    'modified_date',
+    'mapped_flag',
+    'mapped_id',
+    'remark2',
+    'makerdet',
+    'checkerdet',
+    'approverdet',
+    'lxingno',
+    'tvu',
+    'lxingtype',
+    'sent_by',
+    'globalid',
+    'constituncy',
+    'attachment_bundle_url'
+  ];
+
+  return buildGenericPointLayerConfig('levelxing', {
+    fields,
+    geometryColumn: 'shape',
+    readColumn: 'shape',
+    searchableFields: ['asset_id', 'lxingno', 'stnfrom', 'stnto', 'state', 'district', 'division'],
+    draftWorkflow: {
+      table: 'sde.levelxing_edit',
+      editIdColumn: 'edit_id',
+      originalIdColumn: 'original_id',
+      statusColumn: 'status',
+      checkerColumn: null,
+      approverColumn: null,
+      originalStatusValue: 'Under Editing',
+      draftStatusValue: 'Sent to Checker'
+    }
+  });
+}
+
 function buildGenericPolygonLayerConfig(table, options = {}) {
   return {
     table: `sde.${table}`,
     idColumn: 'objectid',
     idStrategy: 'manual',
+    draftWorkflow: options.draftWorkflow,
     geometry: {
       enabled: false,
       type: 'Polygon',
@@ -509,6 +581,12 @@ module.exports = {
   rob: buildBridgeLikePointLayerConfig('road_over_bridge', 'robno'),
   rub_lhs: buildBridgeLikePointLayerConfig('rub_lhs', 'rubno'),
   ror: buildBridgeLikePointLayerConfig('ror', 'rorno'),
+  levelxing: buildLevelXingLayerConfig(),
+  level_xing: buildLevelXingLayerConfig(),
+  pointxing: buildGenericPointLayerConfig('pointxing'),
+  point_xing: buildGenericPointLayerConfig('pointxing'),
+  switch_expansion_joint: buildGenericPointLayerConfig('switch_expansion_joint_1'),
+  sej: buildGenericPointLayerConfig('switch_expansion_joint_1'),
   buffer_rails: buildGenericPointLayerConfig('buffer_rails')
 };
 

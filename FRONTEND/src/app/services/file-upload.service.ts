@@ -91,6 +91,24 @@ export class FileUploadService {
     );
   }
 
+  uploadCsvGeometry(
+    file: File,
+    layerName: string,
+    onProgress: (pct: number) => void
+  ): Promise<FileUploadResponse & { success: boolean }> {
+    const formData = new FormData();
+    formData.append('csvFile', file, file.name);
+    formData.append('layerName', layerName);
+    const division = String(getDivision() || '').trim();
+    if (division) formData.append('division', division);
+
+    return this.uploadWithProgress<FileUploadResponse & { success: boolean }>(
+      `${this.UPLOAD_URL}/upload-csv-geometry`,
+      formData,
+      onProgress
+    );
+  }
+
   private uploadWithProgress<T>(
     url: string,
     formData: FormData,

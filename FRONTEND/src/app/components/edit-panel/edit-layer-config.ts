@@ -44,6 +44,7 @@ const COLUMN_LIBRARY: Record<string, TableColumnConfig> = {
   robno: { key: 'robno', label: 'ROB No' },
   rubno: { key: 'rubno', label: 'RUB No' },
   rorno: { key: 'rorno', label: 'ROR No' },
+  lxingno: { key: 'lxingno', label: 'Level Crossing No' },
   asset_id: { key: 'asset_id', label: 'Asset ID', stationLink: true },
   km: { key: 'km', label: 'KM' },
   km_post: { key: 'km_post', label: 'KM Post' },
@@ -102,6 +103,7 @@ const FIELD_LIBRARY: Record<string, EditFieldConfig> = {
   robno: { key: 'robno', label: 'ROB No', required: true, full: true },
   rubno: { key: 'rubno', label: 'RUB No', required: true, full: true },
   rorno: { key: 'rorno', label: 'ROR No', required: true, full: true },
+  lxingno: { key: 'lxingno', label: 'Level Crossing No', required: true, full: true },
   constituncy: { key: 'constituncy', label: 'Constituency', required: true, full: true },
   bridgetype: { key: 'bridgetype', label: 'Bridge Type', required: true, full: true },
   spanconf: { key: 'spanconf', label: 'Span Configuration', required: true, full: true },
@@ -355,8 +357,10 @@ export const EDIT_LAYER_CONFIG: Record<string, LayerFormConfig> = {
   levelxing: buildLayerConfig({
     id: 'levelxing',
     label: 'Levelxing',
-    tableColumnKeys: ['sttncode', 'assetid'],
-    formFieldKeys: ['assetid', 'sttncode', 'sttnname', 'constituncy'],
+    includeGenericStatusColumns: false,
+    includeGenericStatusFields: false,
+    tableColumnKeys: ['asset_id', 'lxingno', 'distkm', 'distm', 'state', 'district', 'constituncy'],
+    formFieldKeys: ['asset_id', 'lxingno', 'distkm', 'distm', 'railway', 'division', 'state', 'district', 'constituncy'],
   }),
 
   road_over_bridge: buildBridgeLikeLayerConfig('road_over_bridge', 'Road Over Bridge', 'robno'),
