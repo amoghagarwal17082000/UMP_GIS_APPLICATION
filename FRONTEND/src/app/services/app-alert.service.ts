@@ -22,6 +22,10 @@ export class AppAlertService {
     const cleanMessage = String(message || '').trim();
     if (!cleanMessage) return;
 
+    if (!modal) {
+      this.clearNonModalAlerts();
+    }
+
     const alert: AppAlert = {
       id: this.nextId++,
       type,
@@ -30,8 +34,9 @@ export class AppAlertService {
     };
     this.alertsSubject.next([...this.alertsSubject.value, alert]);
 
-    if (timeoutMs > 0) {
-      const timer = setTimeout(() => this.dismiss(alert.id), timeoutMs);
+    const effectiveTimeoutMs = timeoutMs || (!modal ? 3200 : 0);
+    if (effectiveTimeoutMs > 0) {
+      const timer = setTimeout(() => this.dismiss(alert.id), effectiveTimeoutMs);
       this.dismissTimers.set(alert.id, timer);
     }
   }
@@ -50,6 +55,21 @@ export class AppAlertService {
 
   info(message: string, timeoutMs?: number, modal = false): void {
     this.show(message, 'info', timeoutMs, modal);
+  }
+
+  private clearNonModalAlerts(): void {
+    const alerts = this.alertsSubject.value;
+    const nonModalIds = alerts.filter((alert) => !alert.modal).map((alert) => alert.id);
+
+    nonModalIds.forEach((id) => {
+      const timer = this.dismissTimers.get(id);
+      if (timer) clearTimeout(timer);
+      this.dismissTimers.delete(id);
+    });
+
+    if (nonModalIds.length) {
+      this.alertsSubject.next(alerts.filter((alert) => alert.modal));
+    }
   }
 
   dismiss(id: number): void {

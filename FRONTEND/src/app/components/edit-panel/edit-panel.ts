@@ -119,7 +119,16 @@ export class EditPanel implements OnInit, OnDestroy {
   addRecordShapefileProgress = 0;
   addRecordShapefileProcessing = false;
   addRecordShapefileError: string | null = null;
+  addRecordCsvFile: File | null = null;
+  addRecordCsvName = '';
+  addRecordCsvUploading = false;
+  addRecordCsvProgress = 0;
+  addRecordCsvError: string | null = null;
+  addRecordCoordinateX: number | null = null;
+  addRecordCoordinateY: number | null = null;
+  addRecordCoordinateError: string | null = null;
   uploadedShapefileRecordObjectId: number | null = null;
+  directMainRecordDeleteLabel = 'Delete Uploaded Asset';
   private addRecordUploadHandled = false;
   private addRecordUploadInFlight = false;
   private addRecordProcessingTimer?: ReturnType<typeof setTimeout>;
@@ -138,6 +147,7 @@ export class EditPanel implements OnInit, OnDestroy {
 // ── Attachment logic (from File 1) ──────────────────────────
   @ViewChild('attachmentInput') attachmentInput?: ElementRef<HTMLInputElement>;
   @ViewChild('addRecordShapefileInput') addRecordShapefileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('addRecordCsvInput') addRecordCsvInput?: ElementRef<HTMLInputElement>;
   attachmentFiles: File[] = [];
   uploadingAttachments = false;
   attachmentUploadError: string | null = null;
@@ -354,7 +364,7 @@ export class EditPanel implements OnInit, OnDestroy {
     }, 200);
   }
 
-  private openUploadedRecordByObjectId(objectId: number): void {
+  private openUploadedRecordByObjectId(objectId: number, deleteLabel = 'Delete Uploaded Asset'): void {
     const layerKey = this.getPersistenceLayerKey();
     if (!layerKey || !Number.isFinite(objectId)) {
       this.openNewestRecordAfterUpload();
@@ -377,7 +387,7 @@ export class EditPanel implements OnInit, OnDestroy {
         this.total = 1;
         this.filteredTotal = 1;
         this.loading = false;
-        this.openUploadedRecordForm(row, true);
+        this.openUploadedRecordForm(row, true, deleteLabel);
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -395,12 +405,13 @@ export class EditPanel implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  private openUploadedRecordForm(row: any, isUploadedShapefileRecord = false): void {
+  private openUploadedRecordForm(row: any, isUploadedShapefileRecord = false, deleteLabel = 'Delete Uploaded Asset'): void {
     this.editRow(row);
     const uploadedObjectId = Number(row?.objectid);
     this.uploadedShapefileRecordObjectId = isUploadedShapefileRecord && Number.isFinite(uploadedObjectId)
       ? uploadedObjectId
       : null;
+    this.directMainRecordDeleteLabel = isUploadedShapefileRecord ? deleteLabel : 'Delete Uploaded Asset';
 
     const layerKey = this.getPersistenceLayerKey();
     const objectId = Number(row?.objectid);
@@ -418,7 +429,7 @@ export class EditPanel implements OnInit, OnDestroy {
     });
   }
 
-  private zoomToFeatureShape(row: any): boolean {
+  private zoomToFeatureShape(row: any, zoomOverride?: number): boolean {
     const feature = this.buildFeatureFromRow(row);
     if (!feature?.geometry) {
       const normalized = this.normalizeCurrentLayerDraft(row);
@@ -429,6 +440,15 @@ export class EditPanel implements OnInit, OnDestroy {
         return true;
       }
       return false;
+    }
+    if (String(feature.geometry.type || '').toLowerCase() === 'point') {
+      const coords = Array.isArray(feature.geometry.coordinates) ? feature.geometry.coordinates : [];
+      const lng = Number(coords[0]);
+      const lat = Number(coords[1]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        this.deferMapZoom({ type: 'latlng', lat, lng, zoom: zoomOverride ?? this.getEditFocusZoom(), draggable: false } as any);
+        return true;
+      }
     }
     this.deferMapZoom({ type: 'feature', feature, pad: 0.24 } as any);
     return true;
@@ -488,6 +508,26 @@ export class EditPanel implements OnInit, OnDestroy {
       geometry,
       properties: row?.properties ?? row ?? {},
     };
+  }
+
+  private buildPointFeatureFromCoordinates(lat: number, lng: number, properties: Record<string, any> = {}): any {
+    return {
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [lng, lat],
+      },
+      properties,
+    };
+  }
+
+  private attachPointShapeToDraft(draft: Record<string, any>, lat: number, lng: number): void {
+    const feature = this.buildPointFeatureFromCoordinates(lat, lng, draft);
+    draft.geometry = feature.geometry;
+    draft.asset_geometry_geojson = feature.geometry;
+    draft.geometry_geojson = feature.geometry;
+    draft.geom_lat = lat;
+    draft.geom_lng = lng;
   }
 
   private shouldAutoZoomOnEditOpen(): boolean {
@@ -715,6 +755,11 @@ export class EditPanel implements OnInit, OnDestroy {
     if (layer === 'stations') return 'station';
     if (layer === 'rob') return 'road_over_bridge';
     return layer;
+  }
+
+  isCurrentLayerPointGeometry(): boolean {
+    const layer = String(this.currentTableLayer || '').trim().toLowerCase();
+    return !!this.currentLayerSchema && !!layer && !EditPanel.NON_POINT_LAYERS.has(layer);
   }
 
   private getNormalizedBridgeAssetId(value: any = this.draft?.asset_id): string {
@@ -1476,6 +1521,8 @@ export class EditPanel implements OnInit, OnDestroy {
     this.addRecordDrawingActive = false;
     this.showAddRecordModal = true;
     this.resetAddRecordShapefileState();
+    this.resetAddRecordCsvState();
+    this.resetAddRecordCoordinateState();
     this.cdr.detectChanges();
   }
 
@@ -1484,6 +1531,8 @@ export class EditPanel implements OnInit, OnDestroy {
     this.addRecordUploadHandled = true;
     this.loading = false;
     this.resetAddRecordShapefileState();
+    this.resetAddRecordCsvState();
+    this.resetAddRecordCoordinateState();
     this.cdr.detectChanges();
   }
 
@@ -1516,6 +1565,182 @@ export class EditPanel implements OnInit, OnDestroy {
     this.alerts.warning(`Drawing mode is on. Click inside the division buffer to place the new ${layerLabel}.`, 3200, false);
 
     this.cdr.detectChanges();
+  }
+
+  onAddRecordCsvSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] || null;
+
+    this.addRecordCsvError = null;
+    this.addRecordCsvProgress = 0;
+
+    if (!file) {
+      this.addRecordCsvFile = null;
+      this.addRecordCsvName = '';
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      this.addRecordCsvFile = null;
+      this.addRecordCsvName = '';
+      this.addRecordCsvError = 'Please choose a CSV file with latitude and longitude columns.';
+      this.clearAddRecordCsvInput();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.addRecordCsvFile = file;
+    this.addRecordCsvName = file.name;
+    this.cdr.detectChanges();
+  }
+
+  async uploadAddRecordCsvGeometry(): Promise<void> {
+    if (this.addRecordCsvUploading) return;
+
+    const targetLayerName = this.getAddRecordShapefileTargetLayer();
+    if (!targetLayerName) {
+      this.addRecordCsvError = 'Please select an assigned layer before uploading CSV geometry.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    if (!this.addRecordCsvFile) {
+      this.addRecordCsvError = 'Please choose a CSV file before uploading.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.addRecordCsvUploading = true;
+    this.addRecordCsvProgress = 0;
+    this.addRecordCsvError = null;
+    this.cdr.detectChanges();
+
+    try {
+      const response = await this.fileUploadService.uploadCsvGeometry(
+        this.addRecordCsvFile,
+        targetLayerName,
+        (progress) => {
+          this.addRecordCsvProgress = progress;
+          this.cdr.detectChanges();
+        }
+      );
+
+      this.addRecordCsvUploading = false;
+      this.notifyAlert(response?.message || 'CSV geometry uploaded successfully');
+      this.resetAddRecordCsvState();
+      this.showAddRecordModal = false;
+      const firstObjectId = Number(response?.firstObjectId ?? response?.insertedObjectIds?.[0]);
+      if (Number.isFinite(firstObjectId)) {
+        this.openUploadedRecordByObjectId(firstObjectId, 'Delete New Asset');
+      } else {
+        this.reloadCurrentTableAfterUpload();
+      }
+      this.cdr.detectChanges();
+    } catch (err: any) {
+      this.addRecordCsvUploading = false;
+      this.addRecordCsvError = err?.message || 'Failed to upload CSV geometry';
+      this.cdr.detectChanges();
+    }
+  }
+
+  createAddRecordFromCoordinates(): void {
+    if (!this.currentTableLayer) return;
+
+    const x = Number(this.addRecordCoordinateX);
+    const y = Number(this.addRecordCoordinateY);
+    const layerKey = this.getPersistenceLayerKey();
+
+    if (!this.isCurrentLayerPointGeometry()) {
+      this.addRecordCoordinateError = 'X/Y coordinate creation is available only for point geometry layers.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      this.addRecordCoordinateError = 'Please enter valid X and Y coordinates.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    if (!layerKey) {
+      this.addRecordCoordinateError = 'Layer workflow is not available.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    if (x < -180 || x > 180 || y < -90 || y > 90) {
+      this.addRecordCoordinateError = 'Coordinates must be in EPSG:4326: X/Longitude -180 to 180 and Y/Latitude -90 to 90.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.addRecordCoordinateError = null;
+    this.showAddRecordModal = false;
+    this.saving = true;
+    this.error = null;
+    this.cdr.detectChanges();
+
+    const coordinateFocusZoom = this.getEditFocusZoom();
+    const payload = this.buildCoordinateCreatePayload(y, x);
+    this.api.createLayer(layerKey, payload).subscribe({
+      next: (created: any) => {
+        this.saving = false;
+        const row = { ...payload, ...(created || {}) };
+        const objectId = Number(row?.objectid);
+        if (!Number.isFinite(objectId)) {
+          this.error = 'Asset was created, but the new object ID was not returned.';
+          this.cdr.detectChanges();
+          return;
+        }
+
+        this.rows = [row];
+        this.allRows = [row];
+        this.filteredRows = [row];
+        this.total = 1;
+        this.filteredTotal = 1;
+        this.loading = false;
+        this.openUploadedRecordForm(row, true, 'Delete New Asset');
+        this.zoomToFeatureShape(row, coordinateFocusZoom);
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        this.saving = false;
+        this.showAddRecordModal = true;
+        this.addRecordCoordinateError = err?.error?.message || err?.error?.error || 'Failed to create asset from coordinates.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private buildCoordinateCreatePayload(lat: number, lng: number): Record<string, any> {
+    const division = String(this.currentUser.getSnapshot()?.division || localStorage.getItem('division') || '').trim();
+    const department = String(localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '').trim();
+    const railwayName = this.getRailwayName();
+    const railwayCode = this.getRailwayCode();
+    const payload: Record<string, any> = {
+      status: null,
+      lat,
+      lng,
+      latitude: lat,
+      longitude: lng,
+      ycoord: lat,
+      xcoord: lng,
+      railway: railwayCode,
+      zone_name: railwayName,
+      fname: railwayName,
+      division,
+      div_name: division,
+      department,
+    };
+
+    this.formFields.forEach((field) => {
+      if (field.key === 'objectid' || field.key === 'status') return;
+      if (payload[field.key] !== undefined) return;
+      payload[field.key] = field.type === 'number' ? null : '';
+    });
+
+    this.attachPointShapeToDraft(payload, lat, lng);
+    return payload;
   }
 
   cancelAddNewRecordDrawing(): void {
@@ -1718,9 +1943,30 @@ export class EditPanel implements OnInit, OnDestroy {
       this.addRecordShapefileInput.nativeElement.value = '';
     }
   }
+
+  private resetAddRecordCsvState(): void {
+    this.addRecordCsvFile = null;
+    this.addRecordCsvName = '';
+    this.addRecordCsvUploading = false;
+    this.addRecordCsvProgress = 0;
+    this.addRecordCsvError = null;
+    this.clearAddRecordCsvInput();
+  }
+
+  private clearAddRecordCsvInput(): void {
+    if (this.addRecordCsvInput?.nativeElement) {
+      this.addRecordCsvInput.nativeElement.value = '';
+    }
+  }
+
+  private resetAddRecordCoordinateState(): void {
+    this.addRecordCoordinateX = null;
+    this.addRecordCoordinateY = null;
+    this.addRecordCoordinateError = null;
+  }
     // ────────────────────────────────────────────────────────────
 
-  private beginStationCreationDraft(lat: number, lng: number) {
+  private beginStationCreationDraft(lat: number, lng: number, zoom = EditPanel.NEW_ASSET_ZOOM) {
     const railway = this.getRailwayName();
     const department = localStorage.getItem('department') || this.currentUser.getSnapshot()?.department || '';
 
@@ -1757,13 +2003,14 @@ export class EditPanel implements OnInit, OnDestroy {
       zone_name: railway,
       department,
     };
+    this.attachPointShapeToDraft(this.draft, lat, lng);
     this.originalDraft = { ...this.draft };
     this.prepareLocationDropdownsForDraft(false);
-    this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: EditPanel.NEW_ASSET_ZOOM, draggable: false } as any);
+    this.zoomToFeatureShape(this.draft, zoom);
     this.cdr.detectChanges();
   }
 
-  private beginGenericCreationDraft(lat?: number, lng?: number) {
+  private beginGenericCreationDraft(lat?: number, lng?: number, zoom = EditPanel.NEW_ASSET_ZOOM) {
     const layer = this.currentTableLayer;
     if (!layer || !this.currentLayerSchema) return;
 
@@ -1799,13 +2046,17 @@ export class EditPanel implements OnInit, OnDestroy {
       draft[field.key] = field.type === 'number' ? null : '';
     });
 
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      this.attachPointShapeToDraft(draft, lat!, lng!);
+    }
+
     this.mode = 'edit';
     this.ensureLocationOptionsLoaded();
     this.draft = draft;
     this.originalDraft = { ...draft };
     this.prepareLocationDropdownsForDraft(false);
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      this.mapZoom.zoomTo({ type: 'latlng', lat: lat!, lng: lng!, zoom: EditPanel.NEW_ASSET_ZOOM, draggable: false } as any);
+      this.zoomToFeatureShape(this.draft, zoom);
     }
     this.cdr.detectChanges();
   }
@@ -1815,6 +2066,7 @@ export class EditPanel implements OnInit, OnDestroy {
     const loadDraftDetail = isSavedDraftRow || this.isReviewer() || this.isMakerRejectedView() || this.isMakerSentForDeletionView();
 
     this.uploadedShapefileRecordObjectId = null;
+    this.directMainRecordDeleteLabel = 'Delete Uploaded Asset';
     this.mode = 'edit';
     this.error = null;
     this.draft = { ...row };
@@ -2112,12 +2364,34 @@ export class EditPanel implements OnInit, OnDestroy {
   startGeometryEdit() {
     if (this.isReviewer()) return;
     if (!this.draft) return;
-    const lat = Number(this.draft.lat); const lng = Number(this.draft.lng);
-    this.notifyAlert('Edit Geometry Mode is ON. You can now move the asset point.');
+    const normalized = this.normalizeCurrentLayerDraft(this.draft);
+    const lat = Number(this.draft.lat ?? normalized?.lat ?? this.draft.ycoord ?? this.draft.latitude);
+    const lng = Number(this.draft.lng ?? this.draft.lon ?? normalized?.lng ?? this.draft.xcoord ?? this.draft.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      this.error = 'Geometry coordinates are not available for this asset.';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.draft.lat = lat;
+    this.draft.lng = lng;
+    this.draft.latitude = lat;
+    this.draft.longitude = lng;
+    this.draft.ycoord = lat;
+    this.draft.xcoord = lng;
+    this.alerts.warning('Edit Geometry Mode is ON. You can now move the asset point.', 3200, false);
     this.geomEditing = true;
     this.mapZoom.zoomTo({ type: 'latlng', lat, lng, zoom: this.getEditFocusZoom(), draggable: true });
     this.dragSub?.unsubscribe();
-    this.dragSub = this.edit.dragEnd$.subscribe(({ lat: newLat, lng: newLng }) => { if (!this.draft) return; this.draft.lat = newLat; this.draft.lng = newLng; this.cdr.detectChanges(); });
+    this.dragSub = this.edit.dragEnd$.subscribe(({ lat: newLat, lng: newLng }) => {
+      if (!this.draft) return;
+      this.draft.lat = newLat;
+      this.draft.lng = newLng;
+      this.draft.latitude = newLat;
+      this.draft.longitude = newLng;
+      this.draft.ycoord = newLat;
+      this.draft.xcoord = newLng;
+      this.cdr.detectChanges();
+    });
   }
 
   saveGeometry() {
@@ -2374,6 +2648,7 @@ export class EditPanel implements OnInit, OnDestroy {
     this.addRecordDrawingActive = false;
     this.addRecordShapefileName = '';
     this.uploadedShapefileRecordObjectId = null;
+    this.directMainRecordDeleteLabel = 'Delete Uploaded Asset';
     this.geomEditing = false;
     this.dragSub?.unsubscribe();
     this.dragSub = undefined;
@@ -2385,7 +2660,7 @@ export class EditPanel implements OnInit, OnDestroy {
 
   cancelEdit() {
     if (this.originalDraft) this.draft = { ...this.originalDraft };
-    this.edit.cancelCreateStation(); this.addRecordDrawingActive = false; this.uploadedShapefileRecordObjectId = null; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.error = null; this.validating = false; this.stationValidated = false; this.validatedBridgeAssetId = null; this.showAddRecordModal = false; this.addRecordShapefileName = ''; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.zoomHome(); this.mapZoom.clearHighlight();
+    this.edit.cancelCreateStation(); this.addRecordDrawingActive = false; this.uploadedShapefileRecordObjectId = null; this.directMainRecordDeleteLabel = 'Delete Uploaded Asset'; this.mode = 'table'; this.draft = null; this.originalDraft = null; this.error = null; this.validating = false; this.stationValidated = false; this.validatedBridgeAssetId = null; this.showAddRecordModal = false; this.addRecordShapefileName = ''; this.saving = false; this.deleting = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.mapZoom.zoomHome(); this.mapZoom.clearHighlight();
   }
 
   private isSavedMakerDraft(): boolean {
@@ -2401,6 +2676,7 @@ export class EditPanel implements OnInit, OnDestroy {
     this.stationValidated = false;
     this.validatedBridgeAssetId = null;
     this.uploadedShapefileRecordObjectId = null;
+    this.directMainRecordDeleteLabel = 'Delete Uploaded Asset';
     this.geomEditing = false;
     this.dragSub?.unsubscribe();
     this.dragSub = undefined;
@@ -2642,7 +2918,7 @@ export class EditPanel implements OnInit, OnDestroy {
     if (!layerKey || !Number.isFinite(id)) return;
 
     const name = this.getRecordDisplayName(this.draft);
-    if (!confirm(`Delete uploaded ${this.getCurrentLayerLabel()}${name ? ` "${name}"` : ''} directly from database?`)) return;
+    if (!confirm(`Delete this ${this.getCurrentLayerLabel()}${name ? ` "${name}"` : ''} directly from database?`)) return;
 
     this.deleting = true;
     this.error = null;
@@ -2650,6 +2926,7 @@ export class EditPanel implements OnInit, OnDestroy {
       next: () => {
         this.deleting = false;
         this.uploadedShapefileRecordObjectId = null;
+        this.directMainRecordDeleteLabel = 'Delete Uploaded Asset';
         this.mode = 'table';
         this.draft = null;
         this.originalDraft = null;
@@ -2660,7 +2937,7 @@ export class EditPanel implements OnInit, OnDestroy {
         this.dragSub = undefined;
         this.mapZoom.zoomHome();
         this.mapZoom.clearHighlight();
-        this.notifyAlert('Uploaded asset deleted from database');
+        this.notifyAlert('Asset deleted from database');
         setTimeout(() => this.load(true), 0);
         this.cdr.detectChanges();
       },
@@ -2778,7 +3055,7 @@ export class EditPanel implements OnInit, OnDestroy {
   rejectDeletionDraft() { if (!this.draft) return; this.rejectDeletionRow(this.draft); }
 
   private resetPanelState() {
-    this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.pageSize = 8; this.search = ''; this.loading = false; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.validatedBridgeAssetId = null; this.showAddRecordModal = false; this.addRecordDrawingActive = false; this.addRecordShapefileName = ''; this.uploadedShapefileRecordObjectId = null; this.saving = false; this.deleting = false; this.validating = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.error = null; this.edit.setLayer(null as any); this.mapZoom.clearHighlight();
+    this.mode = 'table'; this.rows = []; this.allRows = []; this.filteredRows = []; this.total = 0; this.filteredTotal = 0; this.page = 1; this.pageSize = 8; this.search = ''; this.loading = false; this.draft = null; this.originalDraft = null; this.stationValidated = false; this.validatedBridgeAssetId = null; this.showAddRecordModal = false; this.addRecordDrawingActive = false; this.addRecordShapefileName = ''; this.uploadedShapefileRecordObjectId = null; this.directMainRecordDeleteLabel = 'Delete Uploaded Asset'; this.saving = false; this.deleting = false; this.validating = false; this.geomEditing = false; this.dragSub?.unsubscribe(); this.dragSub = undefined; this.error = null; this.edit.setLayer(null as any); this.mapZoom.clearHighlight();
   }
 
   close() {

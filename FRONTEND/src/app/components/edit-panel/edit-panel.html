@@ -154,6 +154,70 @@
                 Continue With Drawing Tool
               </button>
             </div>
+
+            <div class="add-record-option-card">
+              <div class="add-record-option-title">Upload CSV Coordinates</div>
+              <div class="add-record-option-text">
+                Upload a CSV with <strong>lat/latitude</strong> and <strong>long/longitude/lng</strong> columns for:
+                <strong>{{ currentLayerSchema?.label || selectedLayerLabel }}</strong>.
+              </div>
+              <input #addRecordCsvInput type="file" class="add-record-shapefile-input"
+                accept=".csv"
+                (change)="onAddRecordCsvSelected($event)" />
+
+              <div class="add-record-shapefile-error" *ngIf="addRecordCsvError">
+                {{ addRecordCsvError }}
+              </div>
+
+              <div class="add-record-option-meta" *ngIf="addRecordCsvName">
+                Selected: {{ addRecordCsvName }}
+              </div>
+
+              <div class="add-record-progress" *ngIf="addRecordCsvUploading">
+                <div class="add-record-progress-label">
+                  <span>Uploading CSV geometry...</span>
+                  <span>{{ addRecordCsvProgress }}%</span>
+                </div>
+                <div class="add-record-progress-track">
+                  <div class="add-record-progress-bar" [style.width.%]="addRecordCsvProgress"></div>
+                </div>
+              </div>
+
+              <button class="btn primary add-record-option-btn" type="button"
+                [disabled]="!addRecordCsvFile || addRecordCsvUploading"
+                (click)="uploadAddRecordCsvGeometry()">
+                {{ addRecordCsvUploading ? 'Uploading...' : 'Upload CSV Geometry' }}
+              </button>
+            </div>
+
+            <div class="add-record-option-card" *ngIf="isCurrentLayerPointGeometry()">
+              <div class="add-record-option-title">Use X / Y Coordinates</div>
+              <div class="add-record-option-text">
+                Enter EPSG:4326 coordinates. X is longitude and Y is latitude.
+              </div>
+
+              <div class="add-record-coordinate-grid">
+                <label>
+                  <span>X / Longitude</span>
+                  <input class="field-input" type="number" step="any" [(ngModel)]="addRecordCoordinateX"
+                    placeholder="72.123456" />
+                </label>
+                <label>
+                  <span>Y / Latitude</span>
+                  <input class="field-input" type="number" step="any" [(ngModel)]="addRecordCoordinateY"
+                    placeholder="23.123456" />
+                </label>
+              </div>
+
+              <div class="add-record-shapefile-error" *ngIf="addRecordCoordinateError">
+                {{ addRecordCoordinateError }}
+              </div>
+
+              <button class="btn primary add-record-option-btn" type="button"
+                (click)="createAddRecordFromCoordinates()">
+                Create From Coordinates
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -292,7 +356,7 @@
           type="button"
           (click)="deleteUploadedShapefileRecord()"
           [disabled]="deleting">
-          {{ deleting ? 'Deleting...' : 'Delete Uploaded Asset' }}
+          {{ deleting ? 'Deleting...' : directMainRecordDeleteLabel }}
         </button>
         <ng-template #normalBackButton>
           <button class="back-btn" (click)="cancelEdit()">Back</button>

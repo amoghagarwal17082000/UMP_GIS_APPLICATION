@@ -82,6 +82,23 @@ function resolveConfiguredColumn(field, tableColumns) {
   return aliases.find((alias) => tableColumns.includes(alias)) || null;
 }
 
+function resolveGeometryWriteColumn(config, tableColumns) {
+  const candidates = [
+    config?.geometry?.column,
+    config?.geometry?.readColumn,
+    'shape',
+    'geom',
+    'geometry',
+    'wkb_geometry',
+  ]
+    .map((column) => String(column || '').trim())
+    .filter(Boolean);
+
+  return candidates.find((candidate) =>
+    tableColumns.some((column) => String(column).toLowerCase() === candidate.toLowerCase()),
+  ) || null;
+}
+
 function getConfiguredFieldValue(data, configuredField, resolvedColumn) {
   const aliases = FIELD_ALIASES[configuredField] || FIELD_ALIASES[resolvedColumn] || [configuredField];
   for (const key of [resolvedColumn, configuredField, ...aliases]) {
@@ -1268,12 +1285,15 @@ async function resendStationDraft(config, draftObjectId, division, data, makerUs
   }
 }
 
-async function create(config, data, division) {
+async function create(config, data, division, makerUserId = '') {
   const insertColumns = [config.idColumn, 'globalid'];
   const placeholders = [];
   const values = [];
   const tableColumns = await getTableColumns(pool, config.table);
   await ensureUniqueValidatedAssetId(pool, config, data, { mainTableColumns: tableColumns });
+  const auditColumns = new Set(['created_by', 'created_at', 'created_date']);
+  const hasInsertColumn = (columnName) =>
+    insertColumns.some((existing) => String(existing).toLowerCase() === String(columnName).toLowerCase());
 
   const nextId = config.idStrategy === 'manual'
     ? await getNextManualId(pool, config.table, config.idColumn)
@@ -1288,26 +1308,54 @@ async function create(config, data, division) {
   config.insertFields.forEach((field) => {
     const column = resolveConfiguredColumn(field, tableColumns);
     if (!column) return;
+    if (auditColumns.has(String(column).toLowerCase())) return;
+    if (insertColumns.some((existing) => String(existing).toLowerCase() === String(column).toLowerCase())) return;
     insertColumns.push(column);
     values.push(getConfiguredFieldValue(data, field, column));
     placeholders.push(`$${values.length}`);
   });
 
-  insertColumns.push('division');
-  values.push(division);
-  placeholders.push(`$${values.length}`);
+  if (!insertColumns.some((column) => String(column).toLowerCase() === 'division')) {
+    insertColumns.push('division');
+    values.push(division);
+    placeholders.push(`$${values.length}`);
+  }
 
-  if (config.geometry?.enabled && config.geometry.column) {
+  if (tableColumns.includes('created_by') && !hasInsertColumn('created_by')) {
+    const creatorName = makerUserId
+      ? await getUserNameByUserId(pool, makerUserId)
+      : String(data?.created_by || '').trim();
+    insertColumns.push('created_by');
+    values.push(creatorName || null);
+    placeholders.push(`$${values.length}`);
+  }
+
+  const createdTimestampColumn = ['created_at', 'created_date'].find((column) => tableColumns.includes(column));
+  if (createdTimestampColumn && !hasInsertColumn(createdTimestampColumn)) {
+    insertColumns.push(createdTimestampColumn);
+    placeholders.push('NOW()');
+  }
+
+  const geometryWriteColumn = config.geometry?.enabled
+    ? resolveGeometryWriteColumn(config, tableColumns)
+    : null;
+
+  if (geometryWriteColumn) {
     const x = Number(data?.[config.geometry.xField] ?? data?.xcoord ?? data?.lng ?? data?.longitude ?? null);
     const y = Number(data?.[config.geometry.yField] ?? data?.ycoord ?? data?.lat ?? data?.latitude ?? null);
 
     if (Number.isFinite(x) && Number.isFinite(y)) {
-      insertColumns.push(config.geometry.column);
-      values.push(x);
-      const xIndex = values.length;
-      values.push(y);
-      const yIndex = values.length;
-      placeholders.push(`ST_SetSRID(ST_MakePoint($${xIndex}, $${yIndex}), 4326)`);
+      const geometryColumnAlreadyAdded = insertColumns.some(
+        (column) => String(column).toLowerCase() === String(geometryWriteColumn).toLowerCase(),
+      );
+      if (!geometryColumnAlreadyAdded) {
+        insertColumns.push(geometryWriteColumn);
+        values.push(x);
+        const xIndex = values.length;
+        values.push(y);
+        const yIndex = values.length;
+        placeholders.push(`ST_SetSRID(ST_MakePoint($${xIndex}, $${yIndex}), 4326)`);
+      }
     }
   }
 
@@ -1389,7 +1437,7 @@ async function getTable(config, page, pageSize, q, division, status = '', divisi
   if (status) {
     if (tableColumns.includes('status')) {
       if (String(status).trim().toLowerCase() === '__empty__') {
-        where += ` AND status IS NULL`;
+        where += ` AND (status IS NULL OR TRIM(COALESCE(status::text, '')) = '' OR UPPER(TRIM(status::text)) = 'ASSET SAVED')`;
       } else {
         params.push(status);
         where += ` AND UPPER(status) = UPPER($${params.length})`;
@@ -1440,6 +1488,9 @@ async function getMakerEditTable(config, page, pageSize, q, division, divisionAl
   const mainTableColumns = await getTableColumns(pool, config.table);
   const workflow = config.draftWorkflow;
   const draftTableColumns = await getTableColumns(pool, workflow.table);
+  if (!draftTableColumns.length) {
+    return getTable({ ...config, draftWorkflow: null }, page, pageSize, q, division, '__empty__', divisionAliases);
+  }
   const divisionColumn = getDivisionColumn(mainTableColumns);
   const draftDivisionColumn = getDivisionColumn(draftTableColumns);
   const geometryColumn = getGeometryReadColumn(config, mainTableColumns);
@@ -1498,8 +1549,11 @@ async function getMakerEditTable(config, page, pageSize, q, division, divisionAl
   const mainSearchWhere = mainSearchConditions.length ? `AND (${mainSearchConditions.join(' OR ')})` : '';
   const draftSearchWhere = draftSearchConditions.length ? `AND (${draftSearchConditions.join(' OR ')})` : '';
 
-  const draftJoin = workflow.editIdColumn && draftTableColumns.includes(workflow.editIdColumn)
-    ? `LEFT JOIN ${config.table} m ON m.${quoteIdentifier(config.idColumn)}::text = d.${quoteIdentifier(workflow.editIdColumn)}::text AND ${mainDivisionWhere}`
+  const draftMainRefColumn = [workflow.editIdColumn, workflow.originalIdColumn]
+    .find((column) => column && draftTableColumns.includes(column));
+
+  const draftJoin = draftMainRefColumn
+    ? `LEFT JOIN ${config.table} m ON m.${quoteIdentifier(config.idColumn)}::text = d.${quoteIdentifier(draftMainRefColumn)}::text AND ${mainDivisionWhere}`
     : '';
 
   const mainSql = `
@@ -1517,8 +1571,8 @@ async function getMakerEditTable(config, page, pageSize, q, division, divisionAl
       LIMIT ${fetchLimit}
   `;
 
-  const editIdSortExpr = workflow.editIdColumn && draftTableColumns.includes(workflow.editIdColumn)
-    ? `NULLIF(REGEXP_REPLACE(d.${quoteIdentifier(workflow.editIdColumn)}::text, '[^0-9]', '', 'g'), '')::bigint`
+  const editIdSortExpr = draftMainRefColumn
+    ? `NULLIF(REGEXP_REPLACE(d.${quoteIdentifier(draftMainRefColumn)}::text, '[^0-9]', '', 'g'), '')::bigint`
     : 'NULL::bigint';
   const draftSql = `
     SELECT

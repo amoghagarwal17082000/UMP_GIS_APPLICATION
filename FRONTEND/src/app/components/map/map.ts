@@ -300,11 +300,23 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   }
 
   private createDraggableCircleMarker(ll: L.LatLng): L.Marker {
+    this.ensureDragMarkerPane();
     const size = 34; const border = 5;
-    const icon = L.divIcon({ className: 'drag-circle-icon', html: `<div style="width:${size}px;height:${size}px;border:${border}px solid #7c3aed;background: rgba(167,139,250,0.60);border-radius: 50%;box-sizing: border-box;box-shadow: 0 2px 10px rgba(0,0,0,0.25);"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
-    const m = L.marker(ll, { draggable: true, icon, keyboard: false, autoPan: true, autoPanPadding: L.point(40, 40) });
+    const icon = L.divIcon({ className: 'drag-circle-icon', html: `<div style="width:${size}px;height:${size}px;border:${border}px solid #7c3aed;background: rgba(167,139,250,0.60);border-radius: 50%;box-sizing: border-box;box-shadow: 0 2px 10px rgba(0,0,0,0.25);cursor:grab;pointer-events:auto;"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+    const m = L.marker(ll, { draggable: true, icon, keyboard: false, autoPan: true, autoPanPadding: L.point(40, 40), interactive: true, pane: 'DragMarkerPane' });
     (m as any).setZIndexOffset?.(9999);
     return m;
+  }
+
+  private ensureDragMarkerPane(): void {
+    if (!this.map) return;
+    if (!this.map.getPane('DragMarkerPane')) {
+      this.map.createPane('DragMarkerPane');
+    }
+    const pane = this.map.getPane('DragMarkerPane');
+    if (!pane) return;
+    pane.style.zIndex = '760';
+    pane.style.pointerEvents = 'auto';
   }
 
   private createFocusCircleMarker(ll: L.LatLng, size = 34, border = 3, fillOpacity = 0.28): L.Marker {
